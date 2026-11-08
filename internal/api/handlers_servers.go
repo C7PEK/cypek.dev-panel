@@ -19,6 +19,7 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/servers"
 	"github.com/cypek019/cypek.dev---panel/internal/shim"
 	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
+	"github.com/cypek019/cypek.dev---panel/internal/templates"
 )
 
 const (
@@ -61,7 +62,16 @@ const ctxServer ctxKey = 10
 
 type serverResponse struct {
 	*servers.Server
-	Status supervisor.Status `json:"status"`
+	Status    supervisor.Status `json:"status"`
+	Variables map[string]string `json:"variables"`
+}
+
+func (s *Server) toResponse(ctx context.Context, srv *servers.Server) serverResponse {
+	var tpl *templates.Template
+	if isTemplateServer(srv) {
+		tpl, _ = s.templates.Get(srv.TemplateID)
+	}
+	return serverResponse{Server: srv, Status: s.statusOf(ctx, srv.ID), Variables: maskedVariables(tpl, srv.Variables)}
 }
 
 // serverInput mirrors the Server JSON. On create the required fields must be
@@ -72,6 +82,10 @@ type serverInput struct {
 	Limits    *limitsInput    `json:"limits"`
 	Autostart *bool           `json:"autostart"`
 	Ports     *[]servers.Port `json:"ports"`
+	// TemplateID + Variables create a server from a template (create only);
+	// Variables alone reconfigure a template server (patch).
+	TemplateID *string            `json:"templateId"`
+	Variables  *map[string]string `json:"variables"`
 }
 
 type runInput struct {
@@ -105,7 +119,7 @@ func (in *serverInput) apply(srv *servers.Server, creating bool) (field, msg str
 	} else if creating {
 		return "name", "Name is required."
 	}
-	if in.Run == nil && creating {
+	if in.Run == nil && creating && !in.fromTemplate() {
 		return "run.command", "Command is required."
 	}
 	if in.Run != nil {
@@ -142,6 +156,10 @@ func (in *serverInput) apply(srv *servers.Server, creating bool) (field, msg str
 		srv.Ports = *in.Ports
 	}
 	return "", ""
+}
+
+func (in *serverInput) fromTemplate() bool {
+	return in.TemplateID != nil && *in.TemplateID != "" && *in.TemplateID != customTemplateID
 }
 
 func (in *runInput) apply(run *shim.RunConfig, creating bool) (field, msg string) {
@@ -270,7 +288,7 @@ func (s *Server) statusOf(ctx context.Context, id string) supervisor.Status {
 }
 
 func (s *Server) respondServer(w http.ResponseWriter, r *http.Request, status int, srv *servers.Server) {
-	writeJSON(w, status, serverResponse{Server: srv, Status: s.statusOf(r.Context(), srv.ID)})
+	writeJSON(w, status, s.toResponse(r.Context(), srv))
 }
 
 func (s *Server) handleListServers(w http.ResponseWriter, r *http.Request) {
@@ -290,7 +308,7 @@ func (s *Server) handleListServers(w http.ResponseWriter, r *http.Request) {
 	}
 	items := make([]serverResponse, 0, len(list))
 	for _, srv := range list {
-		items = append(items, serverResponse{Server: srv, Status: s.statusOf(r.Context(), srv.ID)})
+		items = append(items, s.toResponse(r.Context(), srv))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
@@ -305,15 +323,73 @@ func (s *Server) handleCreateServer(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &in) {
 		return
 	}
-	srv := &servers.Server{TemplateID: "custom", Category: servers.CategoryOther, CreatedBy: &user.ID}
+	srv := &servers.Server{TemplateID: customTemplateID, Category: servers.CategoryOther, CreatedBy: &user.ID}
 	if field, msg := in.apply(srv, true); field != "" {
 		writeFieldError(w, CodeValidation, field, msg)
 		return
+	}
+	var (
+		tpl      *templates.Template
+		userVars map[string]string
+	)
+	if in.fromTemplate() {
+		var ok bool
+		tpl, ok = s.templates.Get(*in.TemplateID)
+		if !ok {
+			writeFieldError(w, CodeValidation, "templateId", "Unknown template.")
+			return
+		}
+		given := map[string]string{}
+		if in.Variables != nil {
+			given = *in.Variables
+		}
+		vals, err := tpl.ValidateValues(given)
+		if err != nil {
+			var ve *templates.ValueError
+			if errors.As(err, &ve) {
+				writeFieldError(w, CodeValidation, "variables."+ve.Key, ve.Message)
+				return
+			}
+			s.internalError(w, r, err)
+			return
+		}
+		for i := range tpl.Variables {
+			v := &tpl.Variables[i]
+			if err := s.validateSourceValue(r.Context(), v, vals[v.Key]); err != nil {
+				var ve *templates.ValueError
+				if errors.As(err, &ve) {
+					writeFieldError(w, CodeValidation, "variables."+ve.Key, ve.Message)
+					return
+				}
+				writeError(w, http.StatusBadGateway, CodeUpstream, "Could not verify "+v.Key+": "+err.Error())
+				return
+			}
+		}
+		userVars = vals
+		srv.TemplateID = tpl.ID
+		srv.Category = tpl.Category
+		srv.InstallState = servers.InstallPending
+		srv.Variables = map[string]string{}
+		for k, v := range vals {
+			if tpl.Variable(k).Type == templates.TypeSecret {
+				if v, err = s.secrets.Seal(v); err != nil {
+					s.internalError(w, r, err)
+					return
+				}
+			}
+			srv.Variables[k] = v
+		}
 	}
 	created, err := s.servers.Create(r.Context(), srv)
 	if err != nil {
 		s.internalError(w, r, err)
 		return
+	}
+	if tpl != nil {
+		if err := s.startInstall(created, tpl, userVars); err != nil {
+			s.log.Error("start install", "server", created.ID, "err", err)
+			_ = s.servers.SetInstallState(r.Context(), created.ID, servers.InstallFailed, err.Error())
+		}
 	}
 	if err := s.applySupervisorSettings(r.Context(), created, in.Limits != nil, in.Autostart != nil); err != nil {
 		s.log.Warn("apply supervisor settings after create", "server", created.ID, "err", err)
@@ -334,6 +410,27 @@ func (s *Server) handleUpdateServer(w http.ResponseWriter, r *http.Request) {
 		writeFieldError(w, CodeValidation, field, msg)
 		return
 	}
+	if in.Variables != nil {
+		if !isTemplateServer(srv) {
+			writeFieldError(w, CodeValidation, "variables", "This server has no template variables; edit the command instead.")
+			return
+		}
+		if srv.InstallState != servers.InstallReady {
+			writeError(w, http.StatusConflict, CodeNotInstalled, "Finish the installation before changing settings.")
+			return
+		}
+		if code, field, msg, err := s.applyVariables(r.Context(), srv, *in.Variables); err != nil {
+			s.internalError(w, r, err)
+			return
+		} else if msg != "" {
+			if field != "" {
+				writeFieldError(w, code, field, msg)
+			} else {
+				writeError(w, http.StatusBadGateway, code, msg)
+			}
+			return
+		}
+	}
 	if err := s.servers.Update(r.Context(), srv); err != nil {
 		s.internalError(w, r, err)
 		return
@@ -344,6 +441,71 @@ func (s *Server) handleUpdateServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.respondServer(w, r, http.StatusOK, srv)
+}
+
+// applyVariables validates new template variables, re-applies the
+// template's config steps and rebuilds the run config in place. It returns a
+// user-facing (code, field, message) on validation problems.
+func (s *Server) applyVariables(ctx context.Context, srv *servers.Server, given map[string]string) (code, field, msg string, err error) {
+	tpl, ok := s.templates.Get(srv.TemplateID)
+	if !ok {
+		return CodeTemplateError, "", "The template this server was created from is no longer available.", nil
+	}
+	current, builtins, err := s.splitVars(tpl, srv.Variables)
+	if err != nil {
+		return "", "", "", err
+	}
+	// Secrets shown masked come back masked: keep the stored value then.
+	merged := map[string]string{}
+	for k, v := range current {
+		merged[k] = v
+	}
+	for k, v := range given {
+		if tv := tpl.Variable(k); tv != nil && tv.Type == templates.TypeSecret && v == "••••••••" {
+			continue
+		}
+		merged[k] = v
+	}
+	vals, err := tpl.ValidateValues(merged)
+	if err != nil {
+		var ve *templates.ValueError
+		if errors.As(err, &ve) {
+			return CodeValidation, "variables." + ve.Key, ve.Message, nil
+		}
+		return "", "", "", err
+	}
+	for i := range tpl.Variables {
+		v := &tpl.Variables[i]
+		if v.Source == "" || vals[v.Key] == current[v.Key] {
+			continue // unchanged dynamic values need no upstream round trip
+		}
+		if err := s.validateSourceValue(ctx, v, vals[v.Key]); err != nil {
+			var ve *templates.ValueError
+			if errors.As(err, &ve) {
+				return CodeValidation, "variables." + ve.Key, ve.Message, nil
+			}
+			return CodeUpstream, "", "Could not verify " + v.Key + ": " + err.Error(), nil
+		}
+	}
+	res, err := s.installer.Reconfigure(s.servers.Dir(srv.ID), tpl, vals, builtins)
+	if err != nil {
+		return CodeTemplateError, "", "Could not apply the new settings: " + err.Error(), nil
+	}
+	srv.Run = res.Run
+	srv.Ports = res.Ports
+	srv.Variables = map[string]string{}
+	for k, v := range vals {
+		if tpl.Variable(k).Type == templates.TypeSecret {
+			if v, err = s.secrets.Seal(v); err != nil {
+				return "", "", "", err
+			}
+		}
+		srv.Variables[k] = v
+	}
+	for k, v := range res.Builtins {
+		srv.Variables[k] = v
+	}
+	return "", "", "", nil
 }
 
 // applySupervisorSettings pushes limits and autostart to the supervisor when
@@ -371,6 +533,11 @@ func (s *Server) handleDeleteServer(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, CodeServerRunning, "Stop the server before deleting it.")
 		return
 	}
+	if s.installer.Running(srv.ID) {
+		writeError(w, http.StatusConflict, CodeInstalling, "Wait for the installation to finish before deleting the server.")
+		return
+	}
+	defer s.installer.Forget(srv.ID)
 	removeFiles := r.URL.Query().Get("files") != "0"
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
@@ -412,6 +579,10 @@ func (s *Server) handlePower(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Action == "start" || req.Action == "restart" {
+		if srv.InstallState != servers.InstallReady {
+			writeError(w, http.StatusConflict, CodeNotInstalled, "The server is not installed yet. Check the installation status.")
+			return
+		}
 		if msg := commandProblem(srv.Run.Command, s.servers.Dir(srv.ID)); msg != "" {
 			writeFieldError(w, CodeCommandNotFound, "run.command", msg)
 			return

@@ -413,3 +413,45 @@ func insideDir(dir, rel string) (string, error) {
 	}
 	return p, nil
 }
+
+// Reconfigure re-applies the template's write/properties steps and rebuilds
+// the run config after the user changed variables, reusing the builtins
+// (Java path, JVM flags) resolved by the original installation. It runs
+// synchronously: no downloads happen.
+func (m *Manager) Reconfigure(serverDir string, tpl *templates.Template, userVars, builtins map[string]string) (*Result, error) {
+	vars := map[string]string{}
+	for k, v := range builtins {
+		vars[k] = v
+	}
+	for k, v := range userVars {
+		vars[k] = v
+	}
+	if _, ok := vars[templates.KeyJVMFlags]; !ok {
+		vars[templates.KeyJVMFlags] = "[]"
+	}
+	job := &Job{ServerID: filepath.Base(serverDir), State: JobRunning, Steps: len(tpl.Install) + 1, StartedAt: time.Now(), Percent: -1}
+	c := &stepCtx{m: m, job: job, dir: serverDir, vars: vars}
+	for i, st := range tpl.Install {
+		var err error
+		switch {
+		case st.Write != nil:
+			err = c.write(i+1, st.Write)
+		case st.Properties != nil:
+			err = c.properties(i+1, st.Properties)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	run, ports, err := templates.BuildRun(tpl, vars)
+	if err != nil {
+		return nil, fmt.Errorf("build run config: %w", err)
+	}
+	out := map[string]string{}
+	for k, v := range vars {
+		if _, user := userVars[k]; !user {
+			out[k] = v
+		}
+	}
+	return &Result{Run: run, Ports: ports, Builtins: out}, nil
+}

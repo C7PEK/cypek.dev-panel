@@ -20,9 +20,15 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
 	"github.com/cypek019/cypek.dev---panel/internal/config"
 	"github.com/cypek019/cypek.dev---panel/internal/db"
+	"github.com/cypek019/cypek.dev---panel/internal/installer"
 	"github.com/cypek019/cypek.dev---panel/internal/netinfo"
+	"github.com/cypek019/cypek.dev---panel/internal/providers"
+	"github.com/cypek019/cypek.dev---panel/internal/runtimes"
+	"github.com/cypek019/cypek.dev---panel/internal/secrets"
 	"github.com/cypek019/cypek.dev---panel/internal/servers"
 	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
+	"github.com/cypek019/cypek.dev---panel/internal/templates"
+	builtinTemplates "github.com/cypek019/cypek.dev---panel/templates"
 	"github.com/cypek019/cypek.dev---panel/web"
 )
 
@@ -79,15 +85,40 @@ func runServe(args []string) error {
 		return fmt.Errorf("prepare setup token: %w", err)
 	}
 
+	registry, err := templates.Load(builtinTemplates.Builtin, cfg.UserTemplatesDir())
+	if err != nil {
+		return fmt.Errorf("load templates: %w", err)
+	}
+	log.Info("templates loaded", "count", len(registry.List()))
+	key, err := cfg.SecretKeyBytes()
+	if err != nil {
+		return fmt.Errorf("encryption_key: %w", err)
+	}
+	box, err := secrets.New(key)
+	if err != nil {
+		return err
+	}
+	paper := providers.NewPaper()
+	inst := installer.New(installer.Deps{
+		Paper: paper,
+		Java:  &runtimes.Java{Dir: cfg.RuntimesDir(), Adoptium: providers.NewAdoptium()},
+		Log:   log,
+	})
+
 	deps := api.Deps{
-		Config:  cfg,
-		Store:   store,
-		Audit:   auditLog,
-		Log:     log,
-		Version: version,
-		Servers: serverStore,
-		Sup:     sup,
-		Dist:    mustSub(web.Dist, "dist"),
+		Config:    cfg,
+		Store:     store,
+		Audit:     auditLog,
+		Log:       log,
+		Version:   version,
+		Servers:   serverStore,
+		Sup:       sup,
+		Templates: registry,
+		Installer: inst,
+		Paper:     paper,
+		Secrets:   box,
+		BgCtx:     ctx,
+		Dist:      mustSub(web.Dist, "dist"),
 	}
 	if cfg.Dev {
 		deps.DevProxy = devViteURL

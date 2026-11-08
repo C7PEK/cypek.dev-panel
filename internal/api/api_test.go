@@ -19,17 +19,25 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
 	"github.com/cypek019/cypek.dev---panel/internal/config"
 	"github.com/cypek019/cypek.dev---panel/internal/db"
+	"github.com/cypek019/cypek.dev---panel/internal/installer"
+	"github.com/cypek019/cypek.dev---panel/internal/providers"
+	"github.com/cypek019/cypek.dev---panel/internal/runtimes"
+	"github.com/cypek019/cypek.dev---panel/internal/secrets"
 	"github.com/cypek019/cypek.dev---panel/internal/servers"
 	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
+	"github.com/cypek019/cypek.dev---panel/internal/templates"
+	builtinTemplates "github.com/cypek019/cypek.dev---panel/templates"
 )
 
 type testEnv struct {
-	t      *testing.T
-	srv    *httptest.Server
-	client *http.Client
-	store  *auth.Store
-	cfg    *config.Config
-	csrf   string
+	t        *testing.T
+	srv      *httptest.Server
+	client   *http.Client
+	store    *auth.Store
+	cfg      *config.Config
+	csrf     string
+	paper    *providers.Paper
+	adoptium *providers.Adoptium
 }
 
 func newEnv(t *testing.T) *testEnv {
@@ -61,14 +69,23 @@ func newEnv(t *testing.T) *testEnv {
 		"index.html":    {Data: []byte("<html>spa</html>")},
 		"assets/app.js": {Data: []byte("console.log(1)")},
 	}
-	h, err := New(Deps{Config: cfg, Store: store, Audit: audit.New(sqlDB, log), Log: log, Version: "test", Dist: dist, Servers: serverStore, Sup: sup})
+	registry, err := templates.Load(builtinTemplates.Builtin, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	paper := &providers.Paper{BaseURL: "https://127.0.0.1:1", Project: "paper"}
+	adoptium := &providers.Adoptium{BaseURL: "https://127.0.0.1:1"}
+	inst := installer.New(installer.Deps{Paper: paper, Java: &runtimes.Java{Dir: filepath.Join(dir, "runtimes"), Adoptium: adoptium}, Log: log})
+	box, _ := secrets.New(bytes.Repeat([]byte{1}, 32))
+	h, err := New(Deps{Config: cfg, Store: store, Audit: audit.New(sqlDB, log), Log: log, Version: "test", Dist: dist, Servers: serverStore, Sup: sup,
+		Templates: registry, Installer: inst, Paper: paper, Secrets: box})
 	if err != nil {
 		t.Fatal(err)
 	}
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
 	jar, _ := cookiejar.New(nil)
-	return &testEnv{t: t, srv: srv, client: &http.Client{Jar: jar}, store: store, cfg: cfg}
+	return &testEnv{t: t, srv: srv, client: &http.Client{Jar: jar}, store: store, cfg: cfg, paper: paper, adoptium: adoptium}
 }
 
 // do sends a JSON request, attaching the CSRF header when known.

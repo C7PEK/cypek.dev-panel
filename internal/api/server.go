@@ -2,10 +2,12 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"testing/fstest"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -14,8 +16,12 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/audit"
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
 	"github.com/cypek019/cypek.dev---panel/internal/config"
+	"github.com/cypek019/cypek.dev---panel/internal/installer"
+	"github.com/cypek019/cypek.dev---panel/internal/providers"
+	"github.com/cypek019/cypek.dev---panel/internal/secrets"
 	"github.com/cypek019/cypek.dev---panel/internal/servers"
 	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
+	"github.com/cypek019/cypek.dev---panel/internal/templates"
 )
 
 // Deps are the collaborators the API needs.
@@ -27,6 +33,13 @@ type Deps struct {
 	Version string
 	Servers *servers.Store
 	Sup     supervisor.Supervisor
+	// Templates, Installer, Paper and Secrets back server creation from templates.
+	Templates *templates.Registry
+	Installer *installer.Manager
+	Paper     *providers.Paper
+	Secrets   *secrets.Box
+	// BgCtx outlives requests; background installs run under it.
+	BgCtx context.Context
 	// Dist is the built frontend. Ignored when DevProxy is set.
 	Dist fs.FS
 	// DevProxy, when non-empty, forwards non-API requests to a Vite dev server
@@ -44,6 +57,12 @@ type Server struct {
 	servers *servers.Store
 	sup     supervisor.Supervisor
 
+	templates *templates.Registry
+	installer *installer.Manager
+	paper     *providers.Paper
+	secrets   *secrets.Box
+	bgCtx     context.Context
+
 	loginLimitIP   *auth.RateLimiter
 	loginLimitUser *auth.RateLimiter
 	setupLimit     *auth.RateLimiter
@@ -59,9 +78,33 @@ func New(d Deps) (http.Handler, error) {
 		version:        d.Version,
 		servers:        d.Servers,
 		sup:            d.Sup,
+		templates:      d.Templates,
+		installer:      d.Installer,
+		paper:          d.Paper,
+		secrets:        d.Secrets,
+		bgCtx:          d.BgCtx,
 		loginLimitIP:   auth.NewRateLimiter(20, 10*time.Minute),
 		loginLimitUser: auth.NewRateLimiter(8, 15*time.Minute),
 		setupLimit:     auth.NewRateLimiter(10, 15*time.Minute),
+	}
+
+	if s.bgCtx == nil {
+		s.bgCtx = context.Background()
+	}
+	if s.templates == nil {
+		s.templates, _ = templates.Load(fstest.MapFS{}, "")
+	}
+	if s.installer == nil {
+		s.installer = installer.New(installer.Deps{Log: d.Log})
+	}
+	if s.paper == nil {
+		s.paper = providers.NewPaper()
+	}
+	if s.secrets == nil {
+		s.secrets, _ = secrets.New(make([]byte, 32))
+	}
+	if s.servers != nil {
+		s.recoverInstalls(s.bgCtx)
 	}
 
 	r := chi.NewRouter()
@@ -86,6 +129,9 @@ func New(d Deps) (http.Handler, error) {
 
 			priv.With(s.requireRole(auth.RoleAdmin)).Get("/audit", s.handleAuditRecent)
 
+			priv.With(s.requireRole(auth.RoleAdmin)).Get("/templates", s.handleListTemplates)
+			priv.With(s.requireRole(auth.RoleAdmin)).Get("/templates/{id}/sources/{source}", s.handleTemplateSource)
+
 			priv.Get("/servers", s.handleListServers)
 			priv.With(s.requireRole(auth.RoleAdmin)).Post("/servers", s.handleCreateServer)
 			priv.Route("/servers/{id}", func(sr chi.Router) {
@@ -94,6 +140,8 @@ func New(d Deps) (http.Handler, error) {
 				sr.With(s.withServer(auth.PermDelete)).Delete("/", s.handleDeleteServer)
 				sr.With(s.withServer(auth.PermPower)).Post("/power", s.handlePower)
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/console", s.handleConsole)
+				sr.With(s.withServer(auth.PermConsoleRead)).Get("/install", s.handleInstallStatus)
+				sr.With(s.withServer(auth.PermSettings)).Post("/install", s.handleReinstall)
 			})
 		})
 
