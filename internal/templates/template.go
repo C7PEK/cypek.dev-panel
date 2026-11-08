@@ -130,6 +130,21 @@ type Query struct {
 	Port string `yaml:"port" json:"port"`
 }
 
+// Command is a console hint: the UI suggests it while typing and completes
+// its arguments. Args uses a tiny grammar: <required>, [optional], <a|b|c>
+// for choices, <player>/[player] for an online player, <text...> for the rest
+// of the line.
+type Command struct {
+	Name string `yaml:"name" json:"name"`
+	Args string `yaml:"args,omitempty" json:"args,omitempty"`
+	Help Text   `yaml:"help,omitempty" json:"help,omitempty"`
+}
+
+// Console groups console-related hints.
+type Console struct {
+	Commands []Command `yaml:"commands,omitempty" json:"commands,omitempty"`
+}
+
 // Template is a parsed template file.
 type Template struct {
 	ID          string           `yaml:"id" json:"id"`
@@ -146,6 +161,7 @@ type Template struct {
 	Ports       []Port           `yaml:"ports,omitempty" json:"ports,omitempty"`
 	WarnCommand string           `yaml:"warnCommand,omitempty" json:"warnCommand,omitempty"`
 	Query       *Query           `yaml:"query,omitempty" json:"query,omitempty"`
+	Console     Console          `yaml:"console,omitempty" json:"console"`
 	// Builtin is true for templates embedded in the binary.
 	Builtin bool `yaml:"-" json:"builtin"`
 }
@@ -256,6 +272,14 @@ func (t *Template) Validate() error {
 			return fmt.Errorf("template %s: port %s: protocol must be tcp, udp or tcp+udp", t.ID, p.Name)
 		}
 	}
+	for _, c := range t.Console.Commands {
+		if c.Name == "" || strings.ContainsAny(c.Name, " \t\n") {
+			return fmt.Errorf("template %s: console command %q must be a single word", t.ID, c.Name)
+		}
+	}
+	if t.Query != nil && t.Query.Kind != "minecraft-ping" {
+		return fmt.Errorf("template %s: unknown query kind %q", t.ID, t.Query.Kind)
+	}
 	// Every {{KEY}} used anywhere must be a variable or a builtin.
 	for _, s := range t.allTemplatedStrings() {
 		for _, k := range placeholders(s) {
@@ -315,7 +339,7 @@ const (
 
 func isBuiltinKey(k string) bool {
 	switch k {
-	case KeyJava, KeyJVMFlags, KeyNode, KeyPython, KeyMessage:
+	case KeyJava, KeyJVMFlags, KeyNode, KeyPython, KeyMessage, KeyQueryKind, KeyQueryPort:
 		return true
 	}
 	return false

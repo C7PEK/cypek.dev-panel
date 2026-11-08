@@ -215,3 +215,46 @@ func TestCustomServerStillWorksWithTemplatesWired(t *testing.T) {
 		t.Errorf("variables on custom server: %d %v", resp.StatusCode, body)
 	}
 }
+
+func TestConsoleHints(t *testing.T) {
+	e := newEnv(t)
+	withFakeUpstream(t, e)
+	e.completeSetup("owner", "password123")
+	resp, body := e.do(http.MethodPost, "/api/v1/servers", map[string]any{"name": "MC", "templateId": "minecraft-paper",
+		"variables": map[string]string{"MC_VERSION": "latest", "EULA": "true"}})
+	if resp.StatusCode != 201 {
+		t.Fatalf("create: %d %v", resp.StatusCode, body)
+	}
+	id := body["id"].(string)
+	e.waitInstall(id)
+	resp, body = e.do(http.MethodGet, "/api/v1/servers/"+id+"/console/hints", nil)
+	cmds := body["commands"].([]any)
+	if resp.StatusCode != 200 || len(cmds) < 20 {
+		t.Fatalf("hints: %d %v", resp.StatusCode, body)
+	}
+	found := false
+	for _, c := range cmds {
+		m := c.(map[string]any)
+		if m["name"] == "gamemode" && strings.Contains(m["args"].(string), "[player]") && m["help"].(map[string]any)["pl"] != "" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("gamemode hint missing: %v", cmds)
+	}
+	if _, ok := body["players"]; ok {
+		t.Error("players present while stopped")
+	}
+	_, body = e.do(http.MethodGet, "/api/v1/servers/"+id, nil)
+	if body["variables"].(map[string]any)["QUERY_PORT"] != nil {
+		t.Error("query builtins leaked into variables")
+	}
+
+	// Custom servers have no commands.
+	resp, body = e.do(http.MethodPost, "/api/v1/servers", fakeServerBody("Custom"))
+	cid := body["id"].(string)
+	_, body = e.do(http.MethodGet, "/api/v1/servers/"+cid+"/console/hints", nil)
+	if len(body["commands"].([]any)) != 0 {
+		t.Errorf("custom server hints = %v", body)
+	}
+}

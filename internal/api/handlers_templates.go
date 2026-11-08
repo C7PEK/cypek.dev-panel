@@ -11,7 +11,9 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/audit"
 	"github.com/cypek019/cypek.dev---panel/internal/installer"
 	"github.com/cypek019/cypek.dev---panel/internal/providers"
+	"github.com/cypek019/cypek.dev---panel/internal/query"
 	"github.com/cypek019/cypek.dev---panel/internal/servers"
+	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
 	"github.com/cypek019/cypek.dev---panel/internal/templates"
 )
 
@@ -244,6 +246,28 @@ func (s *Server) recoverInstalls(ctx context.Context) {
 			_ = s.servers.SetInstallState(ctx, srv.ID, servers.InstallFailed, "The panel was restarted during installation. Run the installation again.")
 		}
 	}
+}
+
+// consoleHints feeds the console's autocompletion: the template's command
+// list and the players online right now.
+type consoleHints struct {
+	Commands []templates.Command `json:"commands"`
+	Players  *query.Players      `json:"players,omitempty"`
+}
+
+func (s *Server) handleConsoleHints(w http.ResponseWriter, r *http.Request) {
+	srv := serverFromContext(r.Context())
+	hints := consoleHints{Commands: []templates.Command{}}
+	if tpl, ok := s.templates.Get(srv.TemplateID); ok && isTemplateServer(srv) {
+		hints.Commands = tpl.Console.Commands
+		if hints.Commands == nil {
+			hints.Commands = []templates.Command{}
+		}
+	}
+	if st := s.statusOf(r.Context(), srv.ID); st.State == supervisor.StateRunning {
+		hints.Players = s.playersOf(r.Context(), srv)
+	}
+	writeJSON(w, http.StatusOK, hints)
 }
 
 func isTemplateServer(srv *servers.Server) bool {

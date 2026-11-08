@@ -18,6 +18,7 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/config"
 	"github.com/cypek019/cypek.dev---panel/internal/installer"
 	"github.com/cypek019/cypek.dev---panel/internal/providers"
+	"github.com/cypek019/cypek.dev---panel/internal/query"
 	"github.com/cypek019/cypek.dev---panel/internal/secrets"
 	"github.com/cypek019/cypek.dev---panel/internal/servers"
 	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
@@ -62,6 +63,7 @@ type Server struct {
 	paper     *providers.Paper
 	secrets   *secrets.Box
 	bgCtx     context.Context
+	players   *query.Cache
 
 	loginLimitIP   *auth.RateLimiter
 	loginLimitUser *auth.RateLimiter
@@ -83,6 +85,7 @@ func New(d Deps) (http.Handler, error) {
 		paper:          d.Paper,
 		secrets:        d.Secrets,
 		bgCtx:          d.BgCtx,
+		players:        query.NewCache(3 * time.Second),
 		loginLimitIP:   auth.NewRateLimiter(20, 10*time.Minute),
 		loginLimitUser: auth.NewRateLimiter(8, 15*time.Minute),
 		setupLimit:     auth.NewRateLimiter(10, 15*time.Minute),
@@ -140,6 +143,7 @@ func New(d Deps) (http.Handler, error) {
 				sr.With(s.withServer(auth.PermDelete)).Delete("/", s.handleDeleteServer)
 				sr.With(s.withServer(auth.PermPower)).Post("/power", s.handlePower)
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/console", s.handleConsole)
+				sr.With(s.withServer(auth.PermConsoleRead)).Get("/console/hints", s.handleConsoleHints)
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/install", s.handleInstallStatus)
 				sr.With(s.withServer(auth.PermSettings)).Post("/install", s.handleReinstall)
 			})

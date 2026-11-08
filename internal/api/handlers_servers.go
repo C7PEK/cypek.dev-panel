@@ -16,6 +16,7 @@ import (
 
 	"github.com/cypek019/cypek.dev---panel/internal/audit"
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
+	"github.com/cypek019/cypek.dev---panel/internal/query"
 	"github.com/cypek019/cypek.dev---panel/internal/servers"
 	"github.com/cypek019/cypek.dev---panel/internal/shim"
 	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
@@ -64,6 +65,7 @@ type serverResponse struct {
 	*servers.Server
 	Status    supervisor.Status `json:"status"`
 	Variables map[string]string `json:"variables"`
+	Players   *query.Players    `json:"players,omitempty"`
 }
 
 func (s *Server) toResponse(ctx context.Context, srv *servers.Server) serverResponse {
@@ -71,7 +73,29 @@ func (s *Server) toResponse(ctx context.Context, srv *servers.Server) serverResp
 	if isTemplateServer(srv) {
 		tpl, _ = s.templates.Get(srv.TemplateID)
 	}
-	return serverResponse{Server: srv, Status: s.statusOf(ctx, srv.ID), Variables: maskedVariables(tpl, srv.Variables)}
+	st := s.statusOf(ctx, srv.ID)
+	resp := serverResponse{Server: srv, Status: st, Variables: maskedVariables(tpl, srv.Variables)}
+	if st.State == supervisor.StateRunning {
+		resp.Players = s.playersOf(ctx, srv)
+	}
+	return resp
+}
+
+// playersOf queries the game for its player count when the template told us
+// how; nil when unsupported or the server does not answer (still starting).
+func (s *Server) playersOf(ctx context.Context, srv *servers.Server) *query.Players {
+	kind := srv.Variables[templates.KeyQueryKind]
+	port, _ := strconv.Atoi(srv.Variables[templates.KeyQueryPort])
+	if kind == "" || port == 0 {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	p, err := s.players.Get(ctx, srv.ID, query.Spec{Kind: kind, Host: "127.0.0.1", Port: port})
+	if err != nil {
+		return nil
+	}
+	return p
 }
 
 // serverInput mirrors the Server JSON. On create the required fields must be
