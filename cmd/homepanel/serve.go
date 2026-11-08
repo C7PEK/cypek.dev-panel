@@ -1,0 +1,204 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/cypek019/cypek.dev---panel/internal/api"
+	"github.com/cypek019/cypek.dev---panel/internal/audit"
+	"github.com/cypek019/cypek.dev---panel/internal/auth"
+	"github.com/cypek019/cypek.dev---panel/internal/config"
+	"github.com/cypek019/cypek.dev---panel/internal/db"
+	"github.com/cypek019/cypek.dev---panel/internal/netinfo"
+	"github.com/cypek019/cypek.dev---panel/web"
+)
+
+const devViteURL = "http://127.0.0.1:5173"
+
+func runServe(args []string) error {
+	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
+	configPath := fs.String("config", config.DefaultPath, "path to config.toml")
+	dev := fs.Bool("dev", false, "development mode: data in ./.devdata, frontend proxied from the Vite dev server")
+	listen := fs.String("listen", "", "override listen address (e.g. 127.0.0.1:8420)")
+	logLevel := fs.String("log-level", "info", "log level: debug, info, warn, error")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	log := newLogger(*logLevel)
+
+	cfg, err := loadConfig(*configPath, *dev)
+	if err != nil {
+		return err
+	}
+	if *listen != "" {
+		cfg.Listen = *listen
+	}
+	if err := cfg.EnsureDirs(); err != nil {
+		return err
+	}
+
+	sqlDB, err := db.Open(cfg.DBPath())
+	if err != nil {
+		return err
+	}
+	defer sqlDB.Close()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	if err := db.Migrate(ctx, sqlDB, cfg.DBPath(), log); err != nil {
+		return err
+	}
+
+	store := auth.NewStore(sqlDB)
+	auditLog := audit.New(sqlDB, log)
+
+	setupToken, _, err := store.EnsureSetupToken(ctx, cfg.DataDir)
+	if err != nil {
+		return fmt.Errorf("prepare setup token: %w", err)
+	}
+
+	deps := api.Deps{
+		Config:  cfg,
+		Store:   store,
+		Audit:   auditLog,
+		Log:     log,
+		Version: version,
+		Dist:    mustSub(web.Dist, "dist"),
+	}
+	if cfg.Dev {
+		deps.DevProxy = devViteURL
+	}
+	handler, err := api.New(deps)
+	if err != nil {
+		return fmt.Errorf("build router: %w", err)
+	}
+
+	srv := &http.Server{
+		Addr:              cfg.Listen,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
+	}
+
+	ln, err := net.Listen("tcp", cfg.Listen)
+	if err != nil {
+		return fmt.Errorf("listen on %s: %w", cfg.Listen, err)
+	}
+
+	printBanner(cfg, setupToken)
+	log.Info("panel started", "version", version, "listen", cfg.Listen, "dev", cfg.Dev, "data", cfg.DataDir)
+
+	go sessionJanitor(ctx, store, log)
+
+	errCh := make(chan error, 1)
+	go func() {
+		var err error
+		if cfg.TLS.Enabled {
+			err = srv.ServeTLS(ln, cfg.TLS.CertFile, cfg.TLS.KeyFile)
+		} else {
+			err = srv.Serve(ln)
+		}
+		if !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+		}
+	}()
+
+	select {
+	case err := <-errCh:
+		return fmt.Errorf("http server: %w", err)
+	case <-ctx.Done():
+	}
+	log.Info("shutting down")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("shutdown: %w", err)
+	}
+	return nil
+}
+
+// loadConfig resolves the config for production or dev mode. Dev mode keeps
+// everything under ./.devdata and binds to localhost by default.
+func loadConfig(path string, dev bool) (*config.Config, error) {
+	if !dev {
+		cfg, err := config.Load(path)
+		if err != nil {
+			return nil, err
+		}
+		return cfg, nil
+	}
+	devDir, err := filepath.Abs(config.DevDataDir)
+	if err != nil {
+		return nil, err
+	}
+	base := config.Default()
+	base.Listen = fmt.Sprintf("127.0.0.1:%d", config.DefaultPort)
+	base.DataDir = devDir
+	base.LogDir = filepath.Join(devDir, "log")
+	if path == config.DefaultPath {
+		path = filepath.Join(devDir, "config.toml")
+	}
+	cfg, err := config.LoadOrCreate(path, base)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Dev = true
+	return cfg, nil
+}
+
+func printBanner(cfg *config.Config, setupToken string) {
+	addrs, _ := netinfo.LocalAddresses()
+	urls := netinfo.URLs(cfg.Listen, cfg.TLS.Enabled, addrs)
+	var b strings.Builder
+	b.WriteString("\n============================================================\n")
+	b.WriteString(fmt.Sprintf("  HomePanel %s is running\n\n", version))
+	b.WriteString("  Open in your browser:\n")
+	for _, u := range urls {
+		b.WriteString("    " + u + "\n")
+	}
+	if setupToken != "" {
+		b.WriteString("\n  First run: create the owner account with this setup token:\n")
+		b.WriteString("    " + setupToken + "\n")
+		b.WriteString(fmt.Sprintf("  (also saved in %s)\n", filepath.Join(cfg.DataDir, auth.SetupTokenFile)))
+	}
+	b.WriteString("============================================================\n\n")
+	fmt.Fprint(os.Stderr, b.String())
+}
+
+// sessionJanitor purges expired sessions once an hour.
+func sessionJanitor(ctx context.Context, store *auth.Store, log *slog.Logger) {
+	t := time.NewTicker(time.Hour)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			if n, err := store.PurgeExpiredSessions(ctx); err != nil {
+				log.Warn("purge sessions", "err", err)
+			} else if n > 0 {
+				log.Debug("purged expired sessions", "count", n)
+			}
+		}
+	}
+}
+
+func newLogger(level string) *slog.Logger {
+	var lvl slog.Level
+	if err := lvl.UnmarshalText([]byte(level)); err != nil {
+		lvl = slog.LevelInfo
+	}
+	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lvl}))
+}
