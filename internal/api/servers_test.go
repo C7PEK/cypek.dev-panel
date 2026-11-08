@@ -374,3 +374,22 @@ func TestConsoleWaitsForStoppedServer(t *testing.T) {
 	_, _ = e.do(http.MethodPost, "/api/v1/servers/"+id+"/power", map[string]string{"action": "kill"})
 	e.waitServerState(id, "stopped")
 }
+
+func TestStartRejectsMissingCommand(t *testing.T) {
+	e := newEnv(t)
+	e.completeSetup("owner", "password123")
+	body := fakeServerBody("Typo")
+	body["run"].(map[string]any)["command"] = "bin/cat"
+	resp, created := e.do(http.MethodPost, "/api/v1/servers", body)
+	if resp.StatusCode != 201 {
+		t.Fatalf("create: %d %v", resp.StatusCode, created)
+	}
+	id := created["id"].(string)
+	resp, out := e.do(http.MethodPost, "/api/v1/servers/"+id+"/power", map[string]string{"action": "start"})
+	if resp.StatusCode != 422 || errCode(out) != CodeCommandNotFound || out["error"].(map[string]any)["field"] != "run.command" {
+		t.Fatalf("start with bad command: %d %v", resp.StatusCode, out)
+	}
+	if st := e.waitServerState(id, "stopped"); st["status"].(map[string]any)["state"] != "stopped" {
+		t.Errorf("server should still be stopped: %v", st)
+	}
+}

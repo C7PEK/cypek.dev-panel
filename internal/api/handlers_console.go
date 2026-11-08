@@ -139,7 +139,7 @@ func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request) {
 				s.log.Warn("console attach", "server", srv.ID, "err", err)
 			}
 			st := s.statusOf(ctx, srv.ID)
-			if err := send(consoleMsg{Type: "state", State: string(st.State), ExitCode: st.ExitCode}); err != nil {
+			if err := send(consoleMsg{Type: "state", State: string(st.State), ExitCode: st.ExitCode, Message: st.Message}); err != nil {
 				return
 			}
 			// Poll until the server comes up or the browser leaves.

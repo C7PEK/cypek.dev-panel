@@ -55,12 +55,12 @@ func Main(args []string, defaultServersDir string, log *slog.Logger) int {
 	cfg, err := LoadRunConfig(*dir)
 	if err != nil {
 		log.Error("load run config", "err", err)
-		return 1
+		return ExitConfigError
 	}
 	s, err := New(cfg, Options{ID: id, ServerDir: *dir, SocketPath: *socket, Log: log})
 	if err != nil {
 		log.Error("init shim", "err", err)
-		return 1
+		return ExitConfigError
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
@@ -69,7 +69,9 @@ func Main(args []string, defaultServersDir string, log *slog.Logger) int {
 		if !errors.Is(err, context.Canceled) {
 			log.Error("shim failed", "err", err)
 		}
-		return 1
+		if code == 0 {
+			code = 1
+		}
 	}
 	return code
 }

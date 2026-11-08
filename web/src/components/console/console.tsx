@@ -47,15 +47,19 @@ function panelLine(text: string) {
   return `\r\n\x1b[2m${text}\x1b[0m\r\n`
 }
 
-function stateMessage(state: ServerState, exitCode?: number): string {
+function stateMessage(state: ServerState, exitCode?: number, message?: string): string {
+  let text: string
   switch (state) {
     case "stopped":
-      return exitCode === undefined ? i18n.t("console.msg.stopped") : i18n.t("console.msg.stoppedCode", { code: exitCode })
+      text = exitCode === undefined ? i18n.t("console.msg.stopped") : i18n.t("console.msg.stoppedCode", { code: exitCode })
+      break
     case "crashed":
-      return exitCode === undefined ? i18n.t("console.msg.crashedNoCode") : i18n.t("console.msg.crashed", { code: exitCode })
+      text = exitCode === undefined ? i18n.t("console.msg.crashedNoCode") : i18n.t("console.msg.crashed", { code: exitCode })
+      break
     default:
-      return i18n.t(`console.msg.${state}`)
+      text = i18n.t(`console.msg.${state}`)
   }
+  return message ? `${text} ${message}` : text
 }
 
 const isLive = (s: ServerState) => s === "running" || s === "starting"
@@ -168,7 +172,7 @@ export function Console({ serverId, initialState, className }: Props) {
           break
         case "state":
           setState(frame.state)
-          write(panelLine(stateMessage(frame.state, frame.exitCode)))
+          write(panelLine(stateMessage(frame.state, frame.exitCode, frame.message)))
           break
         case "error":
           write(panelLine(i18n.t("console.msg.error", { message: frame.message })))

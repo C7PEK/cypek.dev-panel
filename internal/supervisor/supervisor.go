@@ -33,6 +33,9 @@ type Status struct {
 	PID      int       `json:"pid,omitempty"`
 	Since    time.Time `json:"since,omitzero"`
 	ExitCode *int      `json:"exitCode,omitempty"`
+	// Message explains a crashed state when the shim recorded a reason
+	// (e.g. the command could not be started).
+	Message string `json:"message,omitempty"`
 	// Stats are filled when the server is running and the backend can read them.
 	MemoryBytes uint64 `json:"memoryBytes,omitempty"`
 	CPUNanos    uint64 `json:"cpuNanos,omitempty"`
@@ -142,7 +145,7 @@ func statusFromExit(serverDir string) Status {
 		return Status{State: StateStopped}
 	}
 	code := info.ExitCode
-	st := Status{State: StateStopped, ExitCode: &code}
+	st := Status{State: StateStopped, ExitCode: &code, Message: info.Error}
 	if !info.Requested && code != 0 {
 		st.State = StateCrashed
 	}

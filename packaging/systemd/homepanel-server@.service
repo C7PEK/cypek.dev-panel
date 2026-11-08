@@ -3,6 +3,9 @@ Description=HomePanel server %i
 Documentation=https://github.com/cypek019/cypek.dev---panel
 After=network-online.target
 Wants=network-online.target
+# A server that keeps dying is left alone after 5 failures in 2 minutes.
+StartLimitIntervalSec=120
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -17,6 +20,9 @@ KillMode=mixed
 TimeoutStopSec=90
 Restart=on-failure
 RestartSec=5
+# 78 (EX_CONFIG) = the shim could not even start the command; restarting
+# would not help, the configuration has to change.
+RestartPreventExitStatus=78
 # Game servers can be chatty.
 LimitNOFILE=65536
 

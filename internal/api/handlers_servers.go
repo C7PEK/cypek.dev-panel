@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -19,10 +22,40 @@ import (
 )
 
 const (
-	CodeServerRunning = "server_running"
-	CodeInvalidAction = "invalid_action"
-	CodeSupervisor    = "supervisor_error"
+	CodeServerRunning   = "server_running"
+	CodeInvalidAction   = "invalid_action"
+	CodeSupervisor      = "supervisor_error"
+	CodeCommandNotFound = "command_not_found"
 )
+
+// commandProblem checks that the configured command can be executed before a
+// unit is started, so a typo yields a clear message instead of a crash loop.
+// Mirrors how the shim resolves it: absolute, relative to the server dir, or PATH.
+func commandProblem(command, serverDir string) string {
+	var path string
+	switch {
+	case filepath.IsAbs(command):
+		path = command
+	case strings.Contains(command, "/"):
+		path = filepath.Join(serverDir, command)
+	default:
+		if _, err := exec.LookPath(command); err != nil {
+			return "Program \"" + command + "\" was not found on PATH. Use an absolute path such as /usr/bin/java."
+		}
+		return ""
+	}
+	st, err := os.Stat(path)
+	if err != nil {
+		return "Command \"" + path + "\" does not exist. Check the path (for example /bin/cat, not bin/cat)."
+	}
+	if st.IsDir() {
+		return "Command \"" + path + "\" is a directory, not a program."
+	}
+	if st.Mode()&0o111 == 0 {
+		return "Command \"" + path + "\" is not executable. Run: chmod +x " + path
+	}
+	return ""
+}
 
 const ctxServer ctxKey = 10
 
@@ -377,6 +410,12 @@ func (s *Server) handlePower(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeFieldError(w, CodeInvalidAction, "action", "Action must be start, stop, restart or kill.")
 		return
+	}
+	if req.Action == "start" || req.Action == "restart" {
+		if msg := commandProblem(srv.Run.Command, s.servers.Dir(srv.ID)); msg != "" {
+			writeFieldError(w, CodeCommandNotFound, "run.command", msg)
+			return
+		}
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()

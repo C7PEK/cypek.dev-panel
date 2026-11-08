@@ -122,7 +122,12 @@ func (s *Shim) Run(ctx context.Context) (int, error) {
 	defer os.Remove(s.opts.SocketPath)
 
 	if err := s.startProcess(); err != nil {
-		return 1, err
+		_ = writeExitInfo(s.opts.ServerDir, ExitInfo{
+			ExitCode: ExitConfigError,
+			ExitedAt: time.Now().UTC().Format(time.RFC3339Nano),
+			Error:    err.Error(),
+		})
+		return ExitConfigError, err
 	}
 	defer os.Remove(filepath.Join(s.opts.ServerDir, MetaDir, PIDFile))
 

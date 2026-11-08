@@ -109,7 +109,14 @@ type ExitInfo struct {
 	ExitedAt  string `json:"exitedAt"`
 	Requested bool   `json:"requested"` // true when the stop was asked for
 	Signal    string `json:"signal,omitempty"`
+	// Error explains a failure to start at all (command missing, not
+	// executable); shown to the user next to the crashed state.
+	Error string `json:"error,omitempty"`
 }
+
+// ExitConfigError is the shim's exit status when the command cannot be
+// started. The unit lists it in RestartPreventExitStatus.
+const ExitConfigError = 78
 
 // ReadExitInfo returns the last exit record, or nil if none.
 func ReadExitInfo(serverDir string) (*ExitInfo, error) {

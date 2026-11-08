@@ -41,6 +41,8 @@ export interface ServerStatus {
   pid?: number
   since?: string
   exitCode?: number
+  /** Why the server crashed, when the shim recorded a reason. */
+  message?: string
   memoryBytes?: number
   cpuNanos?: number
 }
@@ -98,7 +100,7 @@ export type PowerAction = "start" | "stop" | "restart" | "kill"
 export type ConsoleServerFrame =
   | { type: "hello"; state: ServerState; pid?: number; startedAt?: string }
   | { type: "output"; data: string }
-  | { type: "state"; state: ServerState; exitCode?: number }
+  | { type: "state"; state: ServerState; exitCode?: number; message?: string }
   | { type: "error"; message: string }
 
 export type ConsoleClientFrame = { type: "input"; data: string } | { type: "resize"; cols: number; rows: number }

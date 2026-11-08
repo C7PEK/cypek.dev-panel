@@ -71,6 +71,9 @@ export function ServerPage({ user }: { user: User }) {
                 <span>{t(`servers.category.${s.category}`)}</span>
                 {s.status.pid ? <span className="font-mono">PID {s.status.pid}</span> : null}
               </div>
+              {s.status.state === "crashed" && s.status.message && (
+                <p className="mt-1 max-w-xl text-xs text-destructive">{s.status.message}</p>
+              )}
             </div>
           </div>
           <PowerButtons server={s} withKill />
