@@ -52,10 +52,6 @@ func main() {
 	}
 }
 
-func runShim(args []string) error {
-	return fmt.Errorf("shim is not implemented yet (milestone M1)")
-}
-
 func runUpdate(args []string) error {
 	return fmt.Errorf("update is not implemented yet (milestone M6)")
 }
