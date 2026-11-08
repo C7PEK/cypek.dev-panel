@@ -2,8 +2,13 @@ package api
 
 import (
 	"net/http"
+	"net/http/cookiejar"
 	"strconv"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/pquerna/otp/totp"
 
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
 )
@@ -128,4 +133,81 @@ func TestUsersAndGrantsAPI(t *testing.T) {
 		t.Errorf("delete user: %d", resp.StatusCode)
 	}
 	_ = auth.RoleUser
+}
+
+func TestTOTPFlow(t *testing.T) {
+	e := newEnv(t)
+	e.completeSetup("owner", "password123")
+
+	_, st := e.do(http.MethodGet, "/api/v1/auth/totp", nil)
+	if st["enabled"] != false || st["policy"] != "none" {
+		t.Fatalf("status = %v", st)
+	}
+	// Policy cannot be enabled before the owner enrols.
+	resp, body := e.do(http.MethodPut, "/api/v1/settings/security", map[string]string{"requireTotp": "admins"})
+	if resp.StatusCode != 409 {
+		t.Errorf("policy before enrol: %d %v", resp.StatusCode, body)
+	}
+	resp, setup := e.do(http.MethodPost, "/api/v1/auth/totp/setup", nil)
+	if resp.StatusCode != 200 || setup["secret"] == "" || setup["qrPng"] == "" || !strings.HasPrefix(setup["otpauthUrl"].(string), "otpauth://") {
+		t.Fatalf("setup: %d %v", resp.StatusCode, setup)
+	}
+	resp, body = e.do(http.MethodPost, "/api/v1/auth/totp/enable", map[string]string{"code": "000000"})
+	if resp.StatusCode != 422 || errCode(body) != CodeTOTPInvalid {
+		t.Errorf("bad code: %d %v", resp.StatusCode, body)
+	}
+	code, _ := totp.GenerateCode(setup["secret"].(string), time.Now())
+	resp, body = e.do(http.MethodPost, "/api/v1/auth/totp/enable", map[string]string{"code": code})
+	if resp.StatusCode != 200 || len(body["backupCodes"].([]any)) != 8 {
+		t.Fatalf("enable: %d %v", resp.StatusCode, body)
+	}
+	backup := body["backupCodes"].([]any)[0].(string)
+
+	// Login now needs the second step.
+	jar, _ := cookiejar.New(nil)
+	e.client = &http.Client{Jar: jar}
+	e.csrf = ""
+	resp, body = e.do(http.MethodPost, "/api/v1/auth/login", map[string]string{"username": "owner", "password": "password123"})
+	if resp.StatusCode != 200 || body["totpRequired"] != true || body["token"] == "" {
+		t.Fatalf("login step 1: %d %v", resp.StatusCode, body)
+	}
+	token := body["token"].(string)
+	if resp, _ := e.do(http.MethodGet, "/api/v1/auth/me", nil); resp.StatusCode != 401 {
+		t.Error("session issued before the code")
+	}
+	resp, body = e.do(http.MethodPost, "/api/v1/auth/login/totp", map[string]string{"token": token, "code": "999999"})
+	if resp.StatusCode != 422 {
+		t.Errorf("wrong code: %d %v", resp.StatusCode, body)
+	}
+	resp, body = e.do(http.MethodPost, "/api/v1/auth/login/totp", map[string]string{"token": token, "code": backup})
+	if resp.StatusCode != 200 || body["csrfToken"] == nil {
+		t.Fatalf("login with backup code: %d %v", resp.StatusCode, body)
+	}
+	e.csrf = body["csrfToken"].(string)
+	resp, body = e.do(http.MethodPost, "/api/v1/auth/login/totp", map[string]string{"token": token, "code": backup})
+	if resp.StatusCode != 401 {
+		t.Errorf("token reuse: %d %v", resp.StatusCode, body)
+	}
+	_, st = e.do(http.MethodGet, "/api/v1/auth/totp", nil)
+	if st["enabled"] != true || st["backupCodesLeft"].(float64) != 7 {
+		t.Errorf("status after = %v", st)
+	}
+
+	// Policy for admins: a new admin without 2FA is blocked except for enrolment.
+	resp, body = e.do(http.MethodPut, "/api/v1/settings/security", map[string]string{"requireTotp": "admins"})
+	if resp.StatusCode != 200 {
+		t.Fatalf("set policy: %d %v", resp.StatusCode, body)
+	}
+	_, _ = e.do(http.MethodPost, "/api/v1/users/", map[string]string{"username": "adm", "password": "password123", "role": "admin"})
+	e.loginAs("adm")
+	resp, body = e.do(http.MethodGet, "/api/v1/servers", nil)
+	if resp.StatusCode != 403 || errCode(body) != CodeTOTPRequired {
+		t.Errorf("admin without 2fa: %d %v", resp.StatusCode, body)
+	}
+	if resp, _ := e.do(http.MethodGet, "/api/v1/auth/totp", nil); resp.StatusCode != 200 {
+		t.Errorf("enrolment endpoint blocked: %d", resp.StatusCode)
+	}
+	if resp, _ := e.do(http.MethodPost, "/api/v1/auth/totp/setup", nil); resp.StatusCode != 200 {
+		t.Errorf("setup blocked: %d", resp.StatusCode)
+	}
 }

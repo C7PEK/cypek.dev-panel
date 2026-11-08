@@ -93,6 +93,16 @@ func (s *Store) CompleteSetup(ctx context.Context, dataDir, token, username, pas
 	return user, nil
 }
 
+// GetSetting reads a panel-wide setting ("" when unset).
+func (s *Store) GetSetting(ctx context.Context, key string) (string, error) {
+	return s.getSetting(ctx, key)
+}
+
+// SetSetting writes a panel-wide setting.
+func (s *Store) SetSetting(ctx context.Context, key, value string) error {
+	return s.setSetting(ctx, key, value)
+}
+
 func (s *Store) getSetting(ctx context.Context, key string) (string, error) {
 	var v string
 	err := s.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key = ?`, key).Scan(&v)

@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"sync"
 	"testing/fstest"
 	"time"
 
@@ -85,6 +86,9 @@ type Server struct {
 	loginLimitIP   *auth.RateLimiter
 	loginLimitUser *auth.RateLimiter
 	setupLimit     *auth.RateLimiter
+
+	pendingMu sync.Mutex
+	pending   *auth.PendingLogins
 }
 
 // New builds the router.
@@ -108,6 +112,7 @@ func New(d Deps) (http.Handler, error) {
 		schedules:      d.Schedules,
 		backups:        d.Backups,
 		backupJobs:     &backupJobs{jobs: map[string]*backupJob{}},
+		pending:        auth.NewPendingLogins(),
 		loginLimitIP:   auth.NewRateLimiter(20, 10*time.Minute),
 		loginLimitUser: auth.NewRateLimiter(8, 15*time.Minute),
 		setupLimit:     auth.NewRateLimiter(10, 15*time.Minute),
@@ -174,9 +179,16 @@ func New(d Deps) (http.Handler, error) {
 		api.Get("/setup/status", s.handleSetupStatus)
 		api.Post("/setup", s.handleSetup)
 		api.Post("/auth/login", s.handleLogin)
+		api.Post("/auth/login/totp", s.handleLoginTOTP)
 
 		api.Group(func(priv chi.Router) {
-			priv.Use(s.requireAuth)
+			priv.Use(s.requireAuth, s.enforceTOTP)
+			priv.Get("/auth/totp", s.handleTOTPStatus)
+			priv.Post("/auth/totp/setup", s.handleTOTPSetup)
+			priv.Post("/auth/totp/enable", s.handleTOTPEnable)
+			priv.Post("/auth/totp/disable", s.handleTOTPDisable)
+			priv.With(s.requireRole(auth.RoleOwner)).Get("/settings/security", s.handleGetSecurity)
+			priv.With(s.requireRole(auth.RoleOwner)).Put("/settings/security", s.handleSetSecurity)
 			priv.Post("/auth/logout", s.handleLogout)
 			priv.Get("/auth/me", s.handleMe)
 			priv.Get("/system/info", s.handleSystemInfo)

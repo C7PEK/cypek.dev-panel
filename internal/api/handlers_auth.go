@@ -50,6 +50,17 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	s.loginLimitIP.Reset(ip)
 	s.loginLimitUser.Reset(userKey)
+	if user.TOTPEnabled {
+		s.pendingMu.Lock()
+		token, err := s.pending.Add(user.ID)
+		s.pendingMu.Unlock()
+		if err != nil {
+			s.internalError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"totpRequired": true, "token": token})
+		return
+	}
 	s.startSession(w, r, user, "auth.login")
 }
 
