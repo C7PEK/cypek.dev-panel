@@ -58,7 +58,11 @@ func TestExtractFormatsAndStrip(t *testing.T) {
 		{name: "top/lib/a.so", typ: tar.TypeReg, content: "a"},
 		{name: "top/lib/b.so", typ: tar.TypeSymlink, link: "a.so"},
 	}
-	for _, format := range []string{"gz", "xz"} {
+	for _, format := range []string{"gz", "xz", "xz-go"} {
+		UseSystemXz = format != "xz-go"
+		if format == "xz-go" {
+			format = "xz"
+		}
 		dir := t.TempDir()
 		name := filepath.Join(dir, "a.tar."+format)
 		if err := os.WriteFile(name, tarBytes(t, entries, format), 0o600); err != nil {
@@ -78,6 +82,7 @@ func TestExtractFormatsAndStrip(t *testing.T) {
 			t.Errorf("%s: strip not applied", format)
 		}
 	}
+	UseSystemXz = true
 	// zip
 	dir := t.TempDir()
 	var buf bytes.Buffer
