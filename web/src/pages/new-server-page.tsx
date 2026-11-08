@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, ChevronDownIcon, Loader2Icon, TerminalIcon } from "lucide-react"
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, ChevronDownIcon, Loader2Icon, ScrollTextIcon, TerminalIcon } from "lucide-react"
 import { type FormEvent, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useNavigate } from "react-router"
@@ -8,6 +8,7 @@ import { AppShell } from "@/components/layout/app-shell"
 import { CategoryIcon } from "@/components/servers/category-icon"
 import { CreateServerDialog } from "@/components/servers/create-server-dialog"
 import { VariableFields } from "@/components/servers/variable-fields"
+import { ScriptBadge, SourceBadge } from "@/components/templates/source-badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,7 +18,7 @@ import { Switch } from "@/components/ui/switch"
 import { isApiError } from "@/lib/api"
 import { describeError } from "@/lib/errors"
 import { useCreateServer } from "@/lib/servers"
-import { localized, renderPort, useTemplates } from "@/lib/templates"
+import { isImported, localized, renderPort, sourceKind, useTemplates } from "@/lib/templates"
 import type { CreateServerInput, Template, User } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -82,6 +83,7 @@ export function NewServerPage({ user }: { user: User }) {
     const errors: Record<string, string | undefined> = {}
     if (!name.trim()) errors.__name = t("servers.validation.required")
     for (const v of template.variables) {
+      if (v.hidden) continue
       const raw = (values[v.key] ?? "").trim()
       if (v.type === "bool" && v.consent && raw !== "true") errors[v.key] = t("templates.consentRequired")
       if (v.type === "number") {
@@ -214,6 +216,12 @@ export function NewServerPage({ user }: { user: User }) {
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground">{localized(tpl.description, i18n.resolvedLanguage)}</p>
+                    {(isImported(tpl) || sourceKind(tpl) === "custom" || tpl.usesScript) && (
+                      <div className="mt-auto flex flex-wrap gap-1.5">
+                        {sourceKind(tpl) !== "builtin" && <SourceBadge template={tpl} />}
+                        {tpl.usesScript && <ScriptBadge />}
+                      </div>
+                    )}
                   </button>
                 ))}
                 <button
@@ -245,6 +253,7 @@ export function NewServerPage({ user }: { user: User }) {
                 <CardTitle className="flex items-center gap-2 font-heading text-lg font-medium tracking-[0.04em] uppercase">
                   <CategoryIcon category={template.category} className="size-4" />
                   {template.name}
+                  {sourceKind(template) !== "builtin" && <SourceBadge template={template} className="ml-1" />}
                 </CardTitle>
                 <CardDescription>{t("templates.settingsHelp")}</CardDescription>
               </CardHeader>
@@ -353,8 +362,11 @@ export function NewServerPage({ user }: { user: User }) {
                 <dt className="text-muted-foreground">{t("servers.name")}</dt>
                 <dd className="font-medium">{name}</dd>
                 <dt className="text-muted-foreground">{t("templates.template")}</dt>
-                <dd>{template.name}</dd>
-                {template.variables.map((v) => (
+                <dd className="flex flex-wrap items-center gap-2">
+                  {template.name}
+                  <SourceBadge template={template} />
+                </dd>
+                {template.variables.filter((v) => !v.hidden).map((v) => (
                   <SummaryRow key={v.key} label={localized(v.label, i18n.resolvedLanguage) || v.key} value={displayValue(v.type, values[v.key] ?? "", t)} />
                 ))}
                 {(advanced.memoryMb !== "0" || advanced.cpuPercent !== "0" || advanced.autostart) && (
@@ -391,6 +403,16 @@ export function NewServerPage({ user }: { user: User }) {
                 <p className="mt-2 text-xs text-muted-foreground">{t("templates.portsHelp")}</p>
               </div>
 
+              {template.usesScript && (
+                <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-200">
+                  <ScrollTextIcon />
+                  <AlertTitle>{t("templateLibrary.scriptWarningTitle")}</AlertTitle>
+                  <AlertDescription className="text-amber-200/90">
+                    {t("templateLibrary.scriptWarning", { source: scriptSource(template, t) })}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <p className="text-sm text-muted-foreground">{t("templates.installNote")}</p>
 
               {generalError && (
@@ -414,6 +436,12 @@ export function NewServerPage({ user }: { user: User }) {
       </div>
     </AppShell>
   )
+}
+
+function scriptSource(tpl: Template, t: (k: string) => string): string {
+  const label = t(`templateLibrary.sources.${sourceKind(tpl)}`)
+  const origin = tpl.source?.url || tpl.source?.author
+  return origin ? `${label} (${origin})` : label
 }
 
 function SummaryRow({ label, value }: { label: string; value: string }) {

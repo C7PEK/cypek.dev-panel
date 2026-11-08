@@ -26,7 +26,7 @@ interface Props {
 export function VariableFields({ templateId, variables, values, onChange, errors = {}, lockConsent = false, idPrefix = "var" }: Props) {
   return (
     <>
-      {variables.map((v) => (
+      {variables.filter((v) => !v.hidden).map((v) => (
         <VariableField
           key={v.key}
           templateId={templateId}

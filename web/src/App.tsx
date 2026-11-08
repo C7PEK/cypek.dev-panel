@@ -7,6 +7,7 @@ import { useMe, useSetupStatus } from "@/lib/auth"
 import type { User } from "@/lib/types"
 import { AdminAuditPage } from "@/pages/admin-audit-page"
 import { AdminDatabasePage } from "@/pages/admin-database-page"
+import { AdminTemplatesPage } from "@/pages/admin-templates-page"
 import { AdminUsersPage } from "@/pages/admin-users-page"
 import { DashboardPage } from "@/pages/dashboard-page"
 import { LoginPage } from "@/pages/login-page"
@@ -62,6 +63,7 @@ function AuthedRoutes({ user }: { user: User }) {
       <Route path="/admin/users" element={admin ? <AdminUsersPage user={user} /> : <Navigate to="/" replace />} />
       <Route path="/admin/audit" element={admin ? <AdminAuditPage user={user} /> : <Navigate to="/" replace />} />
       <Route path="/admin/database" element={admin ? <AdminDatabasePage user={user} /> : <Navigate to="/" replace />} />
+      <Route path="/admin/templates" element={admin ? <AdminTemplatesPage user={user} /> : <Navigate to="/" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

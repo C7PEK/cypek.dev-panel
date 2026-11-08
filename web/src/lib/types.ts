@@ -147,6 +147,8 @@ export interface TemplateVariable {
   required?: boolean
   /** A bool the user must switch on (EULA, license terms). */
   consent?: boolean
+  /** Not shown in forms; the default value is used. */
+  hidden?: boolean
 }
 
 export interface TemplatePort {
@@ -166,6 +168,36 @@ export interface Template {
   runtime: { kind: string; version?: string }
   ports?: TemplatePort[]
   builtin: boolean
+  source?: TemplateSource
+  editable?: boolean
+  overridesBuiltin?: boolean
+  /** The install runs a shell script in the server's sandbox. */
+  usesScript?: boolean
+}
+
+export type TemplateSourceKind = "builtin" | "custom" | "pterodactyl" | "pelican" | "pufferpanel"
+
+export interface TemplateSource {
+  kind: TemplateSourceKind
+  importedAt?: string
+  original?: string
+  author?: string
+  url?: string
+  warnings?: string[]
+}
+
+export interface TemplateYaml {
+  yaml: string
+  editable: boolean
+  builtin: boolean
+  overridesBuiltin: boolean
+}
+
+export interface TemplateImportResult {
+  yaml: string
+  format: "pterodactyl" | "pelican" | "pufferpanel"
+  warnings: string[]
+  template: Template
 }
 
 export interface SourceOption {
