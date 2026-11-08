@@ -14,6 +14,7 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/providers"
 	"github.com/cypek019/cypek.dev---panel/internal/query"
 	"github.com/cypek019/cypek.dev---panel/internal/servers"
+	"github.com/cypek019/cypek.dev---panel/internal/shim"
 	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
 	"github.com/cypek019/cypek.dev---panel/internal/templates"
 )
@@ -308,6 +309,7 @@ func (s *Server) applyConfigDefaults(srv *servers.Server) {
 	if !ok {
 		return
 	}
+	s.syncStopConfig(srv, tpl)
 	changed, err := templates.ApplyConfigDefaults(s.servers.Dir(srv.ID), tpl)
 	if err != nil {
 		s.log.Warn("config defaults", "server", srv.ID, "err", err)
@@ -349,4 +351,23 @@ func (s *Server) beforeStart(ctx context.Context, id string) {
 
 func isTemplateServer(srv *servers.Server) bool {
 	return srv.TemplateID != "" && srv.TemplateID != customTemplateID
+}
+
+// syncStopConfig lets template fixes to the stop command reach existing
+// servers on their next start (run.json is otherwise only rebuilt when the
+// variables change).
+func (s *Server) syncStopConfig(srv *servers.Server, tpl *templates.Template) {
+	want := shim.StopConfig{Command: tpl.Stop.Command, TimeoutSec: tpl.Stop.TimeoutSec}
+	if want.TimeoutSec <= 0 {
+		want.TimeoutSec = srv.Run.Stop.TimeoutSec
+	}
+	if srv.InstallState != servers.InstallReady || srv.Run.Stop == want {
+		return
+	}
+	srv.Run.Stop = want
+	if err := s.servers.Update(s.bgCtx, srv); err != nil {
+		s.log.Warn("sync stop command from template", "server", srv.ID, "err", err)
+		return
+	}
+	s.log.Info("stop command updated from template", "server", srv.ID, "command", want.Command)
 }

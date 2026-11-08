@@ -95,8 +95,11 @@ install:
 start:
   command: artifact/run.sh
   args: ["+set", "serverProfile", "default", "+set", "txAdminPort", "{{TX_PORT}}", "+set", "txDataPath", "txData"]
+# "quit" in the console only ends txAdmin's child FXServer, which txAdmin then
+# restarts; Ctrl+C (SIGINT) shuts txAdmin and the server down cleanly.
+# TODO(verify): txAdmin's SIGINT handling on current artifacts.
 stop:
-  command: quit
+  command: "^C"
   timeoutSec: 90
 # TODO(verify): txAdmin's ready line; left empty so the server counts as running once the process is up.
 readyRegex: ""

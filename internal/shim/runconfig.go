@@ -95,6 +95,10 @@ func SaveRunConfig(serverDir string, cfg *RunConfig) error {
 	return nil
 }
 
+// MaxStopTimeoutSec stays below the unit's TimeoutStopSec (180) so the shim,
+// not systemd, ends a game that ignores its stop command.
+const MaxStopTimeoutSec = 165
+
 // Validate checks required fields and fills defaults.
 func (c *RunConfig) Validate() error {
 	if c.Command == "" {
@@ -102,6 +106,9 @@ func (c *RunConfig) Validate() error {
 	}
 	if c.Stop.TimeoutSec <= 0 {
 		c.Stop.TimeoutSec = DefaultStopTimeoutSec
+	}
+	if c.Stop.TimeoutSec > MaxStopTimeoutSec {
+		c.Stop.TimeoutSec = MaxStopTimeoutSec
 	}
 	if c.Cols == 0 {
 		c.Cols = DefaultCols

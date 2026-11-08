@@ -598,7 +598,10 @@ func (s *Server) handlePower(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), timeout)
+	// The action must finish even if the browser stops waiting (a stop can
+	// take a minute); only the timeout bounds it.
+	bg := context.WithoutCancel(r.Context())
+	ctx, cancel := context.WithTimeout(bg, timeout)
 	defer cancel()
 	var err error
 	switch req.Action {
@@ -611,7 +614,7 @@ func (s *Server) handlePower(w http.ResponseWriter, r *http.Request) {
 	case "kill":
 		err = s.sup.Kill(ctx, srv.ID)
 	}
-	s.audit.Log(r.Context(), audit.Entry{UserID: &user.ID, Username: user.Username, Action: "server." + req.Action, Target: srv.ID, IP: clientIP(r),
+	s.audit.Log(bg, audit.Entry{UserID: &user.ID, Username: user.Username, Action: "server." + req.Action, Target: srv.ID, IP: clientIP(r),
 		Details: map[string]any{"ok": err == nil}})
 	switch {
 	case err == nil:

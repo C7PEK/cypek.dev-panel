@@ -424,7 +424,7 @@ func (s *Shim) gracefulStop() {
 		}
 		select {
 		case <-s.exited:
-		case <-time.After(time.Duration(s.cfg.Stop.TimeoutSec) * time.Second):
+		case <-time.After(time.Duration(min(s.cfg.Stop.TimeoutSec, MaxStopTimeoutSec)) * time.Second):
 			s.log.Warn("stop timeout exceeded, killing", "timeoutSec", s.cfg.Stop.TimeoutSec)
 			s.kill()
 		}
