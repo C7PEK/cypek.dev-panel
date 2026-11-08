@@ -72,7 +72,7 @@ func newEnv(t *testing.T) *testEnv {
 		"index.html":    {Data: []byte("<html>spa</html>")},
 		"assets/app.js": {Data: []byte("console.log(1)")},
 	}
-	registry, err := templates.Load(builtinTemplates.Builtin, "")
+	registry, err := templates.Load(builtinTemplates.Builtin, filepath.Join(dir, "templates"))
 	if err != nil {
 		t.Fatal(err)
 	}

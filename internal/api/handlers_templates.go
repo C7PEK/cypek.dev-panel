@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -27,17 +28,17 @@ const (
 // TemplateID of the "bring your own command" pseudo-template.
 const customTemplateID = "custom"
 
-type templateSummary struct {
-	*templates.Template
-}
-
 func (s *Server) handleListTemplates(w http.ResponseWriter, r *http.Request) {
 	list := s.templates.List()
-	out := make([]templateSummary, 0, len(list))
+	out := make([]templateItem, 0, len(list))
 	for _, t := range list {
-		out = append(out, templateSummary{t})
+		out = append(out, s.templateItem(t))
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": out})
+	resp := map[string]any{"items": out}
+	if errs := s.templates.LoadErrors(); len(errs) > 0 {
+		resp["loadErrors"] = errs
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 type sourceOption struct {
@@ -313,6 +314,29 @@ func (s *Server) applyConfigDefaults(srv *servers.Server) {
 	}
 	for _, f := range changed {
 		s.log.Info("config default added", "server", srv.ID, "file", f)
+	}
+	if len(tpl.ConfigFiles) == 0 {
+		return
+	}
+	// configFiles (imported eggs) are re-applied on every start, as Wings
+	// does, so the port and other settings follow the panel's variables.
+	user, builtins, err := s.splitVars(tpl, srv.Variables)
+	if err != nil {
+		s.log.Warn("config files: read variables", "server", srv.ID, "err", err)
+		return
+	}
+	vars := builtins
+	for k, v := range user {
+		vars[k] = v
+	}
+	dir, _ := filepath.Abs(s.servers.Dir(srv.ID))
+	vars[templates.KeyServerDir] = dir
+	files, err := templates.ApplyConfigFiles(dir, tpl, vars)
+	if err != nil {
+		s.log.Warn("config files", "server", srv.ID, "err", err)
+	}
+	for _, f := range files {
+		s.log.Info("config file updated", "server", srv.ID, "file", f)
 	}
 }
 

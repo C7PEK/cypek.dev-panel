@@ -135,6 +135,7 @@ func New(d Deps) (http.Handler, error) {
 	if s.installer == nil {
 		s.installer = installer.New(installer.Deps{Log: d.Log})
 	}
+	s.installer.SetScriptRunner(scriptRunner{s: s})
 	if s.paper == nil {
 		s.paper = providers.NewPaper()
 	}
@@ -237,8 +238,17 @@ func New(d Deps) (http.Handler, error) {
 				ur.Delete("/{uid}", s.handleDeleteUser)
 			})
 
-			priv.With(s.requireRole(auth.RoleAdmin)).Get("/templates", s.handleListTemplates)
-			priv.With(s.requireRole(auth.RoleAdmin)).Get("/templates/{id}/sources/{source}", s.handleTemplateSource)
+			priv.Route("/templates", func(tr chi.Router) {
+				tr.Use(s.requireRole(auth.RoleAdmin))
+				tr.Get("/", s.handleListTemplates)
+				tr.Post("/", s.handleCreateTemplate)
+				tr.Post("/validate", s.handleValidateTemplate)
+				tr.Post("/import", s.handleImportTemplate)
+				tr.Get("/{id}/yaml", s.handleTemplateYAML)
+				tr.Put("/{id}", s.handleUpdateTemplate)
+				tr.Delete("/{id}", s.handleDeleteTemplate)
+				tr.Get("/{id}/sources/{source}", s.handleTemplateSource)
+			})
 
 			priv.Get("/servers", s.handleListServers)
 			priv.With(s.requireRole(auth.RoleAdmin)).Post("/servers", s.handleCreateServer)
