@@ -87,7 +87,17 @@ func (s *Server) playersOf(ctx context.Context, srv *servers.Server) *query.Play
 	kind := srv.Variables[templates.KeyQueryKind]
 	port, _ := strconv.Atoi(srv.Variables[templates.KeyQueryPort])
 	if kind == "" || port == 0 {
-		return nil
+		// Servers installed before the query builtins existed: derive the
+		// spec from the template and the stored user variables.
+		tpl, ok := s.templates.Get(srv.TemplateID)
+		if !ok || !isTemplateServer(srv) {
+			return nil
+		}
+		k, p, has, err := templates.RenderQuery(tpl, srv.Variables)
+		if err != nil || !has {
+			return nil
+		}
+		kind, port = k, p
 	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
