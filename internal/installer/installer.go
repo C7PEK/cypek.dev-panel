@@ -325,7 +325,14 @@ func (c *stepCtx) extract(n int, st *templates.ExtractStep) error {
 		}
 	}
 	c.begin(n, "Extracting "+filepath.Base(from))
-	if err := archive.Extract(src, dest, archive.Options{Strip: st.Strip}); err != nil {
+	last := time.Now()
+	progress := func(entries int) {
+		if time.Since(last) > 5*time.Second {
+			c.logf("... %d entries extracted", entries)
+			last = time.Now()
+		}
+	}
+	if err := archive.Extract(src, dest, archive.Options{Strip: st.Strip, Progress: progress}); err != nil {
 		return fmt.Errorf("extract %s: %w", from, err)
 	}
 	if st.Delete == nil || *st.Delete {

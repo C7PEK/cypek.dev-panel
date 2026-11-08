@@ -22,6 +22,15 @@ import (
 type Options struct {
 	// Strip removes this many leading path components (like tar --strip-components).
 	Strip int
+	// Progress, when set, is called with the running entry count every few
+	// hundred entries (big archives take a while with pure-Go xz).
+	Progress func(entries int)
+}
+
+func (o Options) tick(n int) {
+	if o.Progress != nil && n%200 == 0 {
+		o.Progress(n)
+	}
 }
 
 // Extract unpacks archivePath into dest, picking the format from the file name.
@@ -99,6 +108,7 @@ func extractTar(archivePath, dest string, opts Options, wrap func(io.Reader) (io
 		return err
 	}
 	tr := tar.NewReader(r)
+	n := 0
 	for {
 		h, err := tr.Next()
 		if errors.Is(err, io.EOF) {
@@ -107,6 +117,8 @@ func extractTar(archivePath, dest string, opts Options, wrap func(io.Reader) (io
 		if err != nil {
 			return err
 		}
+		n++
+		opts.tick(n)
 		rel, ok, err := stripped(h.Name, opts.Strip)
 		if err != nil {
 			return err
@@ -120,11 +132,12 @@ func extractTar(archivePath, dest string, opts Options, wrap func(io.Reader) (io
 		}
 		switch h.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(target, dirMode(h.Mode)); err != nil {
+			if err := safeDir(destAbs, target); err != nil {
 				return err
 			}
+			_ = os.Chmod(target, dirMode(h.Mode))
 		case tar.TypeReg:
-			if err := writeFile(target, tr, fileMode(h.Mode)); err != nil {
+			if err := writeFile(destAbs, target, tr, fileMode(h.Mode)); err != nil {
 				return err
 			}
 		case tar.TypeSymlink:
@@ -140,7 +153,7 @@ func extractTar(archivePath, dest string, opts Options, wrap func(io.Reader) (io
 			if err != nil {
 				return err
 			}
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			if err := safeDir(destAbs, filepath.Dir(target)); err != nil {
 				return err
 			}
 			os.Remove(target)
@@ -167,7 +180,8 @@ func extractZip(archivePath, dest string, opts Options) error {
 	if err := os.MkdirAll(destAbs, 0o755); err != nil {
 		return err
 	}
-	for _, zf := range zr.File {
+	for i, zf := range zr.File {
+		opts.tick(i + 1)
 		rel, ok, err := stripped(zf.Name, opts.Strip)
 		if err != nil {
 			return err
@@ -182,7 +196,7 @@ func extractZip(archivePath, dest string, opts Options) error {
 		mode := zf.Mode()
 		switch {
 		case zf.FileInfo().IsDir() || strings.HasSuffix(zf.Name, "/"):
-			if err := os.MkdirAll(target, dirMode(int64(mode.Perm()))); err != nil {
+			if err := safeDir(destAbs, target); err != nil {
 				return err
 			}
 		case mode&os.ModeSymlink != 0:
@@ -203,7 +217,7 @@ func extractZip(archivePath, dest string, opts Options) error {
 			if err != nil {
 				return err
 			}
-			err = writeFile(target, rc, fileMode(int64(mode.Perm())))
+			err = writeFile(destAbs, target, rc, fileMode(int64(mode.Perm())))
 			rc.Close()
 			if err != nil {
 				return err
@@ -213,8 +227,8 @@ func extractZip(archivePath, dest string, opts Options) error {
 	return nil
 }
 
-func writeFile(target string, r io.Reader, mode os.FileMode) error {
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+func writeFile(root, target string, r io.Reader, mode os.FileMode) error {
+	if err := safeDir(root, filepath.Dir(target)); err != nil {
 		return err
 	}
 	// Replace, never follow, an existing symlink at the target.
@@ -232,21 +246,46 @@ func writeFile(target string, r io.Reader, mode os.FileMode) error {
 	return out.Close()
 }
 
-// symlink creates target -> linkname only when the resolved link stays in root.
+// symlink records target -> linkname verbatim. Links may point anywhere
+// (chroot-style archives such as FXServer's alpine/ contain absolute links
+// like /usr/glibc-compat/...): a link by itself touches nothing. What must
+// never happen is writing *through* such a link, which safeDir prevents for
+// every file and directory created afterwards.
 func symlink(root, target, linkname string) error {
-	if filepath.IsAbs(linkname) {
-		return fmt.Errorf("symlink %s -> %s: absolute link target", target, linkname)
-	}
-	resolved := filepath.Join(filepath.Dir(target), linkname)
-	rel, err := filepath.Rel(root, resolved)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("symlink %s -> %s escapes the destination", target, linkname)
-	}
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+	if err := safeDir(root, filepath.Dir(target)); err != nil {
 		return err
 	}
 	os.Remove(target)
 	return os.Symlink(linkname, target)
+}
+
+// safeDir creates dir (inside root) and verifies that, with symlinks
+// resolved, it still lies inside root. It walks component by component so a
+// symlinked intermediate directory cannot redirect the write.
+func safeDir(root, dir string) error {
+	rel, err := filepath.Rel(root, dir)
+	if err != nil {
+		return err
+	}
+	cur := root
+	if rel == "." {
+		return nil
+	}
+	for _, part := range strings.Split(rel, string(filepath.Separator)) {
+		cur = filepath.Join(cur, part)
+		st, err := os.Lstat(cur)
+		switch {
+		case err == nil && st.Mode()&os.ModeSymlink != 0:
+			return fmt.Errorf("refusing to write through symlink %s", cur)
+		case err == nil && !st.IsDir():
+			return fmt.Errorf("%s exists and is not a directory", cur)
+		case err != nil:
+			if err := os.Mkdir(cur, 0o755); err != nil && !os.IsExist(err) {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func fileMode(m int64) os.FileMode {

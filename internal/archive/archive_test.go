@@ -101,14 +101,17 @@ func TestExtractFormatsAndStrip(t *testing.T) {
 }
 
 func TestExtractRejectsEscapes(t *testing.T) {
+	// Entries that must abort extraction.
 	cases := map[string][]entry{
-		"dotdot":  {{name: "top/../../evil", typ: tar.TypeReg, content: "x"}},
-		"abs":     {{name: "/etc/evil", typ: tar.TypeReg, content: "x"}},
-		"symlink": {{name: "top/l", typ: tar.TypeSymlink, link: "../../etc/passwd"}},
-		"symabs":  {{name: "top/l", typ: tar.TypeSymlink, link: "/etc/passwd"}},
-		"viasymlink": {
-			{name: "top/d", typ: tar.TypeSymlink, link: ".."},
+		"dotdot": {{name: "top/../../evil", typ: tar.TypeReg, content: "x"}},
+		"abs":    {{name: "/etc/evil", typ: tar.TypeReg, content: "x"}},
+		"viasymlink": { // a symlinked directory must never redirect a write
+			{name: "top/d", typ: tar.TypeSymlink, link: "../.."},
 			{name: "top/d/evil", typ: tar.TypeReg, content: "x"},
+		},
+		"viaabssymlink": {
+			{name: "top/d", typ: tar.TypeSymlink, link: os.TempDir()},
+			{name: "top/d/evil-hp-test", typ: tar.TypeReg, content: "x"},
 		},
 	}
 	for name, entries := range cases {
@@ -120,12 +123,30 @@ func TestExtractRejectsEscapes(t *testing.T) {
 		if _, statErr := os.Stat(filepath.Join(dir, "evil")); statErr == nil {
 			t.Errorf("%s: file escaped the destination", name)
 		}
-		if name != "viasymlink" && err == nil {
+		if _, statErr := os.Stat(filepath.Join(os.TempDir(), "evil-hp-test")); statErr == nil {
+			os.Remove(filepath.Join(os.TempDir(), "evil-hp-test"))
+			t.Errorf("%s: file escaped through an absolute symlink", name)
+		}
+		if err == nil {
 			t.Errorf("%s: no error", name)
 		}
 	}
-	// zip slip
+	// Dangling or outward symlinks themselves are allowed (chroot-style
+	// archives need them) and are recorded verbatim.
 	dir := t.TempDir()
+	a := filepath.Join(dir, "l.tar.gz")
+	_ = os.WriteFile(a, tarBytes(t, []entry{
+		{name: "top/abs", typ: tar.TypeSymlink, link: "/usr/glibc-compat/lib/ld.so"},
+		{name: "top/rel", typ: tar.TypeSymlink, link: "../../etc/passwd"},
+	}, "gz"), 0o600)
+	if err := Extract(a, filepath.Join(dir, "out"), Options{Strip: 1}); err != nil {
+		t.Fatalf("symlink archive: %v", err)
+	}
+	if l, _ := os.Readlink(filepath.Join(dir, "out", "abs")); l != "/usr/glibc-compat/lib/ld.so" {
+		t.Errorf("abs link = %q", l)
+	}
+	// zip slip
+	dir = t.TempDir()
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
 	w, _ := zw.Create("../evil.txt")
