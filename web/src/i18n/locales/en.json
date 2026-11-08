@@ -136,7 +136,10 @@
     "template_invalid": "The template has errors. Fix them and try again.",
     "template_exists": "A template with this id already exists.",
     "template_in_use": "Some servers still use this template.",
-    "import_failed": "Could not import this template. Check that it is a Pterodactyl/Pelican egg or a PufferPanel template."
+    "import_failed": "Could not import this template. Check that it is a Pterodactyl/Pelican egg or a PufferPanel template.",
+    "not_minecraft": "Plugins and mods are only available for Minecraft servers.",
+    "platform_unknown": "The panel doesn't know what this server runs. Pick the server software in the Plugins tab.",
+    "no_compatible_version": "This plugin or mod has no version for your server software and Minecraft version."
   },
   "servers": {
     "create": "Create a server",
@@ -232,7 +235,9 @@
       "backups": "Backups",
       "settings": "Settings",
       "users": "Users",
-      "databases": "Databases"
+      "databases": "Databases",
+      "plugins": "Plugins",
+      "mods": "Mods"
     },
     "comingSoon": "This section arrives in a later update."
   },
@@ -927,6 +932,102 @@
       "pterodactyl": "Pterodactyl",
       "pelican": "Pelican",
       "pufferpanel": "PufferPanel"
+    }
+  },
+  "mods": {
+    "cancel": "Cancel",
+    "platform": {
+      "label": "Server",
+      "auto": "detected automatically",
+      "manual": "set manually",
+      "change": "Change",
+      "dialogTitle": "Server type and version",
+      "dialogBody": "The panel picks plugins and mods that match the server software and Minecraft version. Only change this if detection got it wrong.",
+      "unknownTitle": "We don't know what this server runs",
+      "unknownBody": "The panel could not recognise the server software (e.g. Paper, Fabric, Forge). Pick it below and the search will only show matching plugins or mods.",
+      "askAdmin": "Ask an administrator to set the server type.",
+      "loader": "Server software",
+      "gameVersion": "Minecraft version",
+      "autoDetect": "Detect automatically",
+      "pluginLoaders": "Plugins (plugins folder)",
+      "modLoaders": "Mods (mods folder)",
+      "save": "Save",
+      "saved": "Server type saved."
+    },
+    "installed": {
+      "title_plugins": "Installed plugins",
+      "title_mods": "Installed mods",
+      "count_one": "{{count}} file",
+      "count_other": "{{count}} files",
+      "checking": "Checking for updates…",
+      "updatesAvailable_one": "{{count}} update available",
+      "updatesAvailable_other": "{{count}} updates available",
+      "checkUpdates": "Check for updates",
+      "empty_plugins": "No plugins yet. Find your first one below.",
+      "empty_mods": "No mods yet. Find your first one below.",
+      "browse": "Browse Modrinth",
+      "notModrinth": "not from Modrinth",
+      "disabled": "disabled",
+      "update": "Update: {{version}}",
+      "updateButton": "Update",
+      "enable": "Enable",
+      "disable": "Disable",
+      "delete": "Delete"
+    },
+    "delete": {
+      "title": "Delete this file?",
+      "body": "{{name}} will be removed from the server. Its config files are kept.",
+      "confirm": "Delete"
+    },
+    "toast": {
+      "installed": "Installed {{name}} {{version}}",
+      "withDeps_one": "(+ {{count}} dependency)",
+      "withDeps_other": "(+ {{count}} dependencies)",
+      "updated": "Updated {{name}} to {{version}}",
+      "enabled": "Enabled {{name}}",
+      "disabled": "Disabled {{name}}",
+      "deleted": "Deleted {{name}}"
+    },
+    "search": {
+      "title": "Search Modrinth",
+      "subtitle_plugins": "Only plugins that match your server and version are shown.",
+      "subtitle_mods": "Only mods that match your server and version are shown (client-only mods are hidden).",
+      "placeholder_plugins": "Plugin name, e.g. LuckPerms",
+      "placeholder_mods": "Mod name, e.g. Lithium",
+      "sort": "Sort",
+      "sorts": {
+        "relevance": "Most relevant",
+        "downloads": "Most downloaded",
+        "updated": "Recently updated",
+        "newest": "Newest"
+      },
+      "loading": "Loading…",
+      "empty": "Nothing found for this server and version.",
+      "results_one": "{{count}} result",
+      "results_other": "{{count}} results",
+      "by": "by {{author}}",
+      "downloads": "Downloads",
+      "install": "Install",
+      "installed": "Installed",
+      "chooseVersion": "Choose version…",
+      "more": "Show more"
+    },
+    "versions": {
+      "title": "Versions: {{name}}",
+      "body": "Only versions that match your server. The newest one is installed by default.",
+      "none": "No versions match this server.",
+      "newest": "newest",
+      "types": {
+        "beta": "beta",
+        "alpha": "alpha"
+      }
+    },
+    "restart": {
+      "title": "Changes apply after a server restart",
+      "body": "The server loads plugins and mods when it starts.",
+      "now": "Restart now",
+      "later": "Later",
+      "started": "Restarting the server…"
     }
   }
 }

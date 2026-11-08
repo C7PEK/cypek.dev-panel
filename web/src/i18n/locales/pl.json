@@ -138,7 +138,10 @@
     "template_invalid": "Szablon zawiera błędy. Popraw je i spróbuj ponownie.",
     "template_exists": "Szablon o tym identyfikatorze już istnieje.",
     "template_in_use": "Niektóre serwery wciąż korzystają z tego szablonu.",
-    "import_failed": "Nie udało się zaimportować szablonu. Sprawdź, czy to egg z Pterodactyla/Pelicana albo szablon PufferPanela."
+    "import_failed": "Nie udało się zaimportować szablonu. Sprawdź, czy to egg z Pterodactyla/Pelicana albo szablon PufferPanela.",
+    "not_minecraft": "Pluginy i mody są dostępne tylko dla serwerów Minecraft.",
+    "platform_unknown": "Panel nie wie, na czym działa ten serwer. Wybierz silnik serwera w zakładce Pluginy.",
+    "no_compatible_version": "Ten plugin lub mod nie ma wersji dla Twojego serwera i wersji Minecrafta."
   },
   "servers": {
     "create": "Utwórz serwer",
@@ -234,7 +237,9 @@
       "backups": "Backupy",
       "settings": "Ustawienia",
       "users": "Użytkownicy",
-      "databases": "Bazy danych"
+      "databases": "Bazy danych",
+      "plugins": "Pluginy",
+      "mods": "Mody"
     },
     "comingSoon": "Ta sekcja pojawi się w późniejszej aktualizacji."
   },
@@ -955,6 +960,110 @@
       "pterodactyl": "Pterodactyl",
       "pelican": "Pelican",
       "pufferpanel": "PufferPanel"
+    }
+  },
+  "mods": {
+    "cancel": "Anuluj",
+    "platform": {
+      "label": "Serwer",
+      "auto": "wykryte automatycznie",
+      "manual": "ustawione ręcznie",
+      "change": "Zmień",
+      "dialogTitle": "Typ serwera i wersja",
+      "dialogBody": "Panel dobiera pluginy i mody do silnika serwera i wersji Minecrafta. Zmień to tylko, jeśli wykrywanie się pomyliło.",
+      "unknownTitle": "Nie wiemy, na czym działa ten serwer",
+      "unknownBody": "Panel nie rozpoznał silnika serwera (np. Paper, Fabric, Forge). Wybierz go poniżej, a wyszukiwarka pokaże tylko pasujące pluginy lub mody.",
+      "askAdmin": "Poproś administratora, żeby ustawił typ serwera.",
+      "loader": "Silnik serwera",
+      "gameVersion": "Wersja Minecrafta",
+      "autoDetect": "Wykryj automatycznie",
+      "pluginLoaders": "Pluginy (folder plugins)",
+      "modLoaders": "Mody (folder mods)",
+      "save": "Zapisz",
+      "saved": "Zapisano typ serwera."
+    },
+    "installed": {
+      "title_plugins": "Zainstalowane pluginy",
+      "title_mods": "Zainstalowane mody",
+      "count_one": "{{count}} plik",
+      "count_few": "{{count}} pliki",
+      "count_many": "{{count}} plików",
+      "count_other": "{{count}} plików",
+      "checking": "Sprawdzam aktualizacje…",
+      "updatesAvailable_one": "{{count}} aktualizacja dostępna",
+      "updatesAvailable_few": "{{count}} aktualizacje dostępne",
+      "updatesAvailable_many": "{{count}} aktualizacji dostępnych",
+      "updatesAvailable_other": "{{count}} aktualizacji dostępnych",
+      "checkUpdates": "Sprawdź aktualizacje",
+      "empty_plugins": "Nie masz jeszcze żadnych pluginów. Znajdź pierwszy poniżej.",
+      "empty_mods": "Nie masz jeszcze żadnych modów. Znajdź pierwszy poniżej.",
+      "browse": "Przeglądaj Modrinth",
+      "notModrinth": "spoza Modrinth",
+      "disabled": "wyłączony",
+      "update": "Aktualizacja: {{version}}",
+      "updateButton": "Aktualizuj",
+      "enable": "Włącz",
+      "disable": "Wyłącz",
+      "delete": "Usuń"
+    },
+    "delete": {
+      "title": "Usunąć plik?",
+      "body": "{{name}} zostanie usunięty z serwera. Jego pliki konfiguracyjne zostają.",
+      "confirm": "Usuń"
+    },
+    "toast": {
+      "installed": "Zainstalowano {{name}} {{version}}",
+      "withDeps_one": "(+ {{count}} zależność)",
+      "withDeps_few": "(+ {{count}} zależności)",
+      "withDeps_many": "(+ {{count}} zależności)",
+      "withDeps_other": "(+ {{count}} zależności)",
+      "updated": "Zaktualizowano {{name}} do {{version}}",
+      "enabled": "Włączono {{name}}",
+      "disabled": "Wyłączono {{name}}",
+      "deleted": "Usunięto {{name}}"
+    },
+    "search": {
+      "title": "Szukaj na Modrinth",
+      "subtitle_plugins": "Pokazujemy tylko pluginy pasujące do Twojego serwera i wersji.",
+      "subtitle_mods": "Pokazujemy tylko mody pasujące do Twojego serwera i wersji (bez modów działających tylko u gracza).",
+      "placeholder_plugins": "Nazwa pluginu, np. LuckPerms",
+      "placeholder_mods": "Nazwa moda, np. Lithium",
+      "sort": "Sortowanie",
+      "sorts": {
+        "relevance": "Najtrafniejsze",
+        "downloads": "Najczęściej pobierane",
+        "updated": "Ostatnio aktualizowane",
+        "newest": "Najnowsze"
+      },
+      "loading": "Wczytuję…",
+      "empty": "Nic nie znaleziono dla tego serwera i wersji.",
+      "results_one": "{{count}} wynik",
+      "results_few": "{{count}} wyniki",
+      "results_many": "{{count}} wyników",
+      "results_other": "{{count}} wyników",
+      "by": "od {{author}}",
+      "downloads": "Pobrania",
+      "install": "Zainstaluj",
+      "installed": "Zainstalowany",
+      "chooseVersion": "Wybierz wersję…",
+      "more": "Pokaż więcej"
+    },
+    "versions": {
+      "title": "Wersje: {{name}}",
+      "body": "Tylko wersje pasujące do Twojego serwera. Domyślnie instalujemy najnowszą.",
+      "none": "Brak wersji pasujących do tego serwera.",
+      "newest": "najnowsza",
+      "types": {
+        "beta": "beta",
+        "alpha": "alfa"
+      }
+    },
+    "restart": {
+      "title": "Zmiany zadziałają po restarcie serwera",
+      "body": "Serwer wczytuje pluginy i mody przy starcie.",
+      "now": "Zrestartuj teraz",
+      "later": "Później",
+      "started": "Restartuję serwer…"
     }
   }
 }

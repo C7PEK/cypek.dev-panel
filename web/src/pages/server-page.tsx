@@ -18,6 +18,7 @@ import { ScheduleTab } from "@/components/schedules/schedule-tab"
 import { ServerUsersTab } from "@/components/admin/server-users-tab"
 import { BackupsTab } from "@/components/backups/backups-tab"
 import { ServerDatabasesTab } from "@/components/databases/server-databases-tab"
+import { ModsTab } from "@/components/mods/mods-tab"
 import { EventsPanel } from "@/components/servers/events-panel"
 import { ResourceCharts } from "@/components/stats/resource-charts"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -37,6 +38,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { isApiError } from "@/lib/api"
 import { describeError } from "@/lib/errors"
 import { useLiveStats } from "@/lib/events"
+import { useMods } from "@/lib/mods"
 import { formatBytes, formatPercent } from "@/lib/format"
 import { canDo, mergeLive, useDeleteServer, useServer, useUpdateServer } from "@/lib/servers"
 import { useTemplates } from "@/lib/templates"
@@ -77,6 +79,12 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
   const ramMax = s.limits?.memoryMb > 0 ? s.limits.memoryMb * 1024 * 1024 : undefined
   // The Files tab keeps its folder while the page stays open.
   const [filesPath, setFilesPath] = useState("")
+  // Plugins/mods tab: Minecraft only, and hidden when the API refuses (no files.read).
+  const isMinecraft = s.category === "minecraft"
+  const mods = useMods(s.id, isMinecraft && ready)
+  const modsRefused = isApiError(mods.error) && (mods.error.status === 403 || mods.error.code === "not_minecraft")
+  const showMods = isMinecraft && ready && !modsRefused
+  const modsLabel = mods.data?.platform.kind === "mods" ? t("serverPage.tabs.mods") : t("serverPage.tabs.plugins")
   return (
     <AppShell user={user}>
       <div className="flex flex-col gap-5">
@@ -130,6 +138,7 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
           <TabsList className="w-full justify-start overflow-x-auto">
             <TabsTrigger value="console">{t("serverPage.tabs.console")}</TabsTrigger>
             <TabsTrigger value="files">{t("serverPage.tabs.files")}</TabsTrigger>
+            {showMods && <TabsTrigger value="mods">{modsLabel}</TabsTrigger>}
             <TabsTrigger value="schedule">{t("serverPage.tabs.schedule")}</TabsTrigger>
             <TabsTrigger value="backups">{t("serverPage.tabs.backups")}</TabsTrigger>
             <TabsTrigger value="databases">{t("serverPage.tabs.databases")}</TabsTrigger>
@@ -144,6 +153,11 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
           <TabsContent value="files" className="pt-3">
             <FileBrowser serverId={s.id} path={filesPath} onPathChange={setFilesPath} />
           </TabsContent>
+          {showMods && (
+            <TabsContent value="mods" className="pt-3">
+              <ModsTab server={s} canWrite />
+            </TabsContent>
+          )}
           <TabsContent value="schedule" className="pt-3">
             <ScheduleTab serverId={s.id} isCustom={s.templateId === "custom"} />
           </TabsContent>

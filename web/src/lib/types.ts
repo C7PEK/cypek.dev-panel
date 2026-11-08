@@ -423,3 +423,77 @@ export interface UserGrant {
 }
 
 export type LoginResult = SessionResponse | { totpRequired: true; token: string }
+
+// --- Minecraft plugins / mods (Modrinth) --------------------------------------
+
+export type ModPlatformKind = "plugins" | "mods" | ""
+
+export interface ModPlatform {
+  kind: ModPlatformKind
+  /** "" when the panel could not tell what the server runs. */
+  loader: string
+  gameVersion: string
+  /** Folder the jars live in, e.g. "plugins". */
+  dir: string
+  detected: boolean
+  overridden: boolean
+  /** Loaders whose plugins/mods are accepted (paper also takes spigot/bukkit). */
+  loaders: string[]
+}
+
+export interface InstalledMod {
+  file: string
+  enabled: boolean
+  size: number
+  modifiedAt: string
+  project: { id: string; slug: string; title: string; iconUrl?: string } | null
+  version: { id: string; number: string } | null
+}
+
+export interface ModsList {
+  platform: ModPlatform
+  installed: InstalledMod[]
+}
+
+export interface ModUpdate {
+  versionId: string
+  number: string
+  name: string
+}
+
+export type ModSort = "relevance" | "downloads" | "updated" | "newest"
+
+export interface ModSearchHit {
+  projectId: string
+  slug: string
+  title: string
+  description: string
+  author: string
+  iconUrl?: string
+  downloads: number
+  categories: string[]
+  installed: boolean
+  url: string
+}
+
+export interface ModSearchPage {
+  hits: ModSearchHit[]
+  total: number
+  offset: number
+  limit: number
+}
+
+export interface ModVersion {
+  id: string
+  number: string
+  name: string
+  type: "release" | "beta" | "alpha"
+  date: string
+  gameVersions: string[]
+}
+
+export interface ModInstallResult {
+  installed: { file: string; title: string; version: string; dependency: boolean }[]
+  removed: string[]
+  restartNeeded: boolean
+}
