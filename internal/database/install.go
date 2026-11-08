@@ -159,7 +159,8 @@ NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
-ReadWritePaths=/var/lib/phpmyadmin
+# PHP keeps sessions here; phpMyAdmin keeps its temp files in /var/lib/phpmyadmin.
+ReadWritePaths=/var/lib/phpmyadmin /var/lib/php/sessions
 
 [Install]
 WantedBy=multi-user.target
