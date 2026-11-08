@@ -15,6 +15,7 @@ import (
 
 	"github.com/cypek019/cypek.dev---panel/internal/audit"
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
+	"github.com/cypek019/cypek.dev---panel/internal/backups"
 	"github.com/cypek019/cypek.dev---panel/internal/config"
 	"github.com/cypek019/cypek.dev---panel/internal/installer"
 	"github.com/cypek019/cypek.dev---panel/internal/metrics"
@@ -46,6 +47,8 @@ type Deps struct {
 	Metrics *metrics.Collector
 	// Schedules is the schedule store; the engine is created and started by New.
 	Schedules *scheduler.Store
+	// Backups is the backup record store.
+	Backups *backups.Store
 	// BgCtx outlives requests; background installs run under it.
 	BgCtx context.Context
 	// Dist is the built frontend. Ignored when DevProxy is set.
@@ -76,6 +79,8 @@ type Server struct {
 
 	schedules      *scheduler.Store
 	scheduleEngine *scheduler.Engine
+	backups        *backups.Store
+	backupJobs     *backupJobs
 
 	loginLimitIP   *auth.RateLimiter
 	loginLimitUser *auth.RateLimiter
@@ -101,6 +106,8 @@ func New(d Deps) (http.Handler, error) {
 		players:        query.NewCache(3 * time.Second),
 		metrics:        d.Metrics,
 		schedules:      d.Schedules,
+		backups:        d.Backups,
+		backupJobs:     &backupJobs{jobs: map[string]*backupJob{}},
 		loginLimitIP:   auth.NewRateLimiter(20, 10*time.Minute),
 		loginLimitUser: auth.NewRateLimiter(8, 15*time.Minute),
 		setupLimit:     auth.NewRateLimiter(10, 15*time.Minute),
@@ -132,7 +139,7 @@ func New(d Deps) (http.Handler, error) {
 		go s.metrics.Run(s.bgCtx)
 	}
 	if s.schedules != nil && s.sup != nil {
-		s.scheduleEngine = scheduler.New(s.schedules, s.sup, scheduler.Target{
+		target := scheduler.Target{
 			WarnCommand: s.warnCommandFor,
 			Players: func(ctx context.Context, id string) int {
 				srv, err := s.servers.Get(ctx, id)
@@ -144,7 +151,11 @@ func New(d Deps) (http.Handler, error) {
 				}
 				return -1
 			},
-		}, d.Log)
+		}
+		if s.backups != nil {
+			target.Backup = s.scheduledBackup
+		}
+		s.scheduleEngine = scheduler.New(s.schedules, s.sup, target, d.Log)
 		if err := s.scheduleEngine.Start(s.bgCtx); err != nil {
 			return nil, fmt.Errorf("start scheduler: %w", err)
 		}
@@ -202,6 +213,18 @@ func New(d Deps) (http.Handler, error) {
 					scr.Post("/{sid}/cancel", s.handleCancelSchedule)
 					scr.Get("/{sid}/runs", s.handleScheduleRuns)
 				})
+
+				if s.backups != nil {
+					sr.Route("/backups", func(br chi.Router) {
+						br.Use(s.withServer(auth.PermBackups))
+						br.Get("/", s.handleListBackups)
+						br.Post("/", s.handleCreateBackup)
+						br.Put("/settings", s.handleBackupSettings)
+						br.Delete("/{bid}", s.handleDeleteBackup)
+						br.Get("/{bid}/download", s.handleDownloadBackup)
+						br.Post("/{bid}/restore", s.handleRestoreBackup)
+					})
+				}
 
 				sr.Route("/files", func(fr chi.Router) {
 					fr.With(s.withServer(auth.PermFilesRead)).Get("/", s.handleFilesList)

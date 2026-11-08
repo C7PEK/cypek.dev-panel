@@ -18,6 +18,7 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/api"
 	"github.com/cypek019/cypek.dev---panel/internal/audit"
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
+	"github.com/cypek019/cypek.dev---panel/internal/backups"
 	"github.com/cypek019/cypek.dev---panel/internal/config"
 	"github.com/cypek019/cypek.dev---panel/internal/db"
 	"github.com/cypek019/cypek.dev---panel/internal/installer"
@@ -122,6 +123,7 @@ func runServe(args []string) error {
 		FiveM:     fivem,
 		Secrets:   box,
 		Schedules: scheduler.NewStore(sqlDB),
+		Backups:   backups.NewStore(sqlDB),
 		BgCtx:     ctx,
 		Dist:      mustSub(web.Dist, "dist"),
 	}

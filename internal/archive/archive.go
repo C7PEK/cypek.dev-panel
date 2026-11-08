@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/klauspost/compress/zstd"
 	"github.com/ulikunitz/xz"
 )
 
@@ -45,6 +46,14 @@ func Extract(archivePath, dest string, opts Options) error {
 		return extractTar(archivePath, dest, opts, func(r io.Reader) (io.Reader, error) { return gzip.NewReader(r) })
 	case strings.HasSuffix(name, ".tar.xz"), strings.HasSuffix(name, ".txz"):
 		return extractTar(archivePath, dest, opts, xzReader)
+	case strings.HasSuffix(name, ".tar.zst"), strings.HasSuffix(name, ".tzst"):
+		return extractTar(archivePath, dest, opts, func(r io.Reader) (io.Reader, error) {
+			d, err := zstd.NewReader(r)
+			if err != nil {
+				return nil, err
+			}
+			return d.IOReadCloser(), nil
+		})
 	case strings.HasSuffix(name, ".tar"):
 		return extractTar(archivePath, dest, opts, func(r io.Reader) (io.Reader, error) { return r, nil })
 	default:

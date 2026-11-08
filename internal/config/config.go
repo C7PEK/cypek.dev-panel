@@ -41,6 +41,9 @@ type Config struct {
 	Supervisor string `toml:"supervisor"`
 	// MaxUploadMB caps a single file upload in the file manager (default 1024).
 	MaxUploadMB int `toml:"max_upload_mb"`
+	// BackupsDirOverride replaces <data_dir>/backups, e.g. a mounted NAS
+	// path. The panel does not mount anything itself.
+	BackupsDirOverride string `toml:"backups_dir"`
 
 	TLS TLSConfig `toml:"tls"`
 
@@ -174,8 +177,13 @@ func (c *Config) ServersDir() string { return filepath.Join(c.DataDir, "servers"
 // RuntimesDir returns the directory holding downloaded runtimes.
 func (c *Config) RuntimesDir() string { return filepath.Join(c.DataDir, "runtimes") }
 
-// BackupsDir returns the default backup destination.
-func (c *Config) BackupsDir() string { return filepath.Join(c.DataDir, "backups") }
+// BackupsDir returns the backup destination (backups_dir or <data>/backups).
+func (c *Config) BackupsDir() string {
+	if c.BackupsDirOverride != "" {
+		return c.BackupsDirOverride
+	}
+	return filepath.Join(c.DataDir, "backups")
+}
 
 // UserTemplatesDir returns the directory for user-provided templates.
 func (c *Config) UserTemplatesDir() string { return filepath.Join(c.DataDir, "templates") }

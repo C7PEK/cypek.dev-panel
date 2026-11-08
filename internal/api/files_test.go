@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
 )
@@ -134,5 +136,107 @@ func TestFilesAPI(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != 403 {
 		t.Errorf("write without files.write: %d", resp.StatusCode)
+	}
+}
+
+func TestBackupsAPI(t *testing.T) {
+	e := newEnv(t)
+	e.completeSetup("owner", "password123")
+	_, body := e.do(http.MethodPost, "/api/v1/servers", fakeServerBody("Bk"))
+	id := body["id"].(string)
+	base := "/api/v1/servers/" + id + "/backups"
+	dir := filepath.Join(e.cfg.ServersDir(), id)
+	_ = os.MkdirAll(filepath.Join(dir, "logs"), 0o750)
+	_ = os.WriteFile(filepath.Join(dir, "world.dat"), []byte("world"), 0o640)
+	_ = os.WriteFile(filepath.Join(dir, "logs", "a.log"), []byte("log"), 0o640)
+
+	resp, body := e.do(http.MethodGet, base+"/", nil)
+	if resp.StatusCode != 200 || body["writable"] != true || len(body["items"].([]any)) != 0 {
+		t.Fatalf("list: %d %v", resp.StatusCode, body)
+	}
+	resp, body = e.do(http.MethodPut, base+"/settings", map[string]any{"excludes": []string{"logs/"}, "keepLast": 2, "keepDays": 0, "flushMinecraft": false})
+	if resp.StatusCode != 200 || body["keepLast"].(float64) != 2 {
+		t.Fatalf("settings: %d %v", resp.StatusCode, body)
+	}
+	resp, body = e.do(http.MethodPut, base+"/settings", map[string]any{"excludes": []string{"../x"}})
+	if resp.StatusCode != 422 {
+		t.Errorf("bad settings: %d %v", resp.StatusCode, body)
+	}
+
+	waitJob := func() map[string]any {
+		deadline := time.Now().Add(15 * time.Second)
+		for time.Now().Before(deadline) {
+			_, b := e.do(http.MethodGet, base+"/", nil)
+			if j, ok := b["job"].(map[string]any); ok && j["done"] == true {
+				return b
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		t.Fatal("job did not finish")
+		return nil
+	}
+	for i := 0; i < 3; i++ {
+		resp, body = e.do(http.MethodPost, base+"/", map[string]string{"note": "n"})
+		if resp.StatusCode != 202 {
+			t.Fatalf("create %d: %d %v", i, resp.StatusCode, body)
+		}
+		b := waitJob()
+		if j := b["job"].(map[string]any); j["error"] != nil {
+			t.Fatalf("backup error: %v", j["error"])
+		}
+		time.Sleep(1100 * time.Millisecond) // distinct file names (second resolution)
+	}
+	_, body = e.do(http.MethodGet, base+"/", nil)
+	items := body["items"].([]any)
+	if len(items) != 2 { // keepLast = 2
+		t.Fatalf("retention: %d items", len(items))
+	}
+	bid := strconv.Itoa(int(items[0].(map[string]any)["id"].(float64)))
+	files, _ := filepath.Glob(filepath.Join(e.cfg.BackupsDir(), id, "*.tar.zst"))
+	if len(files) != 2 {
+		t.Errorf("files on disk = %v", files)
+	}
+
+	// Download.
+	resp = e.raw(http.MethodGet, base+"/"+bid+"/download", "", nil)
+	data, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 || len(data) == 0 || !strings.Contains(resp.Header.Get("Content-Disposition"), ".tar.zst") {
+		t.Errorf("download: %d %d bytes", resp.StatusCode, len(data))
+	}
+
+	// Restore: change a file, restore, verify; logs were excluded so they vanish.
+	_ = os.WriteFile(filepath.Join(dir, "world.dat"), []byte("broken"), 0o640)
+	resp, body = e.do(http.MethodPost, base+"/"+bid+"/restore", nil)
+	if resp.StatusCode != 202 {
+		t.Fatalf("restore: %d %v", resp.StatusCode, body)
+	}
+	b := waitJob()
+	if j := b["job"].(map[string]any); j["kind"] != "restore" || j["error"] != nil {
+		t.Fatalf("restore job = %v", j)
+	}
+	if w, _ := os.ReadFile(filepath.Join(dir, "world.dat")); string(w) != "world" {
+		t.Errorf("world.dat after restore = %q", w)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "logs")); err == nil {
+		t.Error("excluded logs dir reappeared")
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".homepanel", "run.json")); err != nil {
+		t.Error("run.json lost on restore")
+	}
+	resp, _ = e.do(http.MethodDelete, base+"/"+bid, nil)
+	if resp.StatusCode != 204 {
+		t.Errorf("delete: %d", resp.StatusCode)
+	}
+	files, _ = filepath.Glob(filepath.Join(e.cfg.BackupsDir(), id, "*.tar.zst"))
+	if len(files) != 1 {
+		t.Errorf("after delete files = %v", files)
+	}
+
+	// Permission matrix.
+	plain, _ := e.store.CreateUser(t.Context(), "plain", "password123", auth.RoleUser)
+	_ = e.store.GrantPermissions(t.Context(), id, plain.ID, []auth.Permission{auth.PermConsoleRead})
+	e.loginAs("plain")
+	if resp, _ := e.do(http.MethodGet, base+"/", nil); resp.StatusCode != 403 {
+		t.Errorf("backups without perm: %d", resp.StatusCode)
 	}
 }
