@@ -69,6 +69,28 @@ export interface Limits {
 
 export type InstallState = "pending" | "installing" | "ready" | "failed"
 
+/** Player count from the game's own query protocol (Minecraft server list ping). */
+export interface Players {
+  online: number
+  max: number
+  /** Best effort; Minecraft samples up to 12 names. */
+  names?: string[]
+  kind: string
+  at: string
+}
+
+export interface ConsoleCommand {
+  name: string
+  /** Tiny grammar: <required> [optional] <a|b|c> <player> <text...> */
+  args?: string
+  help?: LocalizedText
+}
+
+export interface ConsoleHints {
+  commands: ConsoleCommand[]
+  players?: Players
+}
+
 export interface Server {
   id: string
   name: string
@@ -87,6 +109,8 @@ export interface Server {
   createdAt: string
   updatedAt: string
   status: ServerStatus
+  /** Present only while running and the game answered the query. */
+  players?: Players
 }
 
 export interface CreateServerInput {

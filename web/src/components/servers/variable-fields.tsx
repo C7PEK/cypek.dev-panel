@@ -192,8 +192,8 @@ function NativeSelect({
       onChange={(e) => onChange(e.target.value)}
       aria-invalid={invalid}
       className={cn(
-        "h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-        "dark:bg-input/30 aria-invalid:border-destructive",
+        "h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+        "dark:bg-input/30 aria-invalid:border-destructive [&>option]:bg-background [&>option]:text-foreground",
       )}
     >
       {children}

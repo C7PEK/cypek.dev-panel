@@ -1,14 +1,17 @@
 import { FitAddon } from "@xterm/addon-fit"
 import { Terminal } from "@xterm/xterm"
 import "@xterm/xterm/css/xterm.css"
-import { ArrowDownIcon, SendHorizontalIcon } from "lucide-react"
-import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react"
+import { ArrowDownIcon, SendHorizontalIcon, UsersIcon } from "lucide-react"
+import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import i18n from "@/i18n"
-import type { ConsoleClientFrame, ConsoleServerFrame, ServerState } from "@/lib/types"
+import { analyse, playerMatches, replaceToken, usage } from "@/lib/console-grammar"
+import { useConsoleHints } from "@/lib/servers"
+import { localized } from "@/lib/templates"
+import type { ConsoleClientFrame, ConsoleCommand, ConsoleServerFrame, ServerState } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 type ConnStatus = "connecting" | "connected" | "reconnecting" | "noPermission"
@@ -85,6 +88,20 @@ export function Console({ serverId, initialState, className }: Props) {
   // Index into history counted from the newest entry; -1 means "editing a fresh line".
   const histIdx = useRef(-1)
   const draft = useRef("")
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Autocompletion: template commands + online players, polled while the server runs.
+  const hints = useConsoleHints(serverId, isLive(state))
+  const commands = useMemo(() => hints.data?.commands ?? [], [hints.data])
+  const players = useMemo(() => hints.data?.players?.names ?? [], [hints.data])
+  const helpOf = useCallback((c: ConsoleCommand) => localized(c.help), [])
+  const [suggestOpen, setSuggestOpen] = useState(false)
+  const [selected, setSelected] = useState(-1)
+  // Repeated Tab on an ambiguous nick cycles through the matches.
+  const tabCycle = useRef<{ prefix: string; start: number; i: number } | null>(null)
+  const analysis = useMemo(() => analyse(input, commands, players, helpOf), [input, commands, players, helpOf])
+  const pickable = analysis.suggestions.filter((sg) => !sg.info)
+  const listOpen = suggestOpen && input.trim() !== "" && analysis.suggestions.length > 0
 
   const send = useCallback((frame: ConsoleClientFrame) => {
     const ws = wsRef.current
@@ -240,9 +257,60 @@ export function Console({ serverId, initialState, className }: Props) {
 
   const canSend = conn === "connected" && isLive(state)
 
+  function setText(next: string) {
+    setInput(next)
+    histIdx.current = -1
+    tabCycle.current = null
+  }
+
+  /** Applies a suggestion to the token under the caret. */
+  function apply(value: string) {
+    setText(replaceToken(input, analysis.tokenStart, value))
+    setSelected(-1)
+    setSuggestOpen(true)
+    inputRef.current?.focus()
+  }
+
+  /** Inserts a nick at the caret (from the players row). */
+  function insertNick(nick: string) {
+    const el = inputRef.current
+    const pos = el?.selectionStart ?? input.length
+    const before = input.slice(0, pos)
+    const after = input.slice(pos)
+    const sep = before && !/\s$/.test(before) ? " " : ""
+    setText(before + sep + nick + (after.startsWith(" ") || after === "" ? "" : " ") + after)
+    el?.focus()
+  }
+
+  /** Tab: complete the highlighted suggestion, else the only candidate, else cycle nick matches. */
+  function completeTab() {
+    if (listOpen && selected >= 0 && pickable[selected]) {
+      apply(pickable[selected].value)
+      return
+    }
+    if (listOpen && pickable.length === 1) {
+      apply(pickable[0].value)
+      return
+    }
+    const cycle = tabCycle.current
+    const word = cycle && cycle.start === analysis.tokenStart ? cycle.prefix : analysis.prefix
+    const matches = playerMatches(word, players)
+    if (matches.length === 0) {
+      if (listOpen && pickable.length > 0) setSelected((i) => (i + 1) % pickable.length)
+      return
+    }
+    const i = cycle && cycle.start === analysis.tokenStart ? (cycle.i + 1) % matches.length : 0
+    setInput(replaceToken(input, analysis.tokenStart, matches[i] + (matches.length === 1 ? " " : "")))
+    histIdx.current = -1
+    tabCycle.current = { prefix: word, start: analysis.tokenStart, i }
+  }
+
   function submit() {
     const text = input
     if (!canSend || !text.trim()) return
+    setSuggestOpen(false)
+    setSelected(-1)
+    tabCycle.current = null
     send({ type: "input", data: text + "\n" })
     setHistory((h) => {
       const next = h[h.length - 1] === text ? h : [...h, text].slice(-HISTORY_MAX)
@@ -255,9 +323,32 @@ export function Console({ serverId, initialState, className }: Props) {
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Tab" && !e.shiftKey && input.trim() !== "") {
+      e.preventDefault()
+      completeTab()
+      return
+    }
+    if (e.key === "Escape" && listOpen) {
+      e.preventDefault()
+      setSuggestOpen(false)
+      setSelected(-1)
+      return
+    }
     if (e.key === "Enter") {
       e.preventDefault()
+      if (listOpen && selected >= 0 && pickable[selected]) {
+        apply(pickable[selected].value)
+        return
+      }
       submit()
+      return
+    }
+    if ((e.key === "ArrowUp" || e.key === "ArrowDown") && listOpen && pickable.length > 0) {
+      e.preventDefault()
+      setSelected((i) => {
+        if (e.key === "ArrowDown") return (i + 1) % pickable.length
+        return i <= 0 ? pickable.length - 1 : i - 1
+      })
       return
     }
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -306,19 +397,89 @@ export function Console({ serverId, initialState, className }: Props) {
           {t(`console.status.${chip.key}`)}
         </span>
       </div>
+      {hints.data?.players && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground" aria-label={t("console.players.title")}>
+          <span className="inline-flex items-center gap-1 font-mono">
+            <UsersIcon className="size-3.5" />
+            {t("console.players.label", { online: hints.data.players.online, max: hints.data.players.max })}
+          </span>
+          {players.length > 0 ? (
+            players.map((n) => (
+              <button
+                key={n}
+                type="button"
+                className="rounded border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[0.7rem] text-foreground hover:bg-muted disabled:opacity-50"
+                onClick={() => insertNick(n)}
+                disabled={!canSend}
+                title={t("console.players.insert")}
+              >
+                {n}
+              </button>
+            ))
+          ) : (
+            <span>· {t("console.players.none")}</span>
+          )}
+        </div>
+      )}
       <form
-        className="flex items-center gap-2"
+        className="relative flex items-center gap-2"
         onSubmit={(e) => {
           e.preventDefault()
           submit()
         }}
       >
+        {listOpen && (
+          <div
+            className="absolute right-0 bottom-full left-0 z-20 mb-1 max-h-64 overflow-y-auto rounded-lg border bg-popover text-popover-foreground shadow-lg ring-1 ring-foreground/10"
+            role="listbox"
+          >
+            {analysis.command && analysis.tokenIndex > 0 && (
+              <div className="label-caps border-b px-3 py-1.5 text-[0.62rem] text-muted-foreground">
+                {t("console.suggestions.usage")}: <span className="font-mono normal-case tracking-normal">{usage(analysis.command)}</span>
+              </div>
+            )}
+            {analysis.suggestions.map((sg) => {
+              const idx = pickable.indexOf(sg)
+              const active = !sg.info && idx === selected
+              return (
+                <div
+                  key={sg.kind + sg.label}
+                  role={sg.info ? "note" : "option"}
+                  aria-selected={active}
+                  className={cn(
+                    "flex min-h-9 flex-wrap items-baseline gap-x-3 px-3 py-1.5 text-sm",
+                    sg.info ? "text-muted-foreground" : "cursor-pointer hover:bg-muted",
+                    active && "bg-primary/15",
+                  )}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    if (!sg.info) apply(sg.value)
+                  }}
+                >
+                  <span className="font-mono">{sg.label}</span>
+                  {sg.detail && <span className="truncate text-xs text-muted-foreground">{sg.detail}</span>}
+                  {sg.kind === "player" && <span className="label-caps ml-auto text-[0.58rem] text-brand-cyan">player</span>}
+                </div>
+              )
+            })}
+            {analysis.slot?.player && players.length === 0 && pickable.length === 0 && (
+              <div className="px-3 py-1.5 text-xs text-muted-foreground">{t("console.suggestions.noPlayers")}</div>
+            )}
+            <div className="label-caps hidden border-t px-3 py-1 text-[0.58rem] text-muted-foreground/70 sm:block">
+              {t("console.suggestions.hint")}
+            </div>
+          </div>
+        )}
         <Input
+          ref={inputRef}
           value={input}
           onChange={(e) => {
-            setInput(e.target.value)
-            histIdx.current = -1
+            setText(e.target.value)
+            setSelected(-1)
+            setSuggestOpen(true)
           }}
+          onBlur={() => setSuggestOpen(false)}
+          onFocus={() => setSuggestOpen(true)}
           onKeyDown={onKeyDown}
           disabled={!canSend}
           placeholder={canSend ? t("console.inputPlaceholder") : t("console.inputDisabled")}

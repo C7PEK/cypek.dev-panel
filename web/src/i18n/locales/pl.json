@@ -233,6 +233,18 @@
       "reconnecting": "Ponowne łączenie…",
       "noPermission": "Tylko podgląd",
       "notRunning": "Serwer zatrzymany"
+    },
+    "players": {
+      "title": "Gracze online",
+      "label": "Gracze {{online}}/{{max}}",
+      "none": "nikogo nie ma",
+      "insert": "Wstaw nick"
+    },
+    "suggestions": {
+      "usage": "Użycie",
+      "noPlayers": "Brak graczy online do uzupełnienia",
+      "hint": "Tab uzupełnia · ↑↓ wybór · Esc zamyka",
+      "choose": "wybierz"
     }
   },
   "templates": {

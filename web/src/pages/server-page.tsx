@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, Trash2Icon } from "lucide-react"
+import { ArrowLeftIcon, Trash2Icon, UsersIcon } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, Navigate, useNavigate, useParams } from "react-router"
@@ -76,6 +76,12 @@ export function ServerPage({ user }: { user: User }) {
                 {!ready && <InstallBadge state={s.installState} />}
                 <TemplateLabel server={s} />
                 {s.status.pid ? <span className="font-mono">PID {s.status.pid}</span> : null}
+                {s.players && (
+                  <span className="inline-flex items-center gap-1 font-mono" title={t("console.players.title")}>
+                    <UsersIcon className="size-3.5" />
+                    {s.players.online}/{s.players.max}
+                  </span>
+                )}
               </div>
               {s.status.state === "crashed" && s.status.message && (
                 <p className="mt-1 max-w-xl text-xs text-destructive">{s.status.message}</p>

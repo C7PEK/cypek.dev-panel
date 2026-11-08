@@ -1,4 +1,4 @@
-import { MemoryStickIcon } from "lucide-react"
+import { MemoryStickIcon, UsersIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 
@@ -44,12 +44,18 @@ export function ServerTile({ server }: { server: Server }) {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+          <div className="flex items-center gap-3 font-mono text-xs text-muted-foreground">
+            {server.players && (
+              <span className="inline-flex items-center gap-1" title={t("console.players.title")}>
+                <UsersIcon className="size-3.5" />
+                {server.players.online}/{server.players.max}
+              </span>
+            )}
             {memory ? (
-              <>
+              <span className="inline-flex items-center gap-1.5">
                 <MemoryStickIcon className="size-3.5" />
                 {memory}
-              </>
+              </span>
             ) : status.state === "crashed" && status.exitCode !== undefined ? (
               t("servers.exitCode", { code: status.exitCode })
             ) : (

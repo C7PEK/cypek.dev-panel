@@ -54,6 +54,7 @@
 /* cypek.dev palette: near-black ground, hairline borders, blurple accent,
    cyan/magenta only as brand highlights. Light theme is the same system inverted. */
 :root {
+    color-scheme: light;
     --background: oklch(0.985 0 0);
     --foreground: oklch(0.17 0.005 285);
     --card: oklch(1 0 0);
@@ -91,6 +92,7 @@
 }
 
 .dark {
+    color-scheme: dark;
     --background: oklch(0.13 0.003 285);        /* #050506 */
     --foreground: oklch(0.965 0.002 285);       /* #f4f4f6 */
     --card: oklch(0.17 0.004 285);

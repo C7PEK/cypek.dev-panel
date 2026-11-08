@@ -231,6 +231,18 @@
       "reconnecting": "Reconnecting…",
       "noPermission": "View only",
       "notRunning": "Server stopped"
+    },
+    "players": {
+      "title": "Players online",
+      "label": "Players {{online}}/{{max}}",
+      "none": "nobody online",
+      "insert": "Insert nick"
+    },
+    "suggestions": {
+      "usage": "Usage",
+      "noPlayers": "No players online to complete",
+      "hint": "Tab completes · ↑↓ choose · Esc closes",
+      "choose": "choose"
     }
   },
   "templates": {

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { api } from "@/lib/api"
 import type {
+  ConsoleHints,
   CreateServerInput,
   InstallJob,
   InstallState,
@@ -121,5 +122,19 @@ export function useReinstall(id: string) {
       void qc.invalidateQueries({ queryKey: serverKey(id) })
       void qc.invalidateQueries({ queryKey: installJobKey(id) })
     },
+  })
+}
+
+export const consoleHintsKey = (id: string) => ["servers", id, "console-hints"] as const
+
+/** Command list + online players for console autocompletion; polls every 5 s while enabled. */
+export function useConsoleHints(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: consoleHintsKey(id),
+    queryFn: () => api<ConsoleHints>("GET", `${serverPath(id)}/console/hints`),
+    enabled,
+    staleTime: 4000,
+    refetchInterval: enabled ? 5000 : false,
+    retry: false,
   })
 }
