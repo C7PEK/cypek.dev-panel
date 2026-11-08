@@ -15,6 +15,7 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/cypek019/cypek.dev---panel/internal/alerts"
 	"github.com/cypek019/cypek.dev---panel/internal/audit"
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
 	"github.com/cypek019/cypek.dev---panel/internal/backups"
@@ -41,6 +42,7 @@ type testEnv struct {
 	csrf     string
 	paper    *providers.Paper
 	adoptium *providers.Adoptium
+	sender   *captureSender
 }
 
 func newEnv(t *testing.T) *testEnv {
@@ -80,15 +82,16 @@ func newEnv(t *testing.T) *testEnv {
 	adoptium := &providers.Adoptium{BaseURL: "https://127.0.0.1:1"}
 	inst := installer.New(installer.Deps{Paper: paper, Java: &runtimes.Java{Dir: filepath.Join(dir, "runtimes"), Adoptium: adoptium}, Log: log})
 	box, _ := secrets.New(bytes.Repeat([]byte{1}, 32))
+	sender := &captureSender{}
 	h, err := New(Deps{Config: cfg, Store: store, Audit: audit.New(sqlDB, log), Log: log, Version: "test", Dist: dist, Servers: serverStore, Sup: sup,
-		Templates: registry, Installer: inst, Paper: paper, Secrets: box, Schedules: scheduler.NewStore(sqlDB), Backups: backups.NewStore(sqlDB), DBRecords: database.NewStore(sqlDB), Databases: database.NewManager(filepath.Join(dir, "database.json"))})
+		Templates: registry, Installer: inst, Paper: paper, Secrets: box, Schedules: scheduler.NewStore(sqlDB), Backups: backups.NewStore(sqlDB), DBRecords: database.NewStore(sqlDB), Alerts: alerts.NewStore(sqlDB, box), AlertSender: sender, Databases: database.NewManager(filepath.Join(dir, "database.json"))})
 	if err != nil {
 		t.Fatal(err)
 	}
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
 	jar, _ := cookiejar.New(nil)
-	return &testEnv{t: t, srv: srv, client: &http.Client{Jar: jar}, store: store, cfg: cfg, paper: paper, adoptium: adoptium}
+	return &testEnv{t: t, srv: srv, client: &http.Client{Jar: jar}, store: store, cfg: cfg, paper: paper, adoptium: adoptium, sender: sender}
 }
 
 // do sends a JSON request, attaching the CSRF header when known.

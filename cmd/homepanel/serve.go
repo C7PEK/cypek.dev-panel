@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/cypek019/cypek.dev---panel/internal/alerts"
 	"github.com/cypek019/cypek.dev---panel/internal/api"
 	"github.com/cypek019/cypek.dev---panel/internal/audit"
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
@@ -128,6 +129,7 @@ func runServe(args []string) error {
 		Schedules: scheduler.NewStore(sqlDB),
 		Backups:   backups.NewStore(sqlDB),
 		DBRecords: database.NewStore(sqlDB),
+		Alerts:    alerts.NewStore(sqlDB, box),
 		Databases: database.NewManager(database.CredsPath),
 		BgCtx:     ctx,
 		Dist:      mustSub(web.Dist, "dist"),

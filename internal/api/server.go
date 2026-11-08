@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/cypek019/cypek.dev---panel/internal/alerts"
 	"github.com/cypek019/cypek.dev---panel/internal/audit"
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
 	"github.com/cypek019/cypek.dev---panel/internal/backups"
@@ -44,6 +45,10 @@ type Deps struct {
 	Templates *templates.Registry
 	Installer *installer.Manager
 	Paper     *providers.Paper
+	// Alerts stores Discord alert settings (nil disables alerts).
+	Alerts *alerts.Store
+	// AlertSender overrides the Discord client (tests).
+	AlertSender alerts.Sender
 	// Modrinth backs the Minecraft plugin/mod manager (nil = public API).
 	Modrinth *providers.Modrinth
 	FiveM    *providers.FiveM
@@ -92,6 +97,9 @@ type Server struct {
 	dbRecords      *database.Store
 	databases      *database.Manager
 	mods           *mods.Manager
+	alertStore     *alerts.Store
+	alertMon       *alerts.Monitor
+	alertSender    alerts.Sender
 
 	loginLimitIP   *auth.RateLimiter
 	loginLimitUser *auth.RateLimiter
@@ -144,6 +152,8 @@ func New(d Deps) (http.Handler, error) {
 		d.Modrinth = providers.NewModrinth()
 	}
 	s.mods = mods.NewManager(d.Modrinth)
+	s.alertStore = d.Alerts
+	s.alertSender = d.AlertSender
 	if s.paper == nil {
 		s.paper = providers.NewPaper()
 	}
@@ -167,6 +177,7 @@ func New(d Deps) (http.Handler, error) {
 		s.metrics = metrics.New(storeSource{servers: s.servers, sup: s.sup, api: s}, 3*time.Second, 1200, d.Config.DataDir, d.Log)
 		go s.metrics.Run(s.bgCtx)
 	}
+	s.startAlerts()
 	if s.schedules != nil && s.sup != nil {
 		target := scheduler.Target{
 			WarnCommand: s.warnCommandFor,
@@ -260,6 +271,13 @@ func New(d Deps) (http.Handler, error) {
 
 			priv.Get("/mods/game-versions", s.handleGameVersions)
 
+			priv.Route("/alerts", func(ar chi.Router) {
+				ar.Use(s.requireRole(auth.RoleAdmin))
+				ar.Get("/", s.handleGetAlerts)
+				ar.Put("/", s.handlePutAlerts)
+				ar.Post("/test", s.handleTestAlerts)
+			})
+
 			priv.Get("/servers", s.handleListServers)
 			priv.With(s.requireRole(auth.RoleAdmin)).Post("/servers", s.handleCreateServer)
 			priv.Route("/servers/{id}", func(sr chi.Router) {
@@ -313,6 +331,10 @@ func New(d Deps) (http.Handler, error) {
 						br.Post("/{bid}/restore", s.handleRestoreBackup)
 					})
 				}
+
+				sr.With(s.withServer(auth.PermSettings)).Get("/alerts", s.handleGetServerAlerts)
+				sr.With(s.withServer(auth.PermSettings)).Put("/alerts", s.handlePutServerAlerts)
+				sr.With(s.withServer(auth.PermSettings)).Post("/alerts/test", s.handleTestServerAlerts)
 
 				sr.Route("/mods", func(mr chi.Router) {
 					mr.With(s.withServer(auth.PermFilesRead)).Get("/", s.handleModsList)
