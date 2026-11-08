@@ -2,6 +2,7 @@
 package api
 
 import (
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -24,7 +25,8 @@ type Deps struct {
 	Version string
 	// Dist is the built frontend. Ignored when DevProxy is set.
 	Dist fs.FS
-	// DevProxy, when non-empty, forwards non-API requests to a Vite dev server.
+	// DevProxy, when non-empty, forwards non-API requests to a Vite dev server
+	// whenever it is reachable, and serves Dist otherwise.
 	DevProxy string
 }
 
@@ -85,15 +87,13 @@ func New(d Deps) (http.Handler, error) {
 		})
 	})
 
-	var static http.Handler
+	static := spaHandler(d.Dist)
 	if d.DevProxy != "" {
-		p, err := devProxy(d.DevProxy)
+		var err error
+		static, err = devHandler(d.DevProxy, static)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("dev proxy: %w", err)
 		}
-		static = p
-	} else {
-		static = spaHandler(d.Dist)
 	}
 	r.Handle("/*", static)
 	return r, nil

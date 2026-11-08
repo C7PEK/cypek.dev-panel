@@ -2,11 +2,14 @@ package api
 
 import (
 	"io/fs"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"path"
 	"strings"
+	"sync"
+	"time"
 )
 
 // spaHandler serves a built single-page app from an fs.FS: real files as-is,
@@ -41,11 +44,40 @@ func spaHandler(dist fs.FS) http.Handler {
 	})
 }
 
-// devProxy forwards non-API requests (including the HMR websocket) to the Vite dev server.
-func devProxy(target string) (http.Handler, error) {
+// devHandler forwards non-API requests (including the HMR websocket) to the
+// Vite dev server, falling back to the embedded build while Vite is down.
+// `make dev` starts both at once, so Vite is often not up yet when the panel
+// takes its first request; the reachability check is cached briefly.
+func devHandler(target string, fallback http.Handler) (http.Handler, error) {
 	u, err := url.Parse(target)
 	if err != nil {
 		return nil, err
 	}
-	return httputil.NewSingleHostReverseProxy(u), nil
+	proxy := httputil.NewSingleHostReverseProxy(u)
+	var (
+		mu        sync.Mutex
+		checkedAt time.Time
+		reachable bool
+	)
+	isUp := func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		if time.Since(checkedAt) < 2*time.Second {
+			return reachable
+		}
+		conn, err := net.DialTimeout("tcp", u.Host, 300*time.Millisecond)
+		if err == nil {
+			conn.Close()
+		}
+		reachable = err == nil
+		checkedAt = time.Now()
+		return reachable
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isUp() {
+			proxy.ServeHTTP(w, r)
+			return
+		}
+		fallback.ServeHTTP(w, r)
+	}), nil
 }
