@@ -128,3 +128,65 @@ rejected.
 4. Changing variables later re-runs the `write`/`properties` steps and
    re-renders `run.json` without downloading anything. "Reinstall"
    re-downloads the server files but leaves everything else in the directory.
+
+## Shell start, scripts and config files
+
+These exist mainly for templates imported from other panels, but any
+template may use them.
+
+- **`start.shell`** (instead of `start.command`/`args`) runs the command line
+  with `/bin/bash -c`. Every variable is exported to the environment and
+  `{{KEY}}` becomes `"${KEY}"` (`{{KEY...}}` becomes an unquoted `${KEY}`
+  that bash splits into words). Values are never pasted into the code, so
+  `$(...)` or backticks in a value stay plain text.
+- **`script`** install step: `{content, timeoutSec}` (default timeout 30 min).
+  It runs in the server's own systemd unit, `homepanel-server@<id>`, with the
+  same sandbox as the game: the panel user, no root, write access only to the
+  server folder. A wrapper runs first. It:
+  - skips `apt`/`apk`/`yum`/... calls (no root),
+  - maps `java17`, `java21`, ... to the prepared Java,
+  - rewrites `/mnt/server` and `/home/container` to the server folder,
+  - notes which common tools (curl, jq, unzip, ...) are missing.
+
+  `homepanel fetch mojang|paper <version> <file>` and
+  `homepanel fetch fabric-installer <file>` download server jars with
+  checksum checks. The panel shows a warning before such a template is used.
+- **`configFiles`**: `[{path, parser, set}]` with `parser` one of
+  `properties`, `ini`, `yaml`, `json` (dotted keys such as `server.port`) or
+  `file` (the key is a line prefix and the value the whole new line). They are
+  applied after install and again before every start, so files follow the
+  variables.
+- **`hidden: true`** keeps a variable out of the wizard; it still gets its
+  default.
+- **Builtins**: `{{SERVER_DIR}}` (absolute server folder), `{{RUNTIME_BIN}}`
+  and `{{JAVA_HOME}}`. `runtime.version` may be a placeholder such as
+  `{{JAVA_VERSION}}`.
+- **`stop.command: "^C"`** sends SIGINT instead of console input (also
+  accepted: `SIGTERM`, `SIGKILL`).
+
+## Importing from Pterodactyl, Pelican and PufferPanel
+
+*Admin → Templates → Import* accepts a pasted file, an uploaded file or an
+https link. GitHub `blob` links are rewritten to their raw form. Links that
+resolve to a private or loopback address are refused. The result is a normal
+YAML template that you can review and edit before saving. It is stored in
+`/var/lib/homepanel/templates/<id>.yaml`, and everything the converter could
+not map is listed as a warning.
+
+| Egg / template field | Becomes |
+|---|---|
+| `variables[].env_variable`, `rules` | variables: `in:` → select, `integer`/`numeric` → number with `min`/`max`, `boolean` → select 0/1 (or bool), `regex:` → pattern; `user_viewable: false` → hidden; names with token/password/secret → secret |
+| `{{server.build.default.port}}`, `{{server.build.memory}}`, `{{env.X}}` | `{{SERVER_PORT}}`, `{{SERVER_MEMORY}}`, `{{X}}` (port and memory become wizard fields) |
+| `docker_images` (yolks `java_21`, `nodejs_20`, `python_3.12`, `eclipse-temurin:17`, ...) | `runtime`; several versions give a `JAVA_VERSION` / `NODE_VERSION` / `PYTHON_VERSION` select, defaulting to the egg's first image. Other images (steamcmd, wine, mono) run directly on the host and need those programs installed |
+| `scripts.installation.script` | a `script` install step |
+| `startup` / Pelican `startup_commands` | `start.shell` (`/home/container` → server folder) |
+| `config.stop`, `config.startup.done`, `config.files` | `stop`, `readyRegex`, `configFiles` (no xml parser, no wildcard keys) |
+| `features: [eula]` | an EULA consent switch plus `eula.txt` |
+| PufferPanel `data` | variables (an empty select option shows as `none`) |
+| PufferPanel `install` ops | one bash script: `command`, `download`, `writefile`, `move`, `mkdir`, `extract`, `sleep`, `mojangdl`, `paperdl`, `fabricdl`; `javadl` sets the runtime. `if` expressions are translated to bash conditions with `env == 'host'`. Unsupported ops (forgedl, neoforgedl, steamgamedl, ...) stop the install with a clear message only when that branch is reached |
+| PufferPanel `run.command` list with `if` | an if/elif chain in `start.shell` |
+
+Not converted: Pterodactyl `file_denylist`, log settings, PufferPanel `pre`/`post`
+run steps and container-only environments. Package installs inside scripts
+are skipped, so install tools such as `jq` and `unzip` on the host
+(`sudo apt install jq unzip`). The import dialog says which ones are missing.
