@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/cookiejar"
 	"strconv"
@@ -209,5 +210,86 @@ func TestTOTPFlow(t *testing.T) {
 	}
 	if resp, _ := e.do(http.MethodPost, "/api/v1/auth/totp/setup", nil); resp.StatusCode != 200 {
 		t.Errorf("setup blocked: %d", resp.StatusCode)
+	}
+}
+
+func TestAPIKeys(t *testing.T) {
+	e := newEnv(t)
+	e.completeSetup("owner", "password123")
+	_, srvBody := e.do(http.MethodPost, "/api/v1/servers", fakeServerBody("K"))
+	sid := srvBody["id"].(string)
+
+	resp, body := e.do(http.MethodPost, "/api/v1/auth/api-keys", map[string]any{"name": "ci", "scope": []string{"console.read", "power"}})
+	if resp.StatusCode != 201 || !strings.HasPrefix(body["token"].(string), "hp_") {
+		t.Fatalf("create key: %d %v", resp.StatusCode, body)
+	}
+	token := body["token"].(string)
+	kid := strconv.Itoa(int(body["key"].(map[string]any)["id"].(float64)))
+	resp, body = e.do(http.MethodPost, "/api/v1/auth/api-keys", map[string]any{"name": "bad", "scope": []string{"nope"}})
+	if resp.StatusCode != 422 {
+		t.Errorf("bad scope: %d %v", resp.StatusCode, body)
+	}
+
+	// Bearer requests: no cookie, no CSRF header needed, scope enforced.
+	bearer := func(method, path string, payload any) (*http.Response, map[string]any) {
+		t.Helper()
+		var rd *strings.Reader
+		if payload != nil {
+			b, _ := json.Marshal(payload)
+			rd = strings.NewReader(string(b))
+		} else {
+			rd = strings.NewReader("")
+		}
+		req, _ := http.NewRequest(method, e.srv.URL+path, rd)
+		req.Header.Set("Authorization", "Bearer "+token)
+		if payload != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		resp, err := (&http.Client{}).Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		var out map[string]any
+		_ = json.NewDecoder(resp.Body).Decode(&out)
+		return resp, out
+	}
+	resp, body = bearer(http.MethodGet, "/api/v1/auth/me", nil)
+	if resp.StatusCode != 200 || body["user"].(map[string]any)["username"] != "owner" {
+		t.Fatalf("bearer me: %d %v", resp.StatusCode, body)
+	}
+	resp, body = bearer(http.MethodGet, "/api/v1/servers/"+sid, nil)
+	if resp.StatusCode != 200 {
+		t.Errorf("bearer get server: %d %v", resp.StatusCode, body)
+	}
+	resp, body = bearer(http.MethodPatch, "/api/v1/servers/"+sid, map[string]any{"name": "renamed"})
+	if resp.StatusCode != 403 {
+		t.Errorf("out-of-scope settings: %d %v", resp.StatusCode, body)
+	}
+	resp, body = bearer(http.MethodPost, "/api/v1/servers/"+sid+"/power", map[string]string{"action": "stop"})
+	if resp.StatusCode != 409 { // in scope; server is stopped -> conflict, not forbidden
+		t.Errorf("in-scope power: %d %v", resp.StatusCode, body)
+	}
+	resp, _ = bearer(http.MethodPost, "/api/v1/auth/api-keys", map[string]any{"name": "nested"})
+	if resp.StatusCode != 403 {
+		t.Errorf("key creates key: %d", resp.StatusCode)
+	}
+	req, _ := http.NewRequest(http.MethodGet, e.srv.URL+"/api/v1/auth/me", nil)
+	req.Header.Set("Authorization", "Bearer hp_garbage")
+	if resp, _ := (&http.Client{}).Do(req); resp.StatusCode != 401 {
+		t.Errorf("garbage key: %d", resp.StatusCode)
+	}
+	_, body = e.do(http.MethodGet, "/api/v1/auth/api-keys", nil)
+	items := body["items"].([]any)
+	if len(items) != 1 || items[0].(map[string]any)["lastUsedAt"] == "" {
+		t.Errorf("keys = %v", items)
+	}
+	resp, _ = e.do(http.MethodDelete, "/api/v1/auth/api-keys/"+kid, nil)
+	if resp.StatusCode != 204 {
+		t.Errorf("delete key: %d", resp.StatusCode)
+	}
+	resp, _ = bearer(http.MethodGet, "/api/v1/auth/me", nil)
+	if resp.StatusCode != 401 {
+		t.Errorf("deleted key still works: %d", resp.StatusCode)
 	}
 }

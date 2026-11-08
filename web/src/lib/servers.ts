@@ -6,12 +6,19 @@ import type {
   CreateServerInput,
   InstallJob,
   InstallState,
+  LiveServer,
   PowerAction,
   Server,
   ServerState,
   ServerStatus,
   UpdateServerInput,
 } from "@/lib/types"
+
+/** Prefer the events socket's fresher status/players over the 3 s REST snapshot. */
+export function mergeLive(server: Server, live?: LiveServer): Server {
+  if (!live) return server
+  return { ...server, status: { ...server.status, ...live.status }, players: live.players ?? server.players }
+}
 
 export const serversKey = ["servers"] as const
 export const serverKey = (id: string) => ["servers", id] as const

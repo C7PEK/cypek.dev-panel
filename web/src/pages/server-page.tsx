@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, Trash2Icon, UsersIcon } from "lucide-react"
+import { ArrowLeftIcon, CpuIcon, MemoryStickIcon, Trash2Icon, UsersIcon } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, Navigate, useNavigate, useParams } from "react-router"
@@ -14,6 +14,9 @@ import { TemplateSettings } from "@/components/servers/template-settings"
 import { PowerButtons } from "@/components/servers/power-buttons"
 import { ServerForm, valuesFromServer } from "@/components/servers/server-form"
 import { StateBadge } from "@/components/servers/state-badge"
+import { ScheduleTab } from "@/components/schedules/schedule-tab"
+import { BackupsTab } from "@/components/backups/backups-tab"
+import { Sparkline } from "@/components/stats/sparkline"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,7 +33,9 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { isApiError } from "@/lib/api"
 import { describeError } from "@/lib/errors"
-import { canDo, useDeleteServer, useServer, useUpdateServer } from "@/lib/servers"
+import { useLiveStats } from "@/lib/events"
+import { formatBytes, formatPercent } from "@/lib/format"
+import { canDo, mergeLive, useDeleteServer, useServer, useUpdateServer } from "@/lib/servers"
 import { useTemplates } from "@/lib/templates"
 import type { Server, User } from "@/lib/types"
 
@@ -59,9 +64,15 @@ export function ServerPage({ user }: { user: User }) {
   return <ServerView server={server.data} user={user} />
 }
 
-function ServerView({ server: s, user }: { server: Server; user: User }) {
+function ServerView({ server: raw, user }: { server: Server; user: User }) {
   const { t } = useTranslation()
+  const live = useLiveStats()
+  const liveServer = live.servers[raw.id]
+  const s = mergeLive(raw, liveServer)
   const ready = s.installState === "ready"
+  const running = s.status.state === "running" || s.status.state === "starting"
+  const history = liveServer?.history ?? []
+  const ramMax = s.limits?.memoryMb > 0 ? s.limits.memoryMb * 1024 * 1024 : undefined
   // The Files tab keeps its folder while the page stays open.
   const [filesPath, setFilesPath] = useState("")
   return (
@@ -89,25 +100,45 @@ function ServerView({ server: s, user }: { server: Server; user: User }) {
                     {s.players.online}/{s.players.max}
                   </span>
                 )}
+                {running && (liveServer?.sample?.memoryBytes ?? s.status.memoryBytes) !== undefined && (
+                  <span className="inline-flex items-center gap-1 font-mono" title={t("stats.ram")}>
+                    <MemoryStickIcon className="size-3.5" />
+                    {formatBytes(liveServer?.sample?.memoryBytes ?? s.status.memoryBytes)}
+                    {ramMax ? <span className="text-muted-foreground/60">/ {formatBytes(ramMax)}</span> : null}
+                  </span>
+                )}
+                {running && liveServer?.sample && (
+                  <span className="inline-flex items-center gap-1 font-mono" title={t("stats.cpu")}>
+                    <CpuIcon className="size-3.5" />
+                    {formatPercent(liveServer.sample.cpuPercent)}
+                  </span>
+                )}
               </div>
               {s.status.state === "crashed" && s.status.message && (
                 <p className="mt-1 max-w-xl text-xs text-destructive">{s.status.message}</p>
               )}
             </div>
           </div>
-          <PowerButtons server={s} withKill />
+          <div className="flex flex-col items-end gap-2">
+            <PowerButtons server={s} withKill />
+            {ready && history.length > 1 && (
+              <Sparkline
+                values={history.map((h) => h.memoryBytes)}
+                secondary={history.map((h) => h.cpuPercent)}
+                max={ramMax}
+                title={t("stats.sparklineTitle")}
+                className="h-10 w-56 rounded-md bg-muted/30"
+              />
+            )}
+          </div>
         </header>
 
         <Tabs defaultValue="console">
           <TabsList className="w-full justify-start overflow-x-auto">
             <TabsTrigger value="console">{t("serverPage.tabs.console")}</TabsTrigger>
             <TabsTrigger value="files">{t("serverPage.tabs.files")}</TabsTrigger>
-            <TabsTrigger value="schedule" disabled>
-              {t("serverPage.tabs.schedule")}
-            </TabsTrigger>
-            <TabsTrigger value="backups" disabled>
-              {t("serverPage.tabs.backups")}
-            </TabsTrigger>
+            <TabsTrigger value="schedule">{t("serverPage.tabs.schedule")}</TabsTrigger>
+            <TabsTrigger value="backups">{t("serverPage.tabs.backups")}</TabsTrigger>
             <TabsTrigger value="settings">{t("serverPage.tabs.settings")}</TabsTrigger>
             <TabsTrigger value="users" disabled>
               {t("serverPage.tabs.users")}
@@ -118,6 +149,12 @@ function ServerView({ server: s, user }: { server: Server; user: User }) {
           </TabsContent>
           <TabsContent value="files" className="pt-3">
             <FileBrowser serverId={s.id} path={filesPath} onPathChange={setFilesPath} />
+          </TabsContent>
+          <TabsContent value="schedule" className="pt-3">
+            <ScheduleTab serverId={s.id} isCustom={s.templateId === "custom"} />
+          </TabsContent>
+          <TabsContent value="backups" className="pt-3">
+            <BackupsTab server={s} />
           </TabsContent>
           <TabsContent value="settings" className="pt-3">
             <SettingsTab server={s} />

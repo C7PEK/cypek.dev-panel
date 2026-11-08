@@ -34,9 +34,24 @@ func sessionFromContext(ctx context.Context) (*auth.Session, *auth.User) {
 	return sess, user
 }
 
-// loadSession attaches the session and user for a valid cookie; it never rejects.
+// loadSession attaches the session and user for a valid cookie or a bearer
+// API key; it never rejects. API-key requests get a synthetic session (no
+// CSRF: there is no cookie for a cross-site page to ride on) and the key is
+// kept in the context so permission checks can apply its scope.
 func (s *Server) loadSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
+			key, user, err := s.store.LookupAPIKey(r.Context(), strings.TrimSpace(strings.TrimPrefix(h, "Bearer ")))
+			if err != nil {
+				writeError(w, http.StatusUnauthorized, CodeUnauthorized, "Invalid or expired API key.")
+				return
+			}
+			ctx := context.WithValue(r.Context(), ctxSession, &auth.Session{UserID: user.ID, APIKey: true})
+			ctx = context.WithValue(ctx, ctxUser, user)
+			ctx = context.WithValue(ctx, ctxAPIKey, key)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
 		c, err := r.Cookie(sessionCookie)
 		if err != nil || c.Value == "" {
 			next.ServeHTTP(w, r)
@@ -63,7 +78,7 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 			writeError(w, http.StatusUnauthorized, CodeUnauthorized, "You must be logged in.")
 			return
 		}
-		if !isSafeMethod(r.Method) && r.Header.Get(csrfHeader) != sess.CSRFToken {
+		if !sess.APIKey && !isSafeMethod(r.Method) && r.Header.Get(csrfHeader) != sess.CSRFToken {
 			writeError(w, http.StatusForbidden, CodeCSRF, "CSRF token missing or invalid. Reload the page and try again.")
 			return
 		}

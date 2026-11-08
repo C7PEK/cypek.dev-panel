@@ -66,6 +66,10 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	sess, user := sessionFromContext(r.Context())
+	if sess.APIKey {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	if err := s.store.DeleteSession(r.Context(), sess.ID); err != nil {
 		s.internalError(w, r, err)
 		return

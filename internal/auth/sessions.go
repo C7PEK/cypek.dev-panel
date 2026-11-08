@@ -28,6 +28,8 @@ type Session struct {
 	LastSeen  time.Time
 	IP        string
 	UserAgent string
+	// APIKey marks a synthetic session created from a bearer key.
+	APIKey bool
 }
 
 var ErrSessionInvalid = errors.New("session invalid or expired")

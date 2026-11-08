@@ -199,6 +199,9 @@ func New(d Deps) (http.Handler, error) {
 
 			priv.With(s.requireRole(auth.RoleAdmin)).Get("/audit", s.handleAuditRecent)
 			priv.Post("/auth/password", s.handleChangePassword)
+			priv.Get("/auth/api-keys", s.handleListAPIKeys)
+			priv.Post("/auth/api-keys", s.handleCreateAPIKey)
+			priv.Delete("/auth/api-keys/{kid}", s.handleDeleteAPIKey)
 
 			priv.Route("/users", func(ur chi.Router) {
 				ur.Use(s.requireRole(auth.RoleAdmin))

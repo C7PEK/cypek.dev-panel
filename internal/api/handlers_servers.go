@@ -294,6 +294,10 @@ func (s *Server) withServer(perm auth.Permission) func(http.Handler) http.Handle
 				s.internalError(w, r, err)
 				return
 			}
+			if key := apiKeyFromContext(r); ok && key != nil && !key.AllowsPermission(perm) {
+				writeError(w, http.StatusForbidden, CodeForbidden, "This API key is not allowed to "+string(perm)+".")
+				return
+			}
 			if !ok {
 				writeError(w, http.StatusForbidden, CodeForbidden, "You do not have permission to do this on this server.")
 				return

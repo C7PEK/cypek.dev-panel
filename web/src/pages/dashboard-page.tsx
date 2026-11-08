@@ -5,11 +5,13 @@ import { Link } from "react-router"
 
 import { AppShell } from "@/components/layout/app-shell"
 import { ServerTile } from "@/components/servers/server-tile"
+import { HostBar } from "@/components/stats/host-bar"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { api } from "@/lib/api"
 import { describeError } from "@/lib/errors"
+import { useLiveStats } from "@/lib/events"
 import { useServers } from "@/lib/servers"
 import type { SystemInfo, User } from "@/lib/types"
 
@@ -17,6 +19,7 @@ export function DashboardPage({ user }: { user: User }) {
   const { t } = useTranslation()
   const info = useQuery({ queryKey: ["system", "info"], queryFn: () => api<SystemInfo>("GET", "/system/info") })
   const servers = useServers()
+  const live = useLiveStats()
   const canCreate = user.role !== "user"
 
   const createButton = (className?: string) =>
@@ -36,6 +39,8 @@ export function DashboardPage({ user }: { user: User }) {
           <h1 className="font-heading text-3xl font-semibold tracking-[0.04em] uppercase">{t("dashboard.title")}</h1>
           {createButton()}
         </div>
+
+        <HostBar host={live.host} connected={live.connected} />
 
         {servers.error ? (
           <Alert variant="destructive">
@@ -73,7 +78,7 @@ export function DashboardPage({ user }: { user: User }) {
         ) : (
           <section aria-label={t("dashboard.servers")} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {servers.data.map((s) => (
-              <ServerTile key={s.id} server={s} />
+              <ServerTile key={s.id} server={s} live={live.servers[s.id]} />
             ))}
           </section>
         )}

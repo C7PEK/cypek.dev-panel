@@ -201,3 +201,96 @@ export type ConsoleServerFrame =
   | { type: "error"; message: string }
 
 export type ConsoleClientFrame = { type: "input"; data: string } | { type: "resize"; cols: number; rows: number }
+
+// --- Live stats (events WebSocket) -------------------------------------------
+
+export interface HostStats {
+  at: string
+  cpuPercent: number
+  cpuCount: number
+  load1: number
+  memTotal: number
+  memUsed: number
+  memAvailable: number
+  diskPath: string
+  diskTotal: number
+  diskUsed: number
+  diskFree: number
+  uptimeSeconds: number
+  hostname: string
+  os: string
+}
+
+export interface StatsSample {
+  at: string
+  state: ServerState
+  memoryBytes: number
+  /** 100 = one full core. */
+  cpuPercent: number
+}
+
+export interface LiveServer {
+  status: ServerStatus
+  sample: StatsSample
+  players?: Players
+  history: StatsSample[]
+}
+
+export interface EventsMessage {
+  type: "snapshot" | "tick"
+  host: HostStats
+  servers: { id: string; status: ServerStatus; sample: StatsSample; players?: Players; history?: StatsSample[] }[]
+}
+
+// --- Schedules ---------------------------------------------------------------
+
+export type ScheduleActionType = "warn" | "command" | "wait" | "stop" | "start" | "restart" | "kill" | "backup"
+
+export interface ScheduleAction {
+  type: ScheduleActionType
+  message?: string
+  text?: string
+  seconds?: number
+}
+
+export interface Schedule {
+  id: number
+  serverId: string
+  name: string
+  cron: string
+  enabled: boolean
+  actions: ScheduleAction[]
+  onlyIfRunning: boolean
+  skipIfPlayers: boolean
+  createdAt: string
+  updatedAt: string
+  lastRunAt?: string
+  nextRunAt?: string
+  running: boolean
+}
+
+export interface ScheduleInput {
+  name?: string
+  cron?: string
+  enabled?: boolean
+  actions?: ScheduleAction[]
+  onlyIfRunning?: boolean
+  skipIfPlayers?: boolean
+}
+
+export type ScheduleRunResult = "running" | "ok" | "skipped" | "failed"
+
+export interface ScheduleRun {
+  id: number
+  scheduleId: number
+  startedAt: string
+  finishedAt?: string
+  result: ScheduleRunResult
+  trigger: "cron" | "manual"
+  log: string
+}
+
+export interface CronPreview {
+  next: string[]
+  timezone: string
+}

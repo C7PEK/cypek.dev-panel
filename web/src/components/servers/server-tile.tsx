@@ -1,4 +1,4 @@
-import { MemoryStickIcon, UsersIcon } from "lucide-react"
+import { CpuIcon, MemoryStickIcon, UsersIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 
@@ -6,21 +6,30 @@ import { CategoryIcon } from "@/components/servers/category-icon"
 import { PowerButtons } from "@/components/servers/power-buttons"
 import { InstallBadge } from "@/components/servers/install-badge"
 import { StateBadge } from "@/components/servers/state-badge"
+import { Sparkline } from "@/components/stats/sparkline"
 import { Card, CardContent } from "@/components/ui/card"
-import { formatBytes } from "@/lib/format"
-import type { Server } from "@/lib/types"
+import { formatBytes, formatPercent } from "@/lib/format"
+import { mergeLive } from "@/lib/servers"
+import type { LiveServer, Server } from "@/lib/types"
 
 // Dashboard tile. The name is a "stretched link" covering the card so the
 // buttons stay real <button>s instead of being nested inside an <a>.
-export function ServerTile({ server }: { server: Server }) {
+export function ServerTile({ server: raw, live }: { server: Server; live?: LiveServer }) {
   const { t } = useTranslation()
+  const server = mergeLive(raw, live)
   const { status } = server
   const running = status.state === "running" || status.state === "starting"
-  const memory = running ? formatBytes(status.memoryBytes) : ""
+  const sample = live?.sample
+  const memoryBytes = running ? (sample?.memoryBytes ?? status.memoryBytes) : undefined
+  const cpu = running && sample ? sample.cpuPercent : undefined
+  const history = live?.history ?? []
+  const ramSeries = history.map((h) => h.memoryBytes)
+  const cpuSeries = history.map((h) => h.cpuPercent)
+  const ramMax = server.limits?.memoryMb > 0 ? server.limits.memoryMb * 1024 * 1024 : undefined
 
   return (
     <Card className="relative transition-colors hover:border-foreground/25 has-[a:focus-visible]:ring-3 has-[a:focus-visible]:ring-ring/50">
-      <CardContent className="flex flex-col gap-4">
+      <CardContent className="flex flex-col gap-3">
         <div className="flex items-start gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
             <CategoryIcon category={server.category} className="size-5" />
@@ -43,6 +52,16 @@ export function ServerTile({ server }: { server: Server }) {
           )}
         </div>
 
+        {server.installState === "ready" && history.length > 1 && (
+          <Sparkline
+            values={ramSeries}
+            secondary={cpuSeries}
+            max={ramMax}
+            title={t("stats.sparklineTitle")}
+            className="h-9 rounded-md bg-muted/30"
+          />
+        )}
+
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3 font-mono text-xs text-muted-foreground">
             {server.players && (
@@ -51,15 +70,22 @@ export function ServerTile({ server }: { server: Server }) {
                 {server.players.online}/{server.players.max}
               </span>
             )}
-            {memory ? (
-              <span className="inline-flex items-center gap-1.5">
+            {memoryBytes !== undefined ? (
+              <span className="inline-flex items-center gap-1.5" title={t("stats.ram")}>
                 <MemoryStickIcon className="size-3.5" />
-                {memory}
+                {formatBytes(memoryBytes)}
+                {ramMax ? <span className="text-muted-foreground/60">/ {formatBytes(ramMax)}</span> : null}
               </span>
             ) : status.state === "crashed" && status.exitCode !== undefined ? (
               t("servers.exitCode", { code: status.exitCode })
             ) : (
               <span className="text-muted-foreground/50">—</span>
+            )}
+            {cpu !== undefined && (
+              <span className="inline-flex items-center gap-1" title={t("stats.cpu")}>
+                <CpuIcon className="size-3.5" />
+                {formatPercent(cpu)}
+              </span>
             )}
           </div>
           {server.installState === "ready" ? (
