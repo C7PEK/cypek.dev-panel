@@ -21,6 +21,7 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/database"
 	"github.com/cypek019/cypek.dev---panel/internal/installer"
 	"github.com/cypek019/cypek.dev---panel/internal/metrics"
+	"github.com/cypek019/cypek.dev---panel/internal/mods"
 	"github.com/cypek019/cypek.dev---panel/internal/providers"
 	"github.com/cypek019/cypek.dev---panel/internal/query"
 	"github.com/cypek019/cypek.dev---panel/internal/scheduler"
@@ -43,8 +44,10 @@ type Deps struct {
 	Templates *templates.Registry
 	Installer *installer.Manager
 	Paper     *providers.Paper
-	FiveM     *providers.FiveM
-	Secrets   *secrets.Box
+	// Modrinth backs the Minecraft plugin/mod manager (nil = public API).
+	Modrinth *providers.Modrinth
+	FiveM    *providers.FiveM
+	Secrets  *secrets.Box
 	// Metrics is the running collector (created and started by New when nil).
 	Metrics *metrics.Collector
 	// Schedules is the schedule store; the engine is created and started by New.
@@ -88,6 +91,7 @@ type Server struct {
 	backupJobs     *backupJobs
 	dbRecords      *database.Store
 	databases      *database.Manager
+	mods           *mods.Manager
 
 	loginLimitIP   *auth.RateLimiter
 	loginLimitUser *auth.RateLimiter
@@ -136,6 +140,10 @@ func New(d Deps) (http.Handler, error) {
 		s.installer = installer.New(installer.Deps{Log: d.Log})
 	}
 	s.installer.SetScriptRunner(scriptRunner{s: s})
+	if d.Modrinth == nil {
+		d.Modrinth = providers.NewModrinth()
+	}
+	s.mods = mods.NewManager(d.Modrinth)
 	if s.paper == nil {
 		s.paper = providers.NewPaper()
 	}
@@ -250,6 +258,8 @@ func New(d Deps) (http.Handler, error) {
 				tr.Get("/{id}/sources/{source}", s.handleTemplateSource)
 			})
 
+			priv.Get("/mods/game-versions", s.handleGameVersions)
+
 			priv.Get("/servers", s.handleListServers)
 			priv.With(s.requireRole(auth.RoleAdmin)).Post("/servers", s.handleCreateServer)
 			priv.Route("/servers/{id}", func(sr chi.Router) {
@@ -303,6 +313,18 @@ func New(d Deps) (http.Handler, error) {
 						br.Post("/{bid}/restore", s.handleRestoreBackup)
 					})
 				}
+
+				sr.Route("/mods", func(mr chi.Router) {
+					mr.With(s.withServer(auth.PermFilesRead)).Get("/", s.handleModsList)
+					mr.With(s.withServer(auth.PermFilesRead)).Get("/updates", s.handleModsUpdates)
+					mr.With(s.withServer(auth.PermFilesRead)).Get("/search", s.handleModsSearch)
+					mr.With(s.withServer(auth.PermFilesRead)).Get("/projects/{pid}/versions", s.handleModVersions)
+					mr.With(s.withServer(auth.PermFilesWrite)).Post("/", s.handleModInstall)
+					mr.With(s.withServer(auth.PermFilesWrite)).Put("/platform", s.handleModPlatform)
+					mr.With(s.withServer(auth.PermFilesWrite)).Post("/files/{file}/update", s.handleModUpdate)
+					mr.With(s.withServer(auth.PermFilesWrite)).Patch("/files/{file}", s.handleModToggle)
+					mr.With(s.withServer(auth.PermFilesWrite)).Delete("/files/{file}", s.handleModDelete)
+				})
 
 				sr.Route("/files", func(fr chi.Router) {
 					fr.With(s.withServer(auth.PermFilesRead)).Get("/", s.handleFilesList)

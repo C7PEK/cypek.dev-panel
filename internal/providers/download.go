@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"net/http"
 	"net/url"
@@ -37,6 +38,15 @@ var ErrChecksum = errors.New("checksum mismatch")
 // Download fetches rawURL to dest atomically (temp file + rename). When
 // sha256hex is non-empty the file is verified before it is moved into place.
 func Download(ctx context.Context, rawURL, dest, sha256hex string, progress Progress) error {
+	return DownloadVerified(ctx, rawURL, dest, sha256.New(), sha256hex, 0, progress)
+}
+
+// ErrTooLarge means the download exceeded its size limit.
+var ErrTooLarge = errors.New("file is too large")
+
+// DownloadVerified is Download with any digest (h, compared to wantHex when
+// non-empty) and an optional size limit (maxBytes > 0).
+func DownloadVerified(ctx context.Context, rawURL, dest string, h hash.Hash, wantHex string, maxBytes int64, progress Progress) error {
 	u, err := url.Parse(rawURL)
 	if err != nil || u.Scheme != "https" {
 		return fmt.Errorf("refusing to download %q: only https URLs are allowed", rawURL)
@@ -64,7 +74,10 @@ func Download(ctx context.Context, rawURL, dest, sha256hex string, progress Prog
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName)
 
-	h := sha256.New()
+	if maxBytes > 0 && resp.ContentLength > maxBytes {
+		tmp.Close()
+		return fmt.Errorf("%w: %s is %d bytes (limit %d)", ErrTooLarge, filepath.Base(dest), resp.ContentLength, maxBytes)
+	}
 	w := io.MultiWriter(tmp, h)
 	total := resp.ContentLength
 	var done int64
@@ -78,6 +91,10 @@ func Download(ctx context.Context, rawURL, dest, sha256hex string, progress Prog
 				return werr
 			}
 			done += int64(n)
+			if maxBytes > 0 && done > maxBytes {
+				tmp.Close()
+				return fmt.Errorf("%w: %s exceeds %d bytes", ErrTooLarge, filepath.Base(dest), maxBytes)
+			}
 			if progress != nil && (time.Since(last) > 200*time.Millisecond || done == total) {
 				progress(done, total)
 				last = time.Now()
@@ -97,10 +114,10 @@ func Download(ctx context.Context, rawURL, dest, sha256hex string, progress Prog
 	if progress != nil {
 		progress(done, total)
 	}
-	if sha256hex != "" {
+	if wantHex != "" {
 		got := hex.EncodeToString(h.Sum(nil))
-		if !strings.EqualFold(got, sha256hex) {
-			return fmt.Errorf("%w for %s: got %s, want %s", ErrChecksum, filepath.Base(dest), got, sha256hex)
+		if !strings.EqualFold(got, wantHex) {
+			return fmt.Errorf("%w for %s: got %s, want %s", ErrChecksum, filepath.Base(dest), got, wantHex)
 		}
 	}
 	if err := os.Chmod(tmpName, 0o640); err != nil {
