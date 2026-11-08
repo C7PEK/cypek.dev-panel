@@ -38,6 +38,7 @@ type Deps struct {
 	Templates *templates.Registry
 	Installer *installer.Manager
 	Paper     *providers.Paper
+	FiveM     *providers.FiveM
 	Secrets   *secrets.Box
 	// BgCtx outlives requests; background installs run under it.
 	BgCtx context.Context
@@ -61,6 +62,7 @@ type Server struct {
 	templates *templates.Registry
 	installer *installer.Manager
 	paper     *providers.Paper
+	fivem     *providers.FiveM
 	secrets   *secrets.Box
 	bgCtx     context.Context
 	players   *query.Cache
@@ -83,6 +85,7 @@ func New(d Deps) (http.Handler, error) {
 		templates:      d.Templates,
 		installer:      d.Installer,
 		paper:          d.Paper,
+		fivem:          d.FiveM,
 		secrets:        d.Secrets,
 		bgCtx:          d.BgCtx,
 		players:        query.NewCache(3 * time.Second),
@@ -102,6 +105,9 @@ func New(d Deps) (http.Handler, error) {
 	}
 	if s.paper == nil {
 		s.paper = providers.NewPaper()
+	}
+	if s.fivem == nil {
+		s.fivem = providers.NewFiveM()
 	}
 	if s.secrets == nil {
 		s.secrets, _ = secrets.New(make([]byte, 32))

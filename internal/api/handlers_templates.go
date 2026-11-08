@@ -90,6 +90,16 @@ func (s *Server) sourceOptions(ctx context.Context, source string) ([]sourceOpti
 			opts = append(opts, sourceOption{Value: v, Label: v, Prerelease: providers.IsPrerelease(v)})
 		}
 		return opts, nil
+	case "fivem-artifacts":
+		items, err := s.fivem.Options(ctx)
+		if err != nil {
+			return nil, err
+		}
+		opts := make([]sourceOption, 0, len(items))
+		for _, it := range items {
+			opts = append(opts, sourceOption{Value: it.Value, Label: it.Label})
+		}
+		return opts, nil
 	default:
 		return nil, errors.New("unknown source " + source)
 	}

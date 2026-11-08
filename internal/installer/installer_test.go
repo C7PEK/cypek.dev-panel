@@ -2,6 +2,7 @@ package installer
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -188,3 +189,45 @@ func TestInsideDir(t *testing.T) {
 		t.Errorf("good path: %s, %v", p, err)
 	}
 }
+
+func TestExtractAndURLSteps(t *testing.T) {
+	var zbuf bytes.Buffer
+	zw := zipWriter(&zbuf)
+	w, _ := zw.Create("repo-master/resources/chat/fxmanifest.lua")
+	_, _ = w.Write([]byte("fx"))
+	zw.Close()
+	sum := sha256.Sum256(zbuf.Bytes())
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(zbuf.Bytes()) }))
+	defer srv.Close()
+	oldD := providers.DownloadClient
+	providers.DownloadClient = srv.Client()
+	defer func() { providers.DownloadClient = oldD }()
+
+	tplYAML := "id: zipper\nname: Z\ncategory: other\nvariables: []\ninstall:\n" +
+		"  - download: {provider: url, url: \"" + srv.URL + "/sd.zip\", sha256: \"" + hex.EncodeToString(sum[:]) + "\", to: sd.zip}\n" +
+		"  - extract: {from: sd.zip, to: \".\", strip: 1}\n" +
+		"start: {command: /bin/true, args: []}\n"
+	// The template validator insists on https URLs; httptest TLS URLs are https.
+	tpl, err := templates.Parse([]byte(tplYAML))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := New(Deps{Log: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))})
+	dir := filepath.Join(t.TempDir(), "s")
+	done := make(chan error, 1)
+	if err := m.Start(context.Background(), "zipper01", dir, tpl, map[string]string{}, func(_ *Result, e error) { done <- e }); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err != nil {
+		job, _ := m.Get("zipper01")
+		t.Fatalf("install: %v\n%s", err, strings.Join(job.Lines, "\n"))
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "resources", "chat", "fxmanifest.lua")); string(b) != "fx" {
+		t.Errorf("extracted content = %q", b)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "sd.zip")); !os.IsNotExist(err) {
+		t.Error("archive not deleted after extraction")
+	}
+}
+
+func zipWriter(buf *bytes.Buffer) *zip.Writer { return zip.NewWriter(buf) }

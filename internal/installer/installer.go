@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cypek019/cypek.dev---panel/internal/archive"
 	"github.com/cypek019/cypek.dev---panel/internal/providers"
 	"github.com/cypek019/cypek.dev---panel/internal/runtimes"
 	"github.com/cypek019/cypek.dev---panel/internal/servers"
@@ -29,6 +30,7 @@ import (
 // Deps are the collaborators steps need.
 type Deps struct {
 	Paper *providers.Paper
+	FiveM *providers.FiveM
 	Java  *runtimes.Java
 	Log   *slog.Logger
 }
@@ -200,6 +202,8 @@ func (m *Manager) run(ctx context.Context, job *Job, dir string, tpl *templates.
 		switch {
 		case st.Download != nil:
 			err = c.download(ctx, i+1, st.Download)
+		case st.Extract != nil:
+			err = c.extract(i+1, st.Extract)
 		case st.Write != nil:
 			err = c.write(i+1, st.Write)
 		case st.Properties != nil:
@@ -261,9 +265,74 @@ func (c *stepCtx) download(ctx context.Context, n int, st *templates.DownloadSte
 		flags, _ := json.Marshal(info.JVMFlags)
 		c.vars[templates.KeyJVMFlags] = string(flags)
 		return nil
+	case "fivem":
+		c.begin(n, "Downloading FXServer")
+		if c.m.deps.FiveM == nil {
+			return errors.New("fivem provider not configured")
+		}
+		art, err := c.m.deps.FiveM.Resolve(ctx, version)
+		if err != nil {
+			return err
+		}
+		c.logf("FXServer build %d (%s channel, txAdmin %s)", art.Build, art.Channel, art.TxAdmin)
+		if art.SupportedTo != "" && !strings.HasPrefix(art.SupportedTo, "9999") {
+			c.logf("Note: Cfx.re supports this build until %s", art.SupportedTo)
+		}
+		c.logf("Cfx.re publishes no checksums; downloading over HTTPS only")
+		if err := providers.Download(ctx, art.URL, dest, "", c.progress); err != nil {
+			return err
+		}
+		c.logf("Downloaded %s", filepath.Base(dest))
+		c.vars["FX_BUILD"] = strconv.Itoa(art.Build)
+		c.vars["TXADMIN_VERSION"] = art.TxAdmin
+		return nil
+	case "url":
+		rawURL, err := templates.Render(st.URL, c.vars)
+		if err != nil {
+			return err
+		}
+		c.begin(n, "Downloading "+filepath.Base(dest))
+		c.logf("From %s", rawURL)
+		if err := providers.Download(ctx, rawURL, dest, st.Sha256, c.progress); err != nil {
+			return err
+		}
+		if st.Sha256 != "" {
+			c.logf("Checksum OK")
+		}
+		return nil
 	default:
 		return fmt.Errorf("unknown download provider %q", st.Provider)
 	}
+}
+
+func (c *stepCtx) extract(n int, st *templates.ExtractStep) error {
+	from, err := templates.Render(st.From, c.vars)
+	if err != nil {
+		return err
+	}
+	to, err := templates.Render(st.To, c.vars)
+	if err != nil {
+		return err
+	}
+	src, err := insideDir(c.dir, from)
+	if err != nil {
+		return err
+	}
+	dest := c.dir
+	if to != "." && to != "" {
+		if dest, err = insideDir(c.dir, to); err != nil {
+			return err
+		}
+	}
+	c.begin(n, "Extracting "+filepath.Base(from))
+	if err := archive.Extract(src, dest, archive.Options{Strip: st.Strip}); err != nil {
+		return fmt.Errorf("extract %s: %w", from, err)
+	}
+	if st.Delete == nil || *st.Delete {
+		_ = os.Remove(src)
+	}
+	c.logf("Extracted %s to %s", from, to)
+	return nil
 }
 
 func (c *stepCtx) write(n int, st *templates.WriteStep) error {

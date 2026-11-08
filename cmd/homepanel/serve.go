@@ -99,8 +99,10 @@ func runServe(args []string) error {
 		return err
 	}
 	paper := providers.NewPaper()
+	fivem := providers.NewFiveM()
 	inst := installer.New(installer.Deps{
 		Paper: paper,
+		FiveM: fivem,
 		Java:  &runtimes.Java{Dir: cfg.RuntimesDir(), Adoptium: providers.NewAdoptium()},
 		Log:   log,
 	})
@@ -116,6 +118,7 @@ func runServe(args []string) error {
 		Templates: registry,
 		Installer: inst,
 		Paper:     paper,
+		FiveM:     fivem,
 		Secrets:   box,
 		BgCtx:     ctx,
 		Dist:      mustSub(web.Dist, "dist"),

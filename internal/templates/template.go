@@ -78,15 +78,32 @@ type Runtime struct {
 // Step is one install step; exactly one field is set.
 type Step struct {
 	Download   *DownloadStep   `yaml:"download,omitempty" json:"download,omitempty"`
+	Extract    *ExtractStep    `yaml:"extract,omitempty" json:"extract,omitempty"`
 	Write      *WriteStep      `yaml:"write,omitempty" json:"write,omitempty"`
 	Properties *PropertiesStep `yaml:"properties,omitempty" json:"properties,omitempty"`
 }
 
-// DownloadStep fetches an artifact through a named provider.
+// DownloadStep fetches an artifact through a named provider:
+//
+//	paper  - PaperMC build for Version (checksummed)
+//	fivem  - FXServer Linux artifact for Version (recommended|latest|build)
+//	url    - a fixed https URL (optional Sha256)
 type DownloadStep struct {
 	Provider string `yaml:"provider" json:"provider"`
 	Version  string `yaml:"version,omitempty" json:"version,omitempty"`
+	URL      string `yaml:"url,omitempty" json:"url,omitempty"`
+	Sha256   string `yaml:"sha256,omitempty" json:"sha256,omitempty"`
 	To       string `yaml:"to" json:"to"`
+}
+
+// ExtractStep unpacks an archive (tar.gz, tar.xz, zip) inside the server dir.
+type ExtractStep struct {
+	From string `yaml:"from" json:"from"`
+	To   string `yaml:"to" json:"to"` // "." for the server directory itself
+	// Strip drops leading path components (GitHub zips have one top folder).
+	Strip int `yaml:"strip,omitempty" json:"strip,omitempty"`
+	// Delete removes the archive afterwards (default true).
+	Delete *bool `yaml:"delete,omitempty" json:"delete,omitempty"`
 }
 
 // WriteStep writes a small text file; with RequireConsent naming a bool
@@ -236,8 +253,25 @@ func (t *Template) Validate() error {
 			if s.Download.Provider == "" || s.Download.To == "" {
 				return fmt.Errorf("template %s: install step %d: download needs provider and to", t.ID, i+1)
 			}
+			if s.Download.Provider == "url" && !strings.HasPrefix(s.Download.URL, "https://") {
+				return fmt.Errorf("template %s: install step %d: url downloads must use https", t.ID, i+1)
+			}
 			if err := safeRelPath(s.Download.To); err != nil {
 				return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
+			}
+		}
+		if s.Extract != nil {
+			n++
+			if err := safeRelPath(s.Extract.From); err != nil {
+				return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
+			}
+			if s.Extract.To != "." {
+				if err := safeRelPath(s.Extract.To); err != nil {
+					return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
+				}
+			}
+			if s.Extract.Strip < 0 || s.Extract.Strip > 8 {
+				return fmt.Errorf("template %s: install step %d: strip must be 0-8", t.ID, i+1)
 			}
 		}
 		if s.Write != nil {
@@ -256,7 +290,7 @@ func (t *Template) Validate() error {
 			}
 		}
 		if n != 1 {
-			return fmt.Errorf("template %s: install step %d must have exactly one of download, write, properties", t.ID, i+1)
+			return fmt.Errorf("template %s: install step %d must have exactly one of download, extract, write, properties", t.ID, i+1)
 		}
 	}
 	if t.Start.Command == "" {
@@ -277,7 +311,7 @@ func (t *Template) Validate() error {
 			return fmt.Errorf("template %s: console command %q must be a single word", t.ID, c.Name)
 		}
 	}
-	if t.Query != nil && t.Query.Kind != "minecraft-ping" {
+	if t.Query != nil && t.Query.Kind != "minecraft-ping" && t.Query.Kind != "fivem-http" {
 		return fmt.Errorf("template %s: unknown query kind %q", t.ID, t.Query.Kind)
 	}
 	// Every {{KEY}} used anywhere must be a variable or a builtin.
@@ -307,7 +341,10 @@ func (t *Template) allTemplatedStrings() []string {
 	}
 	for _, s := range t.Install {
 		if s.Download != nil {
-			out = append(out, s.Download.Version, s.Download.To)
+			out = append(out, s.Download.Version, s.Download.To, s.Download.URL)
+		}
+		if s.Extract != nil {
+			out = append(out, s.Extract.From, s.Extract.To)
 		}
 		if s.Write != nil {
 			out = append(out, s.Write.Path, s.Write.Content)

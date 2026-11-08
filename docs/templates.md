@@ -70,9 +70,18 @@ recommends; spread into separate arguments), `message` (only in
 
 ## Install steps
 
-- `download`: `provider: paper` resolves `version` (`latest` or e.g.
-  `1.21.11`), downloads the newest stable build and verifies its SHA-256.
-  More providers (FiveM artifacts, git, direct URL) are planned.
+- `download`: fetches one file to `to`.
+  - `provider: paper` resolves `version` (`latest` or e.g. `1.21.11`),
+    downloads the newest stable build and verifies its SHA-256.
+  - `provider: fivem` resolves `version` (`recommended`, `latest` or a
+    build number from the changelog API) to an FXServer Linux artifact.
+    Cfx.re publishes no checksums; HTTPS only. x86_64 hosts only.
+  - `provider: url` downloads a fixed `url` (https only), optionally
+    checked against `sha256`.
+- `extract`: unpacks `from` (tar.gz, tar.xz, zip) into `to` (`.` = server
+  directory), dropping `strip` leading folders (GitHub zips have one). Paths
+  that try to escape the destination abort the install. The archive is
+  deleted afterwards unless `delete: false`.
 - `write`: writes a small text file. With `requireConsent: VAR` the step
   fails unless the user switched that bool on.
 - `properties`: sets keys in a `key=value` file, keeping other lines and
@@ -86,6 +95,14 @@ rejected.
 | source | provider |
 |---|---|
 | `paper-versions` | PaperMC Fill API: all Paper versions, newest first, pre-releases flagged |
+| `fivem-artifacts` | Cfx.re changelog API: recommended, latest and still-supported builds |
+
+## Player queries
+
+| kind | how |
+|---|---|
+| `minecraft-ping` | Server List Ping on the game port (`players.online/max`, up to 12 sample names) |
+| `fivem-http` | `players.json` + `info.json` on the game port |
 
 ## How a template becomes a running server
 

@@ -100,23 +100,3 @@ func TestEnsureDownloadsExtractsAndCaches(t *testing.T) {
 		t.Errorf("second Ensure: %s, %v, downloads=%d", p2, err, downloads)
 	}
 }
-
-func TestExtractRejectsEscapes(t *testing.T) {
-	cases := map[string][]entry{
-		"dotdot":  {{name: "top/", typ: tar.TypeDir}, {name: "top/../../evil", typ: tar.TypeReg, content: "x"}},
-		"symlink": {{name: "top/", typ: tar.TypeDir}, {name: "top/l", typ: tar.TypeSymlink, link: "../../etc/passwd"}},
-	}
-	for name, entries := range cases {
-		dir := t.TempDir()
-		archive := filepath.Join(dir, "a.tgz")
-		if err := os.WriteFile(archive, makeTarGz(t, entries), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		if err := extractTarGz(archive, filepath.Join(dir, "out")); err == nil {
-			t.Errorf("%s: escape accepted", name)
-		}
-		if _, err := os.Stat(filepath.Join(dir, "evil")); err == nil {
-			t.Errorf("%s: file escaped", name)
-		}
-	}
-}

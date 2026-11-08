@@ -41,6 +41,8 @@ func Query(ctx context.Context, spec Spec) (*Players, error) {
 	switch spec.Kind {
 	case "minecraft-ping":
 		return minecraftPing(ctx, spec.Host, spec.Port)
+	case "fivem-http":
+		return fivemHTTP(ctx, spec.Host, spec.Port)
 	default:
 		return nil, fmt.Errorf("%w: %q", ErrUnsupported, spec.Kind)
 	}
