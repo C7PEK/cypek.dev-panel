@@ -18,6 +18,7 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
 	"github.com/cypek019/cypek.dev---panel/internal/backups"
 	"github.com/cypek019/cypek.dev---panel/internal/config"
+	"github.com/cypek019/cypek.dev---panel/internal/database"
 	"github.com/cypek019/cypek.dev---panel/internal/installer"
 	"github.com/cypek019/cypek.dev---panel/internal/metrics"
 	"github.com/cypek019/cypek.dev---panel/internal/providers"
@@ -50,6 +51,9 @@ type Deps struct {
 	Schedules *scheduler.Store
 	// Backups is the backup record store.
 	Backups *backups.Store
+	// DBRecords stores per-server MariaDB databases; Databases talks to MariaDB.
+	DBRecords *database.Store
+	Databases *database.Manager
 	// BgCtx outlives requests; background installs run under it.
 	BgCtx context.Context
 	// Dist is the built frontend. Ignored when DevProxy is set.
@@ -82,6 +86,8 @@ type Server struct {
 	scheduleEngine *scheduler.Engine
 	backups        *backups.Store
 	backupJobs     *backupJobs
+	dbRecords      *database.Store
+	databases      *database.Manager
 
 	loginLimitIP   *auth.RateLimiter
 	loginLimitUser *auth.RateLimiter
@@ -111,6 +117,8 @@ func New(d Deps) (http.Handler, error) {
 		metrics:        d.Metrics,
 		schedules:      d.Schedules,
 		backups:        d.Backups,
+		dbRecords:      d.DBRecords,
+		databases:      d.Databases,
 		backupJobs:     &backupJobs{jobs: map[string]*backupJob{}},
 		pending:        auth.NewPendingLogins(),
 		loginLimitIP:   auth.NewRateLimiter(20, 10*time.Minute),
@@ -138,6 +146,9 @@ func New(d Deps) (http.Handler, error) {
 	}
 	if s.servers != nil {
 		s.recoverInstalls(s.bgCtx)
+	}
+	if s.databases == nil {
+		s.databases = database.NewManager(database.CredsPath)
 	}
 	if s.metrics == nil && s.servers != nil && s.sup != nil {
 		// 1200 samples at 3 s = one hour of history per server (~60 kB each).
@@ -196,6 +207,9 @@ func New(d Deps) (http.Handler, error) {
 			priv.Get("/system/stats", s.handleSystemStats)
 			priv.Get("/system/firewall", s.handleFirewall)
 			priv.Get("/system/cron/preview", s.handleCronPreview)
+			priv.With(s.requireRole(auth.RoleAdmin)).Get("/system/database", s.handleDatabaseStatus)
+			priv.With(s.requireRole(auth.RoleOwner)).Post("/system/database/install", s.handleDatabaseInstall)
+			priv.With(s.requireRole(auth.RoleAdmin)).Post("/system/database/phpmyadmin/restart", s.handleRestartPhpMyAdmin)
 			priv.Get("/events", s.handleEvents)
 
 			priv.With(s.requireRole(auth.RoleAdmin)).Get("/audit", s.handleAuditRecent)
@@ -234,6 +248,17 @@ func New(d Deps) (http.Handler, error) {
 					sur.Get("/", s.handleListServerUsers)
 					sur.Put("/{uid}", s.handleSetServerUser)
 				})
+
+				if s.dbRecords != nil {
+					sr.Route("/databases", func(dr chi.Router) {
+						dr.Use(s.withServer(auth.PermSettings))
+						dr.Get("/", s.handleListServerDatabases)
+						dr.Post("/", s.handleCreateServerDatabase)
+						dr.Get("/{dbid}/credentials", s.handleDatabaseCredentials)
+						dr.Post("/{dbid}/password", s.handleRotateDatabasePassword)
+						dr.Delete("/{dbid}", s.handleDeleteServerDatabase)
+					})
+				}
 
 				sr.Route("/schedules", func(scr chi.Router) {
 					scr.Use(s.withServer(auth.PermSchedules))

@@ -8,9 +8,10 @@ import (
 // The embedded copies must match packaging/ so install.sh and the repo agree.
 func TestEmbeddedSystemFilesMatchPackaging(t *testing.T) {
 	pairs := map[string]string{
-		"systemfiles/homepanel.service":         "../../packaging/systemd/homepanel.service",
-		"systemfiles/homepanel-server@.service": "../../packaging/systemd/homepanel-server@.service",
-		"systemfiles/50-homepanel.rules":        "../../packaging/polkit/50-homepanel.rules",
+		"systemfiles/homepanel.service":                  "../../packaging/systemd/homepanel.service",
+		"systemfiles/homepanel-server@.service":          "../../packaging/systemd/homepanel-server@.service",
+		"systemfiles/50-homepanel.rules":                 "../../packaging/polkit/50-homepanel.rules",
+		"systemfiles/homepanel-database-install.service": "../../packaging/systemd/homepanel-database-install.service",
 	}
 	for embedded, src := range pairs {
 		a, err := systemFiles.ReadFile(embedded)

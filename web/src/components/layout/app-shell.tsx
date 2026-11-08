@@ -1,4 +1,4 @@
-import { LogOutIcon, ScrollTextIcon, UserCogIcon, UserIcon, UsersIcon } from "lucide-react"
+import { DatabaseIcon, LogOutIcon, ScrollTextIcon, UserCogIcon, UserIcon, UsersIcon } from "lucide-react"
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
@@ -50,6 +50,12 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
                 >
                   {t("nav.audit")}
                 </Link>
+                <Link
+                  to="/admin/database"
+                  className="label-caps hidden text-[0.72rem] text-muted-foreground transition-colors hover:text-foreground md:block"
+                >
+                  {t("nav.database")}
+                </Link>
               </>
             )}
           </nav>
@@ -87,6 +93,12 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
                       <Link to="/admin/audit">
                         <ScrollTextIcon />
                         {t("nav.audit")}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="md:hidden">
+                      <Link to="/admin/database">
+                        <DatabaseIcon />
+                        {t("nav.database")}
                       </Link>
                     </DropdownMenuItem>
                   </>

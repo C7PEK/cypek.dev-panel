@@ -19,6 +19,7 @@ Usage:
   homepanel update [--check]                                 update the panel binary from GitHub releases
   homepanel install-files                                    write systemd units + polkit rule (root)
   homepanel init-config [--port N]                           create /etc/homepanel/config.toml if missing (root)
+  homepanel install-database [--phpmyadmin-port 8081]        install MariaDB + phpMyAdmin for game servers (root)
   homepanel reset-password <username>                        set a new password from the terminal
   homepanel version                                          print the version
 `, version)
@@ -41,6 +42,8 @@ func main() {
 		err = runInstallFiles(os.Args[2:])
 	case "init-config":
 		err = runInitConfig(os.Args[2:])
+	case "install-database":
+		err = runInstallDatabase(os.Args[2:])
 	case "reset-password":
 		err = runResetPassword(os.Args[2:])
 	case "version", "--version", "-v":

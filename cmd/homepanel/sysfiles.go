@@ -24,9 +24,10 @@ func runInstallFiles(args []string) error {
 		return err
 	}
 	targets := map[string]string{
-		"systemfiles/homepanel.service":         "/etc/systemd/system/homepanel.service",
-		"systemfiles/homepanel-server@.service": "/etc/systemd/system/homepanel-server@.service",
-		"systemfiles/50-homepanel.rules":        "/etc/polkit-1/rules.d/50-homepanel.rules",
+		"systemfiles/homepanel.service":                  "/etc/systemd/system/homepanel.service",
+		"systemfiles/homepanel-server@.service":          "/etc/systemd/system/homepanel-server@.service",
+		"systemfiles/50-homepanel.rules":                 "/etc/polkit-1/rules.d/50-homepanel.rules",
+		"systemfiles/homepanel-database-install.service": "/etc/systemd/system/homepanel-database-install.service",
 	}
 	for src, dst := range targets {
 		b, err := systemFiles.ReadFile(src)

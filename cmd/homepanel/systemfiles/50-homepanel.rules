@@ -1,5 +1,6 @@
 // Let the unprivileged homepanel user start/stop/restart/kill and set limits
-// on its own server units (homepanel-server@<id>.service) and nothing else.
+// on its own server units (homepanel-server@<id>.service), start the database
+// add-on installer and restart phpMyAdmin, and nothing else.
 //
 // Only manage-units is granted. For that action systemd passes the unit name
 // as a detail, so the rule can be scoped. manage-unit-files (enable/disable)
@@ -15,6 +16,10 @@ polkit.addRule(function (action, subject) {
   }
   var unit = action.lookup("unit");
   if (unit && unit.indexOf("homepanel-server@") === 0 && unit.indexOf("/") === -1) {
+    return polkit.Result.YES;
+  }
+  // The database add-on: its installer (oneshot, root) and phpMyAdmin.
+  if (unit === "homepanel-database-install.service" || unit === "homepanel-phpmyadmin.service") {
     return polkit.Result.YES;
   }
   return polkit.Result.NOT_HANDLED;

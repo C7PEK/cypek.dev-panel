@@ -19,6 +19,7 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
 	"github.com/cypek019/cypek.dev---panel/internal/backups"
 	"github.com/cypek019/cypek.dev---panel/internal/config"
+	"github.com/cypek019/cypek.dev---panel/internal/database"
 	"github.com/cypek019/cypek.dev---panel/internal/db"
 	"github.com/cypek019/cypek.dev---panel/internal/installer"
 	"github.com/cypek019/cypek.dev---panel/internal/providers"
@@ -80,7 +81,7 @@ func newEnv(t *testing.T) *testEnv {
 	inst := installer.New(installer.Deps{Paper: paper, Java: &runtimes.Java{Dir: filepath.Join(dir, "runtimes"), Adoptium: adoptium}, Log: log})
 	box, _ := secrets.New(bytes.Repeat([]byte{1}, 32))
 	h, err := New(Deps{Config: cfg, Store: store, Audit: audit.New(sqlDB, log), Log: log, Version: "test", Dist: dist, Servers: serverStore, Sup: sup,
-		Templates: registry, Installer: inst, Paper: paper, Secrets: box, Schedules: scheduler.NewStore(sqlDB), Backups: backups.NewStore(sqlDB)})
+		Templates: registry, Installer: inst, Paper: paper, Secrets: box, Schedules: scheduler.NewStore(sqlDB), Backups: backups.NewStore(sqlDB), DBRecords: database.NewStore(sqlDB), Databases: database.NewManager(filepath.Join(dir, "database.json"))})
 	if err != nil {
 		t.Fatal(err)
 	}

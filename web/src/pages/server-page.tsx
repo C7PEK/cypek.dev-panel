@@ -17,6 +17,7 @@ import { StateBadge } from "@/components/servers/state-badge"
 import { ScheduleTab } from "@/components/schedules/schedule-tab"
 import { ServerUsersTab } from "@/components/admin/server-users-tab"
 import { BackupsTab } from "@/components/backups/backups-tab"
+import { ServerDatabasesTab } from "@/components/databases/server-databases-tab"
 import { EventsPanel } from "@/components/servers/events-panel"
 import { ResourceCharts } from "@/components/stats/resource-charts"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -131,6 +132,7 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
             <TabsTrigger value="files">{t("serverPage.tabs.files")}</TabsTrigger>
             <TabsTrigger value="schedule">{t("serverPage.tabs.schedule")}</TabsTrigger>
             <TabsTrigger value="backups">{t("serverPage.tabs.backups")}</TabsTrigger>
+            <TabsTrigger value="databases">{t("serverPage.tabs.databases")}</TabsTrigger>
             <TabsTrigger value="settings">{t("serverPage.tabs.settings")}</TabsTrigger>
             {user.role !== "user" && <TabsTrigger value="users">{t("serverPage.tabs.users")}</TabsTrigger>}
           </TabsList>
@@ -147,6 +149,9 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
           </TabsContent>
           <TabsContent value="backups" className="pt-3">
             <BackupsTab server={s} />
+          </TabsContent>
+          <TabsContent value="databases" className="pt-3">
+            <ServerDatabasesTab server={s} user={user} />
           </TabsContent>
           <TabsContent value="settings" className="pt-3">
             <SettingsTab server={s} />

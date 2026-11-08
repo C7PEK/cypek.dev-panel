@@ -20,6 +20,7 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
 	"github.com/cypek019/cypek.dev---panel/internal/backups"
 	"github.com/cypek019/cypek.dev---panel/internal/config"
+	"github.com/cypek019/cypek.dev---panel/internal/database"
 	"github.com/cypek019/cypek.dev---panel/internal/db"
 	"github.com/cypek019/cypek.dev---panel/internal/installer"
 	"github.com/cypek019/cypek.dev---panel/internal/netinfo"
@@ -126,6 +127,8 @@ func runServe(args []string) error {
 		Secrets:   box,
 		Schedules: scheduler.NewStore(sqlDB),
 		Backups:   backups.NewStore(sqlDB),
+		DBRecords: database.NewStore(sqlDB),
+		Databases: database.NewManager(database.CredsPath),
 		BgCtx:     ctx,
 		Dist:      mustSub(web.Dist, "dist"),
 	}

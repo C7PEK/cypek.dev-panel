@@ -293,3 +293,30 @@ func TestAPIKeys(t *testing.T) {
 		t.Errorf("deleted key still works: %d", resp.StatusCode)
 	}
 }
+
+func TestDatabasesNotInstalled(t *testing.T) {
+	e := newEnv(t)
+	e.completeSetup("owner", "password123")
+	_, body := e.do(http.MethodGet, "/api/v1/system/database", nil)
+	if body["status"].(map[string]any)["installed"] != false {
+		t.Errorf("status = %v", body)
+	}
+	_, srv := e.do(http.MethodPost, "/api/v1/servers", fakeServerBody("D"))
+	id := srv["id"].(string)
+	resp, body := e.do(http.MethodPost, "/api/v1/servers/"+id+"/databases/", map[string]string{"name": "esx"})
+	if resp.StatusCode != 409 || errCode(body) != CodeDBNotInstalled {
+		t.Errorf("create without mariadb: %d %v", resp.StatusCode, body)
+	}
+	resp, body = e.do(http.MethodPost, "/api/v1/servers/"+id+"/databases/", map[string]string{"name": "bad name!"})
+	if resp.StatusCode != 422 {
+		t.Errorf("bad name: %d %v", resp.StatusCode, body)
+	}
+	resp, body = e.do(http.MethodPost, "/api/v1/system/database/install", nil)
+	if resp.StatusCode != 409 || errCode(body) != CodeNoSystemd {
+		t.Errorf("install with local supervisor: %d %v", resp.StatusCode, body)
+	}
+	_, body = e.do(http.MethodGet, "/api/v1/servers/"+id+"/databases/", nil)
+	if len(body["items"].([]any)) != 0 {
+		t.Errorf("list = %v", body)
+	}
+}

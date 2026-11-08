@@ -47,7 +47,7 @@ build-frontend: web/node_modules
 
 ## sync-systemfiles: copy packaging/ units + polkit rule into the binary's embed dir
 sync-systemfiles:
-	cp packaging/systemd/homepanel.service packaging/systemd/homepanel-server@.service packaging/polkit/50-homepanel.rules cmd/homepanel/systemfiles/
+	cp packaging/systemd/homepanel.service packaging/systemd/homepanel-server@.service packaging/systemd/homepanel-database-install.service packaging/polkit/50-homepanel.rules cmd/homepanel/systemfiles/
 
 build-backend: sync-systemfiles
 	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o bin/$(BINARY) ./cmd/homepanel

@@ -550,6 +550,9 @@ func (s *Server) handleDeleteServer(w http.ResponseWriter, r *http.Request) {
 	if err := s.sup.Remove(ctx, srv.ID); err != nil {
 		s.log.Warn("supervisor remove", "server", srv.ID, "err", err)
 	}
+	if removeFiles {
+		s.dropServerDatabases(r.Context(), srv.ID)
+	}
 	if err := s.servers.Delete(r.Context(), srv.ID, removeFiles); err != nil {
 		s.internalError(w, r, err)
 		return
