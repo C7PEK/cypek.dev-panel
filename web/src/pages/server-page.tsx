@@ -11,6 +11,7 @@ import { FileBrowser } from "@/components/files/file-browser"
 import { InstallBadge } from "@/components/servers/install-badge"
 import { InstallPanel } from "@/components/servers/install-panel"
 import { TemplateSettings } from "@/components/servers/template-settings"
+import { ServerAlertsCard } from "@/components/alerts/server-alerts-card"
 import { PowerButtons } from "@/components/servers/power-buttons"
 import { ServerForm, valuesFromServer } from "@/components/servers/server-form"
 import { StateBadge } from "@/components/servers/state-badge"
@@ -168,7 +169,7 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
             <ServerDatabasesTab server={s} user={user} />
           </TabsContent>
           <TabsContent value="settings" className="pt-3">
-            <SettingsTab server={s} />
+            <SettingsTab server={s} admin={user.role !== "user"} />
           </TabsContent>
           {user.role !== "user" && (
             <TabsContent value="users" className="pt-3">
@@ -195,13 +196,14 @@ function TemplateLabel({ server }: { server: Server }) {
   )
 }
 
-function SettingsTab({ server }: { server: Server }) {
+function SettingsTab({ server, admin }: { server: Server; admin: boolean }) {
   const { t } = useTranslation()
   const update = useUpdateServer(server.id)
   if (server.templateId !== "custom") {
     return (
       <div className="flex flex-col gap-6">
         <TemplateSettings server={server} />
+        <ServerAlertsCard serverId={server.id} admin={admin} />
         <DangerZone server={server} />
       </div>
     )
@@ -233,6 +235,7 @@ function SettingsTab({ server }: { server: Server }) {
           />
         </CardContent>
       </Card>
+      <ServerAlertsCard serverId={server.id} admin={admin} />
       <DangerZone server={server} />
     </div>
   )

@@ -21,7 +21,8 @@
     "users": "Użytkownicy",
     "audit": "Dziennik zdarzeń",
     "database": "Bazy danych",
-    "templates": "Szablony"
+    "templates": "Szablony",
+    "alerts": "Powiadomienia"
   },
   "roles": {
     "owner": "Właściciel",
@@ -141,7 +142,9 @@
     "import_failed": "Nie udało się zaimportować szablonu. Sprawdź, czy to egg z Pterodactyla/Pelicana albo szablon PufferPanela.",
     "not_minecraft": "Pluginy i mody są dostępne tylko dla serwerów Minecraft.",
     "platform_unknown": "Panel nie wie, na czym działa ten serwer. Wybierz silnik serwera w zakładce Pluginy.",
-    "no_compatible_version": "Ten plugin lub mod nie ma wersji dla Twojego serwera i wersji Minecrafta."
+    "no_compatible_version": "Ten plugin lub mod nie ma wersji dla Twojego serwera i wersji Minecrafta.",
+    "no_webhook": "Nie ustawiono webhooka Discord. Dodaj go w Powiadomieniach.",
+    "webhook_failed": "Discord odrzucił wiadomość: {{message}}"
   },
   "servers": {
     "create": "Utwórz serwer",
@@ -1064,6 +1067,95 @@
       "now": "Zrestartuj teraz",
       "later": "Później",
       "started": "Restartuję serwer…"
+    }
+  },
+  "alerts": {
+    "title": "Powiadomienia Discord",
+    "description": "Gdy serwer albo bot padnie i nie wstanie sam, panel wyśle wiadomość na Twój kanał Discord.",
+    "save": "Zapisz",
+    "saving": "Zapisywanie…",
+    "saved": "Zapisano ustawienia powiadomień",
+    "test": "Wyślij test",
+    "testSent": "Wysłano wiadomość testową — sprawdź Discorda",
+    "saveFirst": "Najpierw zapisz zmiany, test używa zapisanego webhooka.",
+    "language": "Język wiadomości",
+    "webhook": {
+      "title": "Webhook Discord",
+      "description": "Adres, na który panel wysyła wiadomości. Traktuj go jak hasło.",
+      "label": "Adres webhooka",
+      "savedPlaceholder": "Zapisany ({{hint}}) — wpisz nowy, aby zmienić",
+      "willRemove": "Webhook zostanie usunięty po zapisaniu",
+      "remove": "Usuń",
+      "undo": "Cofnij",
+      "invalid": "To nie wygląda na webhook Discorda (https://discord.com/api/webhooks/…).",
+      "how1": "W Discordzie otwórz Ustawienia kanału → Integracje → Webhooki.",
+      "how2": "Kliknij „Nowy webhook”, nadaj mu nazwę.",
+      "how3": "Kliknij „Kopiuj URL webhooka” i wklej go tutaj."
+    },
+    "when": {
+      "title": "Kiedy i kogo powiadamiać",
+      "description": "Panel czeka chwilę, bo serwer zwykle sam się restartuje. Pinguje tylko wtedy, gdy naprawdę nie działa."
+    },
+    "mention": {
+      "label": "Kogo pingować",
+      "none": "Nikogo",
+      "role": "Rolę",
+      "user": "Osobę",
+      "raw": "Własny zapis",
+      "roleId": "ID roli",
+      "userId": "ID osoby",
+      "roleIdPlaceholder": "ID roli, np. 123456789012345678",
+      "userIdPlaceholder": "ID osoby, np. 123456789012345678",
+      "idHint": "Włącz tryb dewelopera w Discordzie (Ustawienia → Zaawansowane), potem prawy klik na rolę lub osobę → Kopiuj ID.",
+      "rawHint": "Np. <@&ID_roli> <@ID_osoby>, @everyone albo @here, oddzielone spacją."
+    },
+    "grace": {
+      "label": "Po ilu sekundach alarmować",
+      "unit": "sekund",
+      "hint": "Daj serwerowi czas na automatyczny restart. Jeśli po tym czasie dalej nie działa, dostaniesz ping.",
+      "invalid": "Podaj liczbę od 10 do 600."
+    },
+    "switches": {
+      "recovered": "Powiadom, gdy serwer znowu działa",
+      "autoRestart": "Powiadom też, gdy padł, ale sam wstał",
+      "autoRestartHint": "Bez pingowania, tylko informacja na kanale.",
+      "logs": "Dołącz ostatnie linie logu",
+      "logsHint": "Logi mogą zawierać dane z konsoli (np. adresy IP graczy).",
+      "errors": "Alarmy o błędach w konsoli",
+      "errorsHint": "Wiadomość przy dużych błędach w logach, nawet gdy serwer działa. Może być głośno."
+    },
+    "panelUrl": {
+      "label": "Adres panelu",
+      "hint": "Używany w przycisku „Otwórz w panelu” w wiadomości.",
+      "invalid": "Podaj adres zaczynający się od http:// lub https://."
+    },
+    "history": {
+      "title": "Ostatnie powiadomienia",
+      "description": "Ostatnie wiadomości wysłane od uruchomienia panelu.",
+      "empty": "Jeszcze nic nie wysłano.",
+      "sent": "wysłano",
+      "failed": "nie wysłano",
+      "panel": "Panel"
+    },
+    "kinds": {
+      "down": "Nie działa",
+      "recovered": "Znowu działa",
+      "restarted": "Sam wstał",
+      "error": "Błąd",
+      "test": "Test"
+    },
+    "server": {
+      "title": "Powiadomienia Discord",
+      "description": "Alerty, gdy ten serwer padnie i nie wstanie sam.",
+      "enabled": "Wysyłaj alerty dla tego serwera",
+      "ownWebhook": "Własny webhook (opcjonalnie)",
+      "webhookEmpty": "Puste = webhook z ustawień panelu",
+      "webhookHint": "Np. osobny kanał dla tego bota. Puste = webhook z ustawień panelu.",
+      "mention": "Kogo pingować (opcjonalnie)",
+      "mentionGlobal": "Jak w ustawieniach panelu",
+      "noWebhook": "Nie ustawiono webhooka Discord. Poproś administratora o konfigurację powiadomień.",
+      "noWebhookAdmin": "Nie ustawiono jeszcze webhooka Discord.",
+      "openSettings": "Ustaw go w Powiadomieniach"
     }
   }
 }

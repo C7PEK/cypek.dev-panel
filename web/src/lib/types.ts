@@ -497,3 +497,54 @@ export interface ModInstallResult {
   removed: string[]
   restartNeeded: boolean
 }
+
+export type AlertKind = "down" | "recovered" | "restarted" | "error" | "test"
+
+export interface AlertSettings {
+  webhookSet: boolean
+  webhookHint: string
+  mention: string
+  graceSec: number
+  notifyRecovered: boolean
+  notifyAutoRestart: boolean
+  notifyErrors: boolean
+  includeLogs: boolean
+  language: "pl" | "en"
+  panelUrl: string
+}
+
+export interface AlertHistoryItem {
+  at: string
+  serverId: string
+  serverName: string
+  kind: AlertKind
+  ok: boolean
+  error?: string
+}
+
+export interface AlertSettingsInput {
+  /** Omit to keep the stored webhook, "" removes it. */
+  webhook?: string
+  mention: string
+  graceSec: number
+  notifyRecovered: boolean
+  notifyAutoRestart: boolean
+  notifyErrors: boolean
+  includeLogs: boolean
+  language: "pl" | "en"
+  panelUrl: string
+}
+
+export interface ServerAlerts {
+  enabled: boolean
+  webhookSet: boolean
+  webhookHint: string
+  mention: string
+  globalWebhookSet: boolean
+}
+
+export interface ServerAlertsInput {
+  enabled: boolean
+  webhook?: string
+  mention: string
+}

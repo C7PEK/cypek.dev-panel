@@ -5,6 +5,7 @@ import { FullPageError, FullPageLoading } from "@/components/layout/full-page-st
 import { TOTP_REQUIRED_EVENT } from "@/lib/api"
 import { useMe, useSetupStatus } from "@/lib/auth"
 import type { User } from "@/lib/types"
+import { AdminAlertsPage } from "@/pages/admin-alerts-page"
 import { AdminAuditPage } from "@/pages/admin-audit-page"
 import { AdminDatabasePage } from "@/pages/admin-database-page"
 import { AdminTemplatesPage } from "@/pages/admin-templates-page"
@@ -64,6 +65,7 @@ function AuthedRoutes({ user }: { user: User }) {
       <Route path="/admin/audit" element={admin ? <AdminAuditPage user={user} /> : <Navigate to="/" replace />} />
       <Route path="/admin/database" element={admin ? <AdminDatabasePage user={user} /> : <Navigate to="/" replace />} />
       <Route path="/admin/templates" element={admin ? <AdminTemplatesPage user={user} /> : <Navigate to="/" replace />} />
+      <Route path="/admin/alerts" element={admin ? <AdminAlertsPage user={user} /> : <Navigate to="/" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

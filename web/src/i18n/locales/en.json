@@ -21,7 +21,8 @@
     "users": "Users",
     "audit": "Audit log",
     "database": "Databases",
-    "templates": "Templates"
+    "templates": "Templates",
+    "alerts": "Alerts"
   },
   "roles": {
     "owner": "Owner",
@@ -139,7 +140,9 @@
     "import_failed": "Could not import this template. Check that it is a Pterodactyl/Pelican egg or a PufferPanel template.",
     "not_minecraft": "Plugins and mods are only available for Minecraft servers.",
     "platform_unknown": "The panel doesn't know what this server runs. Pick the server software in the Plugins tab.",
-    "no_compatible_version": "This plugin or mod has no version for your server software and Minecraft version."
+    "no_compatible_version": "This plugin or mod has no version for your server software and Minecraft version.",
+    "no_webhook": "No Discord webhook is set. Add one under Alerts.",
+    "webhook_failed": "Discord rejected the message: {{message}}"
   },
   "servers": {
     "create": "Create a server",
@@ -1028,6 +1031,95 @@
       "now": "Restart now",
       "later": "Later",
       "started": "Restarting the server…"
+    }
+  },
+  "alerts": {
+    "title": "Discord alerts",
+    "description": "When a server or bot goes down and does not come back on its own, the panel posts to your Discord channel.",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Alert settings saved",
+    "test": "Send test",
+    "testSent": "Test message sent — check Discord",
+    "saveFirst": "Save your changes first; the test uses the saved webhook.",
+    "language": "Message language",
+    "webhook": {
+      "title": "Discord webhook",
+      "description": "Where the panel posts messages. Treat it like a password.",
+      "label": "Webhook URL",
+      "savedPlaceholder": "Saved ({{hint}}) — type a new one to replace it",
+      "willRemove": "The webhook will be removed when you save",
+      "remove": "Remove",
+      "undo": "Undo",
+      "invalid": "This does not look like a Discord webhook (https://discord.com/api/webhooks/…).",
+      "how1": "In Discord open Channel settings → Integrations → Webhooks.",
+      "how2": "Click “New Webhook” and give it a name.",
+      "how3": "Click “Copy Webhook URL” and paste it here."
+    },
+    "when": {
+      "title": "When and whom to notify",
+      "description": "The panel waits a moment because servers usually restart on their own. It only pings when the server is really down."
+    },
+    "mention": {
+      "label": "Who to ping",
+      "none": "Nobody",
+      "role": "A role",
+      "user": "A person",
+      "raw": "Custom",
+      "roleId": "Role ID",
+      "userId": "User ID",
+      "roleIdPlaceholder": "Role ID, e.g. 123456789012345678",
+      "userIdPlaceholder": "User ID, e.g. 123456789012345678",
+      "idHint": "Turn on Developer Mode in Discord (Settings → Advanced), then right-click the role or person → Copy ID.",
+      "rawHint": "E.g. <@&ROLE_ID> <@USER_ID>, @everyone or @here, separated by spaces."
+    },
+    "grace": {
+      "label": "Alert after how many seconds",
+      "unit": "seconds",
+      "hint": "Give the server time to restart by itself. If it is still down after this, you get pinged.",
+      "invalid": "Enter a number from 10 to 600."
+    },
+    "switches": {
+      "recovered": "Notify when the server is back up",
+      "autoRestart": "Also notify when it crashed but restarted by itself",
+      "autoRestartHint": "No ping, just a message in the channel.",
+      "logs": "Include the last log lines",
+      "logsHint": "Logs may contain console data (e.g. player IP addresses).",
+      "errors": "Alerts for console errors",
+      "errorsHint": "A message on big errors in the log, even while the server runs. Can be noisy."
+    },
+    "panelUrl": {
+      "label": "Panel address",
+      "hint": "Used for the “Open in panel” link in messages.",
+      "invalid": "Enter an address starting with http:// or https://."
+    },
+    "history": {
+      "title": "Recent alerts",
+      "description": "Messages sent since the panel started.",
+      "empty": "Nothing sent yet.",
+      "sent": "sent",
+      "failed": "not sent",
+      "panel": "Panel"
+    },
+    "kinds": {
+      "down": "Down",
+      "recovered": "Back up",
+      "restarted": "Restarted",
+      "error": "Error",
+      "test": "Test"
+    },
+    "server": {
+      "title": "Discord alerts",
+      "description": "Alerts when this server goes down and does not come back on its own.",
+      "enabled": "Send alerts for this server",
+      "ownWebhook": "Own webhook (optional)",
+      "webhookEmpty": "Empty = the panel's webhook",
+      "webhookHint": "E.g. a separate channel for this bot. Empty = the webhook from the panel settings.",
+      "mention": "Who to ping (optional)",
+      "mentionGlobal": "Same as panel settings",
+      "noWebhook": "No Discord webhook is set. Ask an administrator to set up alerts.",
+      "noWebhookAdmin": "No Discord webhook is set yet.",
+      "openSettings": "Set it up in Alerts"
     }
   }
 }
