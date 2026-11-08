@@ -95,7 +95,9 @@ func rejectCrossSite(next http.Handler) http.Handler {
 				writeError(w, http.StatusForbidden, CodeCSRF, "Cross-site requests are not allowed.")
 				return
 			}
-			if ct := r.Header.Get("Content-Type"); r.ContentLength != 0 && !strings.HasPrefix(ct, "application/json") {
+			// File routes take text and multipart bodies; they are protected by
+			// the CSRF token requireAuth checks on every unsafe request.
+			if ct := r.Header.Get("Content-Type"); r.ContentLength != 0 && !strings.HasPrefix(ct, "application/json") && !strings.Contains(r.URL.Path, "/files") {
 				writeError(w, http.StatusUnsupportedMediaType, CodeBadRequest, "Content-Type must be application/json.")
 				return
 			}
@@ -106,7 +108,11 @@ func rejectCrossSite(next http.Handler) http.Handler {
 
 func limitBody(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.Body = http.MaxBytesReader(w, r.Body, maxJSONBody)
+		// File manager routes carry uploads and editor content; they set
+		// their own, larger limits.
+		if !strings.Contains(r.URL.Path, "/files") {
+			r.Body = http.MaxBytesReader(w, r.Body, maxJSONBody)
+		}
 		next.ServeHTTP(w, r)
 	})
 }

@@ -39,6 +39,8 @@ type Config struct {
 	// Supervisor is "systemd" (default) or "local" (shims as plain child
 	// processes, no sandbox; what --dev uses).
 	Supervisor string `toml:"supervisor"`
+	// MaxUploadMB caps a single file upload in the file manager (default 1024).
+	MaxUploadMB int `toml:"max_upload_mb"`
 
 	TLS TLSConfig `toml:"tls"`
 
@@ -145,6 +147,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Supervisor == "" {
 		c.Supervisor = "systemd"
+	}
+	if c.MaxUploadMB <= 0 {
+		c.MaxUploadMB = 1024
 	}
 	if c.Supervisor != "systemd" && c.Supervisor != "local" {
 		return fmt.Errorf("supervisor must be \"systemd\" or \"local\", got %q", c.Supervisor)

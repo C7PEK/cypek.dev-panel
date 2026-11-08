@@ -152,6 +152,18 @@ func New(d Deps) (http.Handler, error) {
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/console/hints", s.handleConsoleHints)
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/install", s.handleInstallStatus)
 				sr.With(s.withServer(auth.PermSettings)).Post("/install", s.handleReinstall)
+
+				sr.Route("/files", func(fr chi.Router) {
+					fr.With(s.withServer(auth.PermFilesRead)).Get("/", s.handleFilesList)
+					fr.With(s.withServer(auth.PermFilesRead)).Get("/content", s.handleFilesRead)
+					fr.With(s.withServer(auth.PermFilesRead)).Get("/download", s.handleFilesDownload)
+					fr.With(s.withServer(auth.PermFilesWrite)).Put("/content", s.handleFilesWrite)
+					fr.With(s.withServer(auth.PermFilesWrite)).Post("/mkdir", s.handleFilesMkdir)
+					fr.With(s.withServer(auth.PermFilesWrite)).Post("/rename", s.handleFilesRename)
+					fr.With(s.withServer(auth.PermFilesWrite)).Post("/delete", s.handleFilesDelete)
+					fr.With(s.withServer(auth.PermFilesWrite)).Post("/extract", s.handleFilesExtract)
+					fr.With(s.withServer(auth.PermFilesWrite)).Post("/upload", s.handleFilesUpload)
+				})
 			})
 		})
 
