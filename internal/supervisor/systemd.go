@@ -197,21 +197,13 @@ func (s *Systemd) SetLimits(ctx context.Context, id string, l Limits) error {
 	return nil
 }
 
+// SetAutostart is a no-op here on purpose. systemd does not pass the unit
+// name to polkit for manage-unit-files, so letting the panel call
+// EnableUnitFiles would mean letting it enable *any* unit. Instead the panel
+// itself starts servers flagged autostart when it boots (see cmd/homepanel
+// serve), which needs nothing beyond the manage-units rule.
 func (s *Systemd) SetAutostart(ctx context.Context, id string, on bool) error {
-	if err := checkID(id); err != nil {
-		return err
-	}
-	units := []string{unitName(id)}
-	if on {
-		if _, _, err := s.conn.EnableUnitFilesContext(ctx, units, false, true); err != nil {
-			return fmt.Errorf("enable %s: %w", unitName(id), err)
-		}
-		return nil
-	}
-	if _, err := s.conn.DisableUnitFilesContext(ctx, units, false); err != nil {
-		return fmt.Errorf("disable %s: %w", unitName(id), err)
-	}
-	return nil
+	return checkID(id)
 }
 
 func (s *Systemd) Attach(ctx context.Context, id string) (Console, error) {
@@ -256,7 +248,9 @@ func (s *Systemd) Remove(ctx context.Context, id string) error {
 	if err := s.Stop(ctx, id); err != nil && !errors.Is(err, ErrNotRunning) {
 		return err
 	}
-	_ = s.SetAutostart(ctx, id, false)
+	// Dropping the persisted limits needs RevertUnitFiles (manage-unit-files,
+	// not granted); resetting them to unlimited leaves a harmless drop-in.
+	_ = s.SetLimits(ctx, id, Limits{})
 	_ = s.conn.ResetFailedUnitContext(ctx, unitName(id))
 	return nil
 }

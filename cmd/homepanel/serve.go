@@ -115,6 +115,7 @@ func runServe(args []string) error {
 	log.Info("panel started", "version", version, "listen", cfg.Listen, "dev", cfg.Dev, "data", cfg.DataDir, "supervisor", sup.Name())
 
 	go sessionJanitor(ctx, store, log)
+	go autostartServers(ctx, serverStore, sup, log)
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -209,6 +210,32 @@ func printBanner(cfg *config.Config, setupToken string) {
 	}
 	b.WriteString("============================================================\n\n")
 	fmt.Fprint(os.Stderr, b.String())
+}
+
+// autostartServers starts every server flagged autostart. The panel, not
+// systemd enablement, owns autostart: see Systemd.SetAutostart for why.
+// Servers already running (panel restart, not a reboot) are left alone.
+func autostartServers(ctx context.Context, store *servers.Store, sup supervisor.Supervisor, log *slog.Logger) {
+	list, err := store.List(ctx, nil)
+	if err != nil {
+		log.Error("autostart: list servers", "err", err)
+		return
+	}
+	for _, srv := range list {
+		if !srv.Autostart || ctx.Err() != nil {
+			continue
+		}
+		sctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		err := sup.Start(sctx, srv.ID)
+		cancel()
+		switch {
+		case err == nil:
+			log.Info("autostart: server started", "server", srv.ID, "name", srv.Name)
+		case errors.Is(err, supervisor.ErrAlreadyRunning):
+		default:
+			log.Warn("autostart: start failed", "server", srv.ID, "name", srv.Name, "err", err)
+		}
+	}
 }
 
 // sessionJanitor purges expired sessions once an hour.
