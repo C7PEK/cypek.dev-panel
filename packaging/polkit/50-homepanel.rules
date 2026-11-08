@@ -1,0 +1,17 @@
+// Let the unprivileged homepanel user manage its own server units and nothing
+// else. Requires polkit >= 0.106 (JavaScript rules): Debian 12+, Ubuntu 23.10+.
+polkit.addRule(function (action, subject) {
+  if (subject.user !== "homepanel") {
+    return polkit.Result.NOT_HANDLED;
+  }
+  var unit = action.lookup("unit");
+  if (!unit || unit.indexOf("homepanel-server@") !== 0) {
+    return polkit.Result.NOT_HANDLED;
+  }
+  if (action.id === "org.freedesktop.systemd1.manage-units" ||
+      action.id === "org.freedesktop.systemd1.manage-unit-files" ||
+      action.id === "org.freedesktop.systemd1.reload-daemon") {
+    return polkit.Result.YES;
+  }
+  return polkit.Result.NOT_HANDLED;
+});

@@ -14,6 +14,8 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/audit"
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
 	"github.com/cypek019/cypek.dev---panel/internal/config"
+	"github.com/cypek019/cypek.dev---panel/internal/servers"
+	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
 )
 
 // Deps are the collaborators the API needs.
@@ -23,6 +25,8 @@ type Deps struct {
 	Audit   *audit.Logger
 	Log     *slog.Logger
 	Version string
+	Servers *servers.Store
+	Sup     supervisor.Supervisor
 	// Dist is the built frontend. Ignored when DevProxy is set.
 	Dist fs.FS
 	// DevProxy, when non-empty, forwards non-API requests to a Vite dev server
@@ -37,6 +41,8 @@ type Server struct {
 	audit   *audit.Logger
 	log     *slog.Logger
 	version string
+	servers *servers.Store
+	sup     supervisor.Supervisor
 
 	loginLimitIP   *auth.RateLimiter
 	loginLimitUser *auth.RateLimiter
@@ -51,6 +57,8 @@ func New(d Deps) (http.Handler, error) {
 		audit:          d.Audit,
 		log:            d.Log,
 		version:        d.Version,
+		servers:        d.Servers,
+		sup:            d.Sup,
 		loginLimitIP:   auth.NewRateLimiter(20, 10*time.Minute),
 		loginLimitUser: auth.NewRateLimiter(8, 15*time.Minute),
 		setupLimit:     auth.NewRateLimiter(10, 15*time.Minute),
@@ -77,6 +85,16 @@ func New(d Deps) (http.Handler, error) {
 			priv.Get("/system/info", s.handleSystemInfo)
 
 			priv.With(s.requireRole(auth.RoleAdmin)).Get("/audit", s.handleAuditRecent)
+
+			priv.Get("/servers", s.handleListServers)
+			priv.With(s.requireRole(auth.RoleAdmin)).Post("/servers", s.handleCreateServer)
+			priv.Route("/servers/{id}", func(sr chi.Router) {
+				sr.With(s.withServer(auth.PermConsoleRead)).Get("/", s.handleGetServer)
+				sr.With(s.withServer(auth.PermSettings)).Patch("/", s.handleUpdateServer)
+				sr.With(s.withServer(auth.PermDelete)).Delete("/", s.handleDeleteServer)
+				sr.With(s.withServer(auth.PermPower)).Post("/power", s.handlePower)
+				sr.With(s.withServer(auth.PermConsoleRead)).Get("/console", s.handleConsole)
+			})
 		})
 
 		api.NotFound(func(w http.ResponseWriter, r *http.Request) {

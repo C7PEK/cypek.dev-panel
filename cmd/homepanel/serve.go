@@ -21,6 +21,8 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/config"
 	"github.com/cypek019/cypek.dev---panel/internal/db"
 	"github.com/cypek019/cypek.dev---panel/internal/netinfo"
+	"github.com/cypek019/cypek.dev---panel/internal/servers"
+	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
 	"github.com/cypek019/cypek.dev---panel/web"
 )
 
@@ -62,6 +64,15 @@ func runServe(args []string) error {
 
 	store := auth.NewStore(sqlDB)
 	auditLog := audit.New(sqlDB, log)
+	serverStore := servers.NewStore(sqlDB, cfg.ServersDir())
+
+	sup, err := newSupervisor(ctx, cfg, log)
+	if err != nil {
+		return err
+	}
+	if closer, ok := sup.(interface{ Close() }); ok {
+		defer closer.Close()
+	}
 
 	setupToken, _, err := store.EnsureSetupToken(ctx, cfg.DataDir)
 	if err != nil {
@@ -74,6 +85,8 @@ func runServe(args []string) error {
 		Audit:   auditLog,
 		Log:     log,
 		Version: version,
+		Servers: serverStore,
+		Sup:     sup,
 		Dist:    mustSub(web.Dist, "dist"),
 	}
 	if cfg.Dev {
@@ -99,7 +112,7 @@ func runServe(args []string) error {
 	}
 
 	printBanner(cfg, setupToken)
-	log.Info("panel started", "version", version, "listen", cfg.Listen, "dev", cfg.Dev, "data", cfg.DataDir)
+	log.Info("panel started", "version", version, "listen", cfg.Listen, "dev", cfg.Dev, "data", cfg.DataDir, "supervisor", sup.Name())
 
 	go sessionJanitor(ctx, store, log)
 
@@ -148,6 +161,7 @@ func loadConfig(path string, dev bool) (*config.Config, error) {
 	base.Listen = fmt.Sprintf("127.0.0.1:%d", config.DefaultPort)
 	base.DataDir = devDir
 	base.LogDir = filepath.Join(devDir, "log")
+	base.Supervisor = "local"
 	if path == config.DefaultPath {
 		path = filepath.Join(devDir, "config.toml")
 	}
@@ -156,7 +170,26 @@ func loadConfig(path string, dev bool) (*config.Config, error) {
 		return nil, err
 	}
 	cfg.Dev = true
+	cfg.Supervisor = "local"
 	return cfg, nil
+}
+
+// newSupervisor picks systemd (production) or local (dev / supervisor = "local").
+func newSupervisor(ctx context.Context, cfg *config.Config, log *slog.Logger) (supervisor.Supervisor, error) {
+	if cfg.Supervisor == "local" {
+		exe, err := os.Executable()
+		if err != nil {
+			return nil, fmt.Errorf("locate own binary for shim: %w", err)
+		}
+		layout := supervisor.Layout{ServersDir: cfg.ServersDir(), RunDir: cfg.LocalRunDir()}
+		return supervisor.NewLocal(layout, exe, log), nil
+	}
+	layout := supervisor.Layout{ServersDir: cfg.ServersDir(), RunDir: "/run", FlatRun: true}
+	sup, err := supervisor.NewSystemd(ctx, layout, log)
+	if err != nil {
+		return nil, fmt.Errorf("systemd supervisor: %w (set supervisor = \"local\" in config.toml to run without systemd)", err)
+	}
+	return sup, nil
 }
 
 func printBanner(cfg *config.Config, setupToken string) {

@@ -102,8 +102,10 @@ func New(cfg *RunConfig, opts Options) (*Shim, error) {
 }
 
 // Run starts the process and serves the socket until the process exits.
-// Cancelling ctx requests a graceful stop. The returned exit code is the
-// process's; the shim should exit with it so systemd sees crashes.
+// Cancelling ctx requests a graceful stop. The returned code is what the shim
+// should exit with: the process's exit code for an unrequested exit (so
+// systemd's Restart=on-failure restarts crashes), and 0 whenever the stop or
+// kill was requested through the panel or a signal.
 func (s *Shim) Run(ctx context.Context) (int, error) {
 	logs, err := newLogWriter(s.opts.ServerDir, s.opts.KeepLogFiles)
 	if err != nil {
@@ -141,7 +143,10 @@ func (s *Shim) Run(ctx context.Context) (int, error) {
 	case <-s.exited:
 	}
 	code := exitCodeOf(waitErr)
-	s.finish(code)
+	requested := s.finish(code)
+	if requested {
+		return 0, nil
+	}
 	return code, nil
 }
 
@@ -398,8 +403,9 @@ func (s *Shim) kill() {
 	})
 }
 
-// finish records the exit, tells clients and closes everything.
-func (s *Shim) finish(code int) {
+// finish records the exit, tells clients and closes everything. It reports
+// whether the exit was requested.
+func (s *Shim) finish(code int) bool {
 	s.mu.Lock()
 	s.state = StateStopped
 	s.exitCode = &code
@@ -420,6 +426,7 @@ func (s *Shim) finish(code int) {
 		c.conn.Close()
 	}
 	s.mu.Unlock()
+	return requested
 }
 
 func exitCodeOf(err error) int {

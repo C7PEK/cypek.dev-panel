@@ -36,6 +36,9 @@ type Config struct {
 	SessionSecret string `toml:"session_secret"`
 	// EncryptionKey encrypts secrets stored in the database. Base64, 32 random bytes.
 	EncryptionKey string `toml:"encryption_key"`
+	// Supervisor is "systemd" (default) or "local" (shims as plain child
+	// processes, no sandbox; what --dev uses).
+	Supervisor string `toml:"supervisor"`
 
 	TLS TLSConfig `toml:"tls"`
 
@@ -140,6 +143,12 @@ func (c *Config) Validate() error {
 	if err := checkSecret("encryption_key", c.EncryptionKey); err != nil {
 		return err
 	}
+	if c.Supervisor == "" {
+		c.Supervisor = "systemd"
+	}
+	if c.Supervisor != "systemd" && c.Supervisor != "local" {
+		return fmt.Errorf("supervisor must be \"systemd\" or \"local\", got %q", c.Supervisor)
+	}
 	if c.TLS.Enabled && (c.TLS.CertFile == "" || c.TLS.KeyFile == "") {
 		return errors.New("tls.cert_file and tls.key_file are required when tls.enabled = true")
 	}
@@ -166,9 +175,15 @@ func (c *Config) BackupsDir() string { return filepath.Join(c.DataDir, "backups"
 // UserTemplatesDir returns the directory for user-provided templates.
 func (c *Config) UserTemplatesDir() string { return filepath.Join(c.DataDir, "templates") }
 
+// LocalRunDir holds console sockets when the local supervisor is used.
+func (c *Config) LocalRunDir() string { return filepath.Join(c.DataDir, "run") }
+
 // EnsureDirs creates the data directory layout.
 func (c *Config) EnsureDirs() error {
 	dirs := []string{c.DataDir, c.ServersDir(), c.RuntimesDir(), c.BackupsDir(), c.UserTemplatesDir()}
+	if c.Supervisor == "local" {
+		dirs = append(dirs, c.LocalRunDir())
+	}
 	if c.LogDir != "" {
 		dirs = append(dirs, c.LogDir)
 	}

@@ -224,8 +224,11 @@ func TestStopTimeoutKills(t *testing.T) {
 	startAt := time.Now()
 	_ = c.Send(Frame{Type: TypeStop})
 	waitFor(t, c, "stopped", func(f Frame, _ string) bool { return f.Type == TypeState && f.State == StateStopped })
-	if code := h.exitCode(); code != 128+9 {
-		t.Errorf("exit code = %d, want 137 (SIGKILL)", code)
+	if code := h.exitCode(); code != 0 {
+		t.Errorf("Run code = %d, want 0 (requested stop must not look like a crash)", code)
+	}
+	if info, _ := ReadExitInfo(h.dir); info == nil || info.ExitCode != 137 || !info.Requested {
+		t.Errorf("exit info = %+v, want 137 requested", info)
 	}
 	if el := time.Since(startAt); el < 900*time.Millisecond || el > 6*time.Second {
 		t.Errorf("stop took %v, expected ~1s timeout", el)
@@ -268,8 +271,8 @@ func TestKillFrame(t *testing.T) {
 	defer c.Close()
 	_ = c.Send(Frame{Type: TypeKill})
 	waitFor(t, c, "stopped", func(f Frame, _ string) bool { return f.Type == TypeState && f.State == StateStopped })
-	if code := h.exitCode(); code != 137 {
-		t.Errorf("exit code = %d, want 137", code)
+	if code := h.exitCode(); code != 0 {
+		t.Errorf("Run code = %d, want 0 for requested kill", code)
 	}
 }
 

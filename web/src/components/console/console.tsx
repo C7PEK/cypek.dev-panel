@@ -1,0 +1,335 @@
+import { FitAddon } from "@xterm/addon-fit"
+import { Terminal } from "@xterm/xterm"
+import "@xterm/xterm/css/xterm.css"
+import { ArrowDownIcon, SendHorizontalIcon } from "lucide-react"
+import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
+
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import i18n from "@/i18n"
+import type { ConsoleClientFrame, ConsoleServerFrame, ServerState } from "@/lib/types"
+import { cn } from "@/lib/utils"
+
+type ConnStatus = "connecting" | "connected" | "reconnecting" | "noPermission"
+
+const HISTORY_MAX = 100
+const BACKOFF_MAX_MS = 10_000
+const CLOSE_NO_PERMISSION = 4403
+
+const historyKey = (id: string) => `homepanel-history-${id}`
+
+function loadHistory(id: string): string[] {
+  try {
+    const raw = localStorage.getItem(historyKey(id))
+    const parsed: unknown = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string").slice(-HISTORY_MAX) : []
+  } catch {
+    return []
+  }
+}
+
+function saveHistory(id: string, items: string[]) {
+  try {
+    localStorage.setItem(historyKey(id), JSON.stringify(items.slice(-HISTORY_MAX)))
+  } catch {
+    // Storage may be unavailable (private mode, quota); history then lives in memory only.
+  }
+}
+
+function consoleUrl(id: string) {
+  const proto = location.protocol === "https:" ? "wss:" : "ws:"
+  return `${proto}//${location.host}/api/v1/servers/${encodeURIComponent(id)}/console`
+}
+
+// Dim "[panel] ..." line printed between game output when the state changes.
+function panelLine(text: string) {
+  return `\r\n\x1b[2m${text}\x1b[0m\r\n`
+}
+
+function stateMessage(state: ServerState, exitCode?: number): string {
+  switch (state) {
+    case "stopped":
+      return exitCode === undefined ? i18n.t("console.msg.stopped") : i18n.t("console.msg.stoppedCode", { code: exitCode })
+    case "crashed":
+      return exitCode === undefined ? i18n.t("console.msg.crashedNoCode") : i18n.t("console.msg.crashed", { code: exitCode })
+    default:
+      return i18n.t(`console.msg.${state}`)
+  }
+}
+
+const isLive = (s: ServerState) => s === "running" || s === "starting"
+
+interface Props {
+  serverId: string
+  /** State known from the REST API; the socket's own state frames take over once connected. */
+  initialState: ServerState
+  className?: string
+}
+
+export function Console({ serverId, initialState, className }: Props) {
+  const { t } = useTranslation()
+  const hostRef = useRef<HTMLDivElement>(null)
+  const termRef = useRef<Terminal | null>(null)
+  const wsRef = useRef<WebSocket | null>(null)
+
+  const [conn, setConn] = useState<ConnStatus>("connecting")
+  const [state, setState] = useState<ServerState>(initialState)
+  const [atBottom, setAtBottom] = useState(true)
+  const [input, setInput] = useState("")
+  const [history, setHistory] = useState<string[]>(() => loadHistory(serverId))
+  // Index into history counted from the newest entry; -1 means "editing a fresh line".
+  const histIdx = useRef(-1)
+  const draft = useRef("")
+
+  const send = useCallback((frame: ConsoleClientFrame) => {
+    const ws = wsRef.current
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(frame))
+  }, [])
+
+  // Terminal lifetime: created once per mount, resized with its container.
+  useEffect(() => {
+    const host = hostRef.current
+    if (!host) return
+    const term = new Terminal({
+      disableStdin: true,
+      cursorBlink: false,
+      cursorStyle: "underline",
+      fontSize: 13,
+      lineHeight: 1.2,
+      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace",
+      scrollback: 5000,
+      theme: {
+        background: "#050506",
+        foreground: "#f4f4f6",
+        cursor: "#00f0ff",
+        cursorAccent: "#050506",
+        selectionBackground: "rgba(0, 240, 255, 0.25)",
+        black: "#1a1a1f",
+        brightBlack: "#5c5c66",
+      },
+    })
+    const fit = new FitAddon()
+    term.loadAddon(fit)
+    term.open(host)
+    termRef.current = term
+
+    const safeFit = () => {
+      try {
+        fit.fit()
+      } catch {
+        // Container has no size yet (hidden tab); next resize will fit.
+      }
+    }
+    safeFit()
+
+    const updateBottom = () => {
+      const b = term.buffer.active
+      setAtBottom(b.viewportY >= b.baseY)
+    }
+    const subs = [
+      term.onScroll(updateBottom),
+      term.onWriteParsed(updateBottom),
+      term.onResize(({ cols, rows }) => send({ type: "resize", cols, rows })),
+    ]
+    const ro = new ResizeObserver(safeFit)
+    ro.observe(host)
+
+    return () => {
+      ro.disconnect()
+      for (const s of subs) s.dispose()
+      term.dispose()
+      termRef.current = null
+    }
+  }, [send])
+
+  // Socket lifetime: reconnects with backoff until unmounted or denied.
+  useEffect(() => {
+    let ws: WebSocket | null = null
+    let attempt = 0
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let disposed = false
+    const url = consoleUrl(serverId)
+
+    const write = (s: string) => termRef.current?.write(s)
+
+    const handle = (frame: ConsoleServerFrame) => {
+      switch (frame.type) {
+        case "hello": {
+          // The backend replays its backlog after hello; drop what we had so nothing doubles.
+          termRef.current?.reset()
+          setState(frame.state)
+          const term = termRef.current
+          if (term) send({ type: "resize", cols: term.cols, rows: term.rows })
+          break
+        }
+        case "output":
+          write(frame.data)
+          break
+        case "state":
+          setState(frame.state)
+          write(panelLine(stateMessage(frame.state, frame.exitCode)))
+          break
+        case "error":
+          write(panelLine(i18n.t("console.msg.error", { message: frame.message })))
+          if (/permission|forbidden|uprawnie/i.test(frame.message)) setConn("noPermission")
+          break
+      }
+    }
+
+    const connect = () => {
+      if (disposed) return
+      ws = new WebSocket(url)
+      wsRef.current = ws
+      ws.onopen = () => {
+        attempt = 0
+        setConn("connected")
+      }
+      ws.onmessage = (ev) => {
+        if (typeof ev.data !== "string") return
+        // One JSON frame per message; a batch may still arrive newline-separated.
+        for (const line of ev.data.split("\n")) {
+          if (!line.trim()) continue
+          try {
+            handle(JSON.parse(line) as ConsoleServerFrame)
+          } catch {
+            // Ignore malformed frames rather than killing the console.
+          }
+        }
+      }
+      ws.onclose = (ev) => {
+        if (wsRef.current === ws) wsRef.current = null
+        if (disposed) return
+        const denied = ev.code === CLOSE_NO_PERMISSION || (ev.code === 1008 && /permission|forbidden/i.test(ev.reason))
+        if (denied) {
+          setConn("noPermission")
+          return
+        }
+        setConn("reconnecting")
+        write(panelLine(i18n.t("console.msg.disconnected")))
+        const delay = Math.min(1000 * 2 ** attempt, BACKOFF_MAX_MS)
+        attempt++
+        timer = setTimeout(connect, delay)
+      }
+    }
+
+    setConn("connecting")
+    connect()
+
+    return () => {
+      disposed = true
+      if (timer) clearTimeout(timer)
+      if (ws) {
+        ws.onclose = null
+        ws.close(1000)
+      }
+      wsRef.current = null
+    }
+  }, [serverId, send])
+
+  // Switching servers in place: reload that server's history.
+  useEffect(() => {
+    setHistory(loadHistory(serverId))
+    histIdx.current = -1
+    setInput("")
+  }, [serverId])
+
+  const canSend = conn === "connected" && isLive(state)
+
+  function submit() {
+    const text = input
+    if (!canSend || !text.trim()) return
+    send({ type: "input", data: text + "\n" })
+    setHistory((h) => {
+      const next = h[h.length - 1] === text ? h : [...h, text].slice(-HISTORY_MAX)
+      saveHistory(serverId, next)
+      return next
+    })
+    histIdx.current = -1
+    draft.current = ""
+    setInput("")
+  }
+
+  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      submit()
+      return
+    }
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      if (history.length === 0) return
+      e.preventDefault()
+      if (e.key === "ArrowUp") {
+        if (histIdx.current === -1) draft.current = input
+        histIdx.current = Math.min(histIdx.current + 1, history.length - 1)
+        setInput(history[history.length - 1 - histIdx.current] ?? "")
+      } else {
+        if (histIdx.current === -1) return
+        histIdx.current -= 1
+        setInput(histIdx.current === -1 ? draft.current : (history[history.length - 1 - histIdx.current] ?? ""))
+      }
+    }
+  }
+
+  const chip = (() => {
+    if (conn === "noPermission") return { key: "noPermission", dot: "bg-red-400" }
+    if (conn === "reconnecting") return { key: "reconnecting", dot: "bg-amber-400 brand-pulse" }
+    if (conn === "connecting") return { key: "connecting", dot: "bg-amber-400 brand-pulse" }
+    if (!isLive(state) && state !== "stopping") return { key: "notRunning", dot: "bg-muted-foreground/60" }
+    return { key: "connected", dot: "bg-emerald-400 shadow-[0_0_8px_rgb(52_211_153)]" }
+  })()
+
+  return (
+    <div className={cn("flex min-w-0 flex-col gap-2", className)}>
+      <div className="relative min-h-64 flex-1 overflow-hidden rounded-lg border border-white/10 bg-[#050506] p-2">
+        <div ref={hostRef} className="h-full w-full" />
+        {!atBottom && (
+          <Button
+            size="sm"
+            variant="secondary"
+            className="absolute right-4 bottom-3 z-10 shadow-lg"
+            onClick={() => termRef.current?.scrollToBottom()}
+          >
+            <ArrowDownIcon />
+            {t("console.jumpToBottom")}
+          </Button>
+        )}
+        <span
+          className="label-caps absolute top-2 right-3 z-10 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-black/60 px-2 py-0.5 text-[0.62rem] text-zinc-300 backdrop-blur-sm"
+          role="status"
+        >
+          <span className={cn("size-1.5 rounded-full", chip.dot)} />
+          {t(`console.status.${chip.key}`)}
+        </span>
+      </div>
+      <form
+        className="flex items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          submit()
+        }}
+      >
+        <Input
+          value={input}
+          onChange={(e) => {
+            setInput(e.target.value)
+            histIdx.current = -1
+          }}
+          onKeyDown={onKeyDown}
+          disabled={!canSend}
+          placeholder={canSend ? t("console.inputPlaceholder") : t("console.inputDisabled")}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          className="font-mono"
+          aria-label={t("console.inputPlaceholder")}
+        />
+        <Button type="submit" disabled={!canSend || !input.trim()} aria-label={t("console.send")}>
+          <SendHorizontalIcon />
+          <span className="hidden sm:inline">{t("console.send")}</span>
+        </Button>
+      </form>
+    </div>
+  )
+}

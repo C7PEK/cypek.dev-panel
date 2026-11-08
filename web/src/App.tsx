@@ -5,6 +5,7 @@ import { useMe, useSetupStatus } from "@/lib/auth"
 import type { User } from "@/lib/types"
 import { DashboardPage } from "@/pages/dashboard-page"
 import { LoginPage } from "@/pages/login-page"
+import { ServerPage } from "@/pages/server-page"
 import { SetupPage } from "@/pages/setup-page"
 
 // Gate decides between first-run setup, login and the app based on server state.
@@ -36,6 +37,7 @@ function AuthedRoutes({ user }: { user: User }) {
   return (
     <Routes>
       <Route path="/" element={<DashboardPage user={user} />} />
+      <Route path="/servers/:id" element={<ServerPage user={user} />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

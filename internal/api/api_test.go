@@ -19,6 +19,8 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
 	"github.com/cypek019/cypek.dev---panel/internal/config"
 	"github.com/cypek019/cypek.dev---panel/internal/db"
+	"github.com/cypek019/cypek.dev---panel/internal/servers"
+	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
 )
 
 type testEnv struct {
@@ -46,11 +48,20 @@ func newEnv(t *testing.T) *testEnv {
 		t.Fatal(err)
 	}
 	store := auth.NewStore(sqlDB)
+	// Short run dir: unix socket paths are limited to ~108 bytes.
+	runDir, err := os.MkdirTemp("", "hp-run")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(runDir) })
+	layout := supervisor.Layout{ServersDir: cfg.ServersDir(), RunDir: runDir}
+	sup := supervisor.NewLocal(layout, os.Args[0], log)
+	serverStore := servers.NewStore(sqlDB, cfg.ServersDir())
 	dist := fstest.MapFS{
 		"index.html":    {Data: []byte("<html>spa</html>")},
 		"assets/app.js": {Data: []byte("console.log(1)")},
 	}
-	h, err := New(Deps{Config: cfg, Store: store, Audit: audit.New(sqlDB, log), Log: log, Version: "test", Dist: dist})
+	h, err := New(Deps{Config: cfg, Store: store, Audit: audit.New(sqlDB, log), Log: log, Version: "test", Dist: dist, Servers: serverStore, Sup: sup})
 	if err != nil {
 		t.Fatal(err)
 	}
