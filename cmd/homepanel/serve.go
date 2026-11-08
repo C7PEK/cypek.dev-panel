@@ -265,6 +265,14 @@ func autostartServers(ctx context.Context, store *servers.Store, sup supervisor.
 		if !srv.Autostart || ctx.Err() != nil {
 			continue
 		}
+		if srv.InstallState != servers.InstallReady {
+			log.Warn("autostart: server not installed, skipping", "server", srv.ID, "name", srv.Name)
+			continue
+		}
+		if msg := servers.CommandProblem(srv.Run.Command, store.Dir(srv.ID)); msg != "" {
+			log.Warn("autostart: skipping server with a broken command", "server", srv.ID, "name", srv.Name, "problem", msg)
+			continue
+		}
 		sctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		err := sup.Start(sctx, srv.ID)
 		cancel()
