@@ -866,6 +866,7 @@
       "disableConfirm": "Root będzie mógł logować się tylko z konsoli serwera.",
       "disabled": "Logowanie roota hasłem wyłączone",
       "saved": "Hasło roota ustawione"
-    }
+    },
+    "copyManual": "Przeglądarka zablokowała kopiowanie. Wartość jest zaznaczona, naciśnij Ctrl+C."
   }
 }

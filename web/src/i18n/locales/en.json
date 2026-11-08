@@ -842,6 +842,7 @@
       "disableConfirm": "Root will only be able to log in from the server console.",
       "disabled": "Root password login disabled",
       "saved": "Root password set"
-    }
+    },
+    "copyManual": "The browser blocked copying. The value is selected, press Ctrl+C."
   }
 }

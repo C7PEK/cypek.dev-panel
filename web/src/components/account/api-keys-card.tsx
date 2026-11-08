@@ -12,6 +12,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input"
 import { useApiKeys, useCreateApiKey, useDeleteApiKey } from "@/lib/account"
 import { isApiError } from "@/lib/api"
+import { copyText } from "@/lib/clipboard"
 import { describeError } from "@/lib/errors"
 import { formatDateTime } from "@/lib/format"
 import { PERMISSIONS } from "@/lib/users"
@@ -74,7 +75,10 @@ export function ApiKeysCard() {
                 <Button
                   size="xs"
                   variant="outline"
-                  onClick={() => void navigator.clipboard.writeText(token).then(() => toast.success(t("profile.copied")), () => toast.error(t("profile.copyFailed")))}
+                  onClick={(e) => {
+                    const anchor = e.currentTarget
+                    void copyText(token, anchor).then((ok) => (ok ? toast.success(t("profile.copied")) : toast.error(t("profile.copyFailed"))))
+                  }}
                 >
                   <CopyIcon /> {t("profile.copy")}
                 </Button>

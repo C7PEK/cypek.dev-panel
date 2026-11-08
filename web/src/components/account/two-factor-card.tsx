@@ -11,16 +11,13 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input"
 import { useTotpDisable, useTotpEnable, useTotpSetup, useTotpStatus } from "@/lib/account"
 import { isApiError } from "@/lib/api"
+import { copyText } from "@/lib/clipboard"
 import { describeError } from "@/lib/errors"
 import type { TotpSetup } from "@/lib/types"
 
-async function copyText(text: string, okMsg: string, failMsg: string) {
-  try {
-    await navigator.clipboard.writeText(text)
-    toast.success(okMsg)
-  } catch {
-    toast.error(failMsg)
-  }
+async function copyWithToast(text: string, okMsg: string, failMsg: string, anchor?: Element | null) {
+  if (await copyText(text, anchor)) toast.success(okMsg)
+  else toast.error(failMsg)
 }
 
 export function TwoFactorCard({ enrollHint }: { enrollHint?: boolean }) {
@@ -119,7 +116,7 @@ export function TwoFactorCard({ enrollHint }: { enrollHint?: boolean }) {
                 ))}
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" onClick={() => void copyText(backup.join("\n"), t("profile.copied"), t("profile.copyFailed"))}>
+                <Button size="sm" variant="outline" onClick={(e) => void copyWithToast(backup.join("\n"), t("profile.copied"), t("profile.copyFailed"), e.currentTarget)}>
                   <CopyIcon /> {t("profile.copy")}
                 </Button>
                 <Button
@@ -170,7 +167,7 @@ export function TwoFactorCard({ enrollHint }: { enrollHint?: boolean }) {
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <span className="text-muted-foreground">{t("twoFactor.secret")}</span>
                 <code className="rounded bg-muted px-2 py-1 font-mono break-all">{pending.secret}</code>
-                <Button size="xs" variant="ghost" onClick={() => void copyText(pending.secret, t("profile.copied"), t("profile.copyFailed"))} type="button">
+                <Button size="xs" variant="ghost" onClick={(e) => void copyWithToast(pending.secret, t("profile.copied"), t("profile.copyFailed"), e.currentTarget)} type="button">
                   <CopyIcon /> {t("profile.copy")}
                 </Button>
               </div>
