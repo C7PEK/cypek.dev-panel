@@ -84,3 +84,16 @@ func TestGrantPattern(t *testing.T) {
 		t.Errorf("grantPattern = %q", got)
 	}
 }
+
+func TestValidRootPassword(t *testing.T) {
+	for _, ok := range []string{"Abcdefgh1234", "x!@#$%^&*()-_=+[]{};:,.<>/?|~" + "12"} {
+		if !ValidRootPassword(ok) {
+			t.Errorf("%q rejected", ok)
+		}
+	}
+	for _, bad := range []string{"short", "has space in it", "quote'quote123", `back\slash12345`, "tick`tick12345", "żółćżółćżółć1"} {
+		if ValidRootPassword(bad) {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+}

@@ -821,6 +821,27 @@
     "cancel": "Cancel",
     "copy": "Copy",
     "show": "Show",
-    "hide": "Hide"
+    "hide": "Hide",
+    "root": {
+      "title": "Root login",
+      "on": "enabled",
+      "off": "disabled",
+      "description": "By default MariaDB's root can only log in from the server console (sudo mariadb). Add a password here to log in as root in phpMyAdmin. Console login keeps working.",
+      "warning": "Root has full access to every database. phpMyAdmin runs over plain HTTP, so use it on your home network only and do not forward port 8081 on your router. Give game servers their own databases from the server's tab.",
+      "user": "User",
+      "password": "Password",
+      "openPma": "Open phpMyAdmin and log in as root",
+      "setLabel": "Set root password",
+      "changeLabel": "Change root password",
+      "placeholder": "Type your own password or generate a random one",
+      "rules": "12–128 characters, no spaces, quotes or backslashes.",
+      "useMine": "Set this password",
+      "generate": "Generate random",
+      "reveal": "Show password",
+      "disable": "Disable password login",
+      "disableConfirm": "Root will only be able to log in from the server console.",
+      "disabled": "Root password login disabled",
+      "saved": "Root password set"
+    }
   }
 }

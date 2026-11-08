@@ -85,3 +85,29 @@ func TestRealMariaDB(t *testing.T) {
 		t.Error("user survived Drop")
 	}
 }
+
+func TestRealRootPassword(t *testing.T) {
+	if os.Getenv("HOMEPANEL_DB_TEST") != "1" {
+		t.Skip("set HOMEPANEL_DB_TEST=1")
+	}
+	ctx := context.Background()
+	m := NewManager(CredsPath)
+	pw := "RootTest-" + time.Now().Format("150405") + "x"
+	if err := m.SetRootPassword(ctx, pw); err != nil {
+		t.Fatal(err)
+	}
+	if pw2 := os.Getenv("HOMEPANEL_ROOT_PW_KEEP"); pw2 == "" {
+		defer m.DisableRootPassword(ctx)
+	}
+	cfg := mysql.NewConfig()
+	cfg.User, cfg.Passwd, cfg.Net, cfg.Addr, cfg.Timeout = "root", pw, "unix", DefaultSocket, 3*time.Second
+	db, _ := sql.Open("mysql", cfg.FormatDSN())
+	defer db.Close()
+	var user string
+	if err := db.QueryRowContext(ctx, "SELECT CURRENT_USER()").Scan(&user); err != nil || user != "root@localhost" {
+		t.Fatalf("root password login: %q %v", user, err)
+	}
+	if err := m.SetRootPassword(ctx, "bad'quote12345"); err == nil {
+		t.Error("unsafe password accepted")
+	}
+}

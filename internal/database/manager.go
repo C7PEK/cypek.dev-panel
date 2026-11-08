@@ -178,3 +178,39 @@ func execAll(ctx context.Context, db *sql.DB, stmts []string) error {
 	}
 	return nil
 }
+
+// ValidRootPassword accepts user-chosen root passwords that are safe inside
+// an SQL string literal without escaping (no quotes or backslashes).
+func ValidRootPassword(p string) bool {
+	if len(p) < 12 || len(p) > 128 {
+		return false
+	}
+	for _, r := range p {
+		if r < 0x21 || r > 0x7e || r == '\'' || r == '"' || r == '\\' || r == '`' {
+			return false
+		}
+	}
+	return true
+}
+
+// SetRootPassword adds password login for root@localhost next to unix_socket,
+// so phpMyAdmin can log in as root while `sudo mariadb` keeps working.
+func (m *Manager) SetRootPassword(ctx context.Context, password string) error {
+	if !ValidRootPassword(password) {
+		return fmt.Errorf("password must be 12-128 printable characters without quotes, backslashes or spaces")
+	}
+	db, _, err := m.conn(ctx)
+	if err != nil {
+		return err
+	}
+	return execAll(ctx, db, []string{fmt.Sprintf("ALTER USER 'root'@'localhost' IDENTIFIED VIA unix_socket OR mysql_native_password USING PASSWORD('%s')", password)})
+}
+
+// DisableRootPassword returns root to socket-only authentication.
+func (m *Manager) DisableRootPassword(ctx context.Context) error {
+	db, _, err := m.conn(ctx)
+	if err != nil {
+		return err
+	}
+	return execAll(ctx, db, []string{"ALTER USER 'root'@'localhost' IDENTIFIED VIA unix_socket"})
+}

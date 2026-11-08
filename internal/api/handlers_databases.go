@@ -320,3 +320,92 @@ func (s *Server) dropServerDatabases(ctx context.Context, serverID string) {
 		}
 	}
 }
+
+const settingDBRootPassword = "database.root_password"
+
+func (s *Server) rootPasswordEnabled(ctx context.Context) bool {
+	v, _ := s.store.GetSetting(ctx, settingDBRootPassword)
+	return v != ""
+}
+
+// handleGetRootLogin reports whether root may log in with a password.
+func (s *Server) handleGetRootLogin(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"enabled": s.rootPasswordEnabled(r.Context()), "user": "root"})
+}
+
+type rootPasswordRequest struct {
+	Password string `json:"password"` // empty = generate
+}
+
+// handleSetRootLogin enables (or changes) the root password and returns it once.
+func (s *Server) handleSetRootLogin(w http.ResponseWriter, r *http.Request) {
+	_, user := sessionFromContext(r.Context())
+	var req rootPasswordRequest
+	if r.ContentLength > 0 && !decodeJSON(w, r, &req) {
+		return
+	}
+	password := req.Password
+	if password == "" {
+		var err error
+		if password, err = database.NewPassword(24); err != nil {
+			s.internalError(w, r, err)
+			return
+		}
+	} else if !database.ValidRootPassword(password) {
+		writeFieldError(w, CodeValidation, "password", "Use 12-128 characters without spaces, quotes or backslashes.")
+		return
+	}
+	if !s.requireDatabase(w, r) {
+		return
+	}
+	if err := s.databases.SetRootPassword(r.Context(), password); err != nil {
+		writeError(w, http.StatusBadGateway, CodeDBUnavailable, err.Error())
+		return
+	}
+	sealed, err := s.secrets.Seal(password)
+	if err != nil {
+		s.internalError(w, r, err)
+		return
+	}
+	if err := s.store.SetSetting(r.Context(), settingDBRootPassword, sealed); err != nil {
+		s.internalError(w, r, err)
+		return
+	}
+	s.audit.Log(r.Context(), audit.Entry{UserID: &user.ID, Username: user.Username, Action: "database.root_password", Target: "mariadb", IP: clientIP(r), Details: map[string]any{"generated": req.Password == ""}})
+	writeJSON(w, http.StatusOK, map[string]any{"enabled": true, "user": "root", "password": password})
+}
+
+// handleRevealRootLogin shows the stored root password (audited).
+func (s *Server) handleRevealRootLogin(w http.ResponseWriter, r *http.Request) {
+	_, user := sessionFromContext(r.Context())
+	sealed, _ := s.store.GetSetting(r.Context(), settingDBRootPassword)
+	if sealed == "" {
+		writeError(w, http.StatusNotFound, CodeNotFound, "Root password login is not enabled.")
+		return
+	}
+	password, err := s.secrets.Open(sealed)
+	if err != nil {
+		s.internalError(w, r, err)
+		return
+	}
+	s.audit.Log(r.Context(), audit.Entry{UserID: &user.ID, Username: user.Username, Action: "database.root_reveal", Target: "mariadb", IP: clientIP(r)})
+	writeJSON(w, http.StatusOK, map[string]any{"enabled": true, "user": "root", "password": password})
+}
+
+// handleDisableRootLogin returns root to socket-only authentication.
+func (s *Server) handleDisableRootLogin(w http.ResponseWriter, r *http.Request) {
+	_, user := sessionFromContext(r.Context())
+	if !s.requireDatabase(w, r) {
+		return
+	}
+	if err := s.databases.DisableRootPassword(r.Context()); err != nil {
+		writeError(w, http.StatusBadGateway, CodeDBUnavailable, err.Error())
+		return
+	}
+	if err := s.store.SetSetting(r.Context(), settingDBRootPassword, ""); err != nil {
+		s.internalError(w, r, err)
+		return
+	}
+	s.audit.Log(r.Context(), audit.Entry{UserID: &user.ID, Username: user.Username, Action: "database.root_disabled", Target: "mariadb", IP: clientIP(r)})
+	w.WriteHeader(http.StatusNoContent)
+}

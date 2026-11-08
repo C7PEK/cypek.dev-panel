@@ -128,3 +128,35 @@ export function previewName(serverId: string, suffix: string) {
 }
 
 export const SUFFIX_RE = /^[a-z0-9_]{1,16}$/
+
+export interface RootLogin {
+  enabled: boolean
+  user: string
+  password?: string
+}
+
+const rootKey = ["system", "database", "root"] as const
+
+export function useRootLogin(enabled: boolean) {
+  return useQuery({ queryKey: rootKey, queryFn: () => api<RootLogin>("GET", "/system/database/root/"), enabled })
+}
+
+export function useSetRootPassword() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (password: string) => api<RootLogin>("PUT", "/system/database/root/", { password }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: rootKey }),
+  })
+}
+
+export function useRevealRootPassword() {
+  return useMutation({ mutationFn: () => api<RootLogin>("POST", "/system/database/root/reveal") })
+}
+
+export function useDisableRootLogin() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api<void>("DELETE", "/system/database/root/"),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: rootKey }),
+  })
+}

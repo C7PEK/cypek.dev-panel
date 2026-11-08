@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { CopyField } from "@/components/databases/copy-field"
+import { RootLoginCard } from "@/components/databases/root-login-card"
 import { AppShell } from "@/components/layout/app-shell"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -144,6 +145,8 @@ export function AdminDatabasePage({ user }: { user: User }) {
             </CardContent>
           </Card>
         )}
+
+        {st?.installed && st.reachable && owner && <RootLoginCard phpMyAdminUrl={pma ?? undefined} />}
 
         {st && !st.installed && (
           <Card>

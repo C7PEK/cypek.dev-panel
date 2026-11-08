@@ -845,6 +845,27 @@
     "cancel": "Anuluj",
     "copy": "Kopiuj",
     "show": "Pokaż",
-    "hide": "Ukryj"
+    "hide": "Ukryj",
+    "root": {
+      "title": "Logowanie jako root",
+      "on": "włączone",
+      "off": "wyłączone",
+      "description": "Domyślnie root MariaDB loguje się tylko z konsoli serwera (sudo mariadb). Tu możesz dodać mu hasło, żeby logować się jako root w phpMyAdmin. Logowanie z konsoli działa dalej.",
+      "warning": "Root ma pełny dostęp do wszystkich baz. phpMyAdmin działa po zwykłym HTTP, więc używaj go tylko w sieci domowej i nie przekierowuj portu 8081 na routerze. Do serwerów gier używaj osobnych baz z zakładki serwera.",
+      "user": "Użytkownik",
+      "password": "Hasło",
+      "openPma": "Otwórz phpMyAdmin i zaloguj się jako root",
+      "setLabel": "Ustaw hasło roota",
+      "changeLabel": "Zmień hasło roota",
+      "placeholder": "Wpisz własne hasło albo wygeneruj losowe",
+      "rules": "12–128 znaków, bez spacji, cudzysłowów i ukośnika wstecznego.",
+      "useMine": "Ustaw to hasło",
+      "generate": "Wygeneruj losowe",
+      "reveal": "Pokaż hasło",
+      "disable": "Wyłącz logowanie hasłem",
+      "disableConfirm": "Root będzie mógł logować się tylko z konsoli serwera.",
+      "disabled": "Logowanie roota hasłem wyłączone",
+      "saved": "Hasło roota ustawione"
+    }
   }
 }

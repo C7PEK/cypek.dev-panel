@@ -320,3 +320,29 @@ func TestDatabasesNotInstalled(t *testing.T) {
 		t.Errorf("list = %v", body)
 	}
 }
+
+func TestRootLoginEndpoints(t *testing.T) {
+	e := newEnv(t)
+	e.completeSetup("owner", "password123")
+	_, body := e.do(http.MethodGet, "/api/v1/system/database/root/", nil)
+	if body["enabled"] != false {
+		t.Errorf("initial = %v", body)
+	}
+	resp, body := e.do(http.MethodPut, "/api/v1/system/database/root/", map[string]string{"password": "bad pass"})
+	if resp.StatusCode != 422 {
+		t.Errorf("bad password: %d %v", resp.StatusCode, body)
+	}
+	resp, body = e.do(http.MethodPut, "/api/v1/system/database/root/", map[string]string{"password": "GoodPassword123"})
+	if resp.StatusCode != 409 || errCode(body) != CodeDBNotInstalled {
+		t.Errorf("without mariadb: %d %v", resp.StatusCode, body)
+	}
+	resp, _ = e.do(http.MethodPost, "/api/v1/system/database/root/reveal", nil)
+	if resp.StatusCode != 404 {
+		t.Errorf("reveal when disabled: %d", resp.StatusCode)
+	}
+	_, _ = e.do(http.MethodPost, "/api/v1/users/", map[string]string{"username": "adm", "password": "password123", "role": "admin"})
+	e.loginAs("adm")
+	if resp, _ := e.do(http.MethodGet, "/api/v1/system/database/root/", nil); resp.StatusCode != 403 {
+		t.Errorf("admin access: %d", resp.StatusCode)
+	}
+}
