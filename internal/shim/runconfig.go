@@ -29,6 +29,10 @@ type RunConfig struct {
 	Rows uint16 `json:"rows,omitempty"`
 	// Dir is the working directory relative to the server dir ("" = server dir).
 	Dir string `json:"dir,omitempty"`
+	// Oneshot marks a task (an install script) rather than a server: the
+	// shim always exits 0 so systemd never restarts it, records the real exit
+	// code in last-exit.json and writes no lifecycle events.
+	Oneshot bool `json:"oneshot,omitempty"`
 }
 
 // StopConfig describes graceful shutdown.

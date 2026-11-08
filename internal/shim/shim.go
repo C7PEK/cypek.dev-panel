@@ -56,6 +56,8 @@ type Shim struct {
 	stopOnce  sync.Once
 	killOnce  sync.Once
 	exited    chan struct{} // closed as soon as cmd.Wait returns
+	attached  chan struct{} // closed when the first console client connects
+	attachOne sync.Once
 }
 
 type client struct {
@@ -85,13 +87,14 @@ func New(cfg *RunConfig, opts Options) (*Shim, error) {
 		opts.KeepLogFiles = 30
 	}
 	s := &Shim{
-		opts:    opts,
-		cfg:     cfg,
-		log:     opts.Log,
-		ring:    newLineRing(opts.BacklogLines),
-		state:   StateStarting,
-		clients: map[*client]struct{}{},
-		exited:  make(chan struct{}),
+		opts:     opts,
+		cfg:      cfg,
+		log:      opts.Log,
+		ring:     newLineRing(opts.BacklogLines),
+		state:    StateStarting,
+		clients:  map[*client]struct{}{},
+		exited:   make(chan struct{}),
+		attached: make(chan struct{}),
 	}
 	if cfg.ReadyRegex != "" {
 		re, err := regexp.Compile(cfg.ReadyRegex)
@@ -116,6 +119,7 @@ func (s *Shim) Run(ctx context.Context) (int, error) {
 	s.logs = logs
 	defer logs.Close()
 	s.events = newEventLog(s.opts.ServerDir, s.cfg.ErrorRegex)
+	s.events.disabled = s.cfg.Oneshot
 	defer s.events.close()
 
 	ln, err := s.listen()
@@ -125,6 +129,17 @@ func (s *Shim) Run(ctx context.Context) (int, error) {
 	defer ln.Close()
 	defer os.Remove(s.opts.SocketPath)
 
+	if s.cfg.Oneshot {
+		// A task's output is the point: let the panel attach first so it
+		// sees every line, but never hang if nobody comes.
+		go s.acceptLoop(ln)
+		select {
+		case <-s.attached:
+		case <-time.After(oneshotAttachWait):
+		case <-ctx.Done():
+			return 0, nil
+		}
+	}
 	if err := s.startProcess(); err != nil {
 		code := ExitConfigError
 		s.events.record(Event{Kind: "crash", Message: "Could not start: " + err.Error(), ExitCode: &code})
@@ -137,7 +152,9 @@ func (s *Shim) Run(ctx context.Context) (int, error) {
 	}
 	defer os.Remove(filepath.Join(s.opts.ServerDir, MetaDir, PIDFile))
 
-	go s.acceptLoop(ln)
+	if !s.cfg.Oneshot {
+		go s.acceptLoop(ln)
+	}
 	go s.readLoop()
 
 	var waitErr error
@@ -155,11 +172,14 @@ func (s *Shim) Run(ctx context.Context) (int, error) {
 	}
 	code := exitCodeOf(waitErr)
 	requested := s.finish(code)
-	if requested {
+	if requested || s.cfg.Oneshot {
 		return 0, nil
 	}
 	return code, nil
 }
+
+// oneshotAttachWait bounds how long a oneshot task waits for the panel.
+const oneshotAttachWait = 10 * time.Second
 
 func (s *Shim) listen() (net.Listener, error) {
 	if err := os.MkdirAll(filepath.Dir(s.opts.SocketPath), 0o750); err != nil {
@@ -301,6 +321,7 @@ func (s *Shim) serveClient(conn net.Conn) {
 	hello := Frame{Type: TypeHello, State: s.state, PID: s.pid, StartedAt: s.startedAt.UTC().Format(time.RFC3339Nano)}
 	s.clients[c] = struct{}{}
 	s.mu.Unlock()
+	s.attachOne.Do(func() { close(s.attached) })
 	defer func() {
 		s.mu.Lock()
 		delete(s.clients, c)
@@ -391,7 +412,10 @@ func (s *Shim) gracefulStop() {
 		s.mu.Unlock()
 		s.broadcast(Frame{Type: TypeState, State: StateStopping})
 
-		if s.cfg.Stop.Command != "" {
+		if sig, ok := stopSignal(s.cfg.Stop.Command); ok {
+			s.log.Info("sending stop signal", "signal", sig.String())
+			_ = cmd.Process.Signal(sig)
+		} else if s.cfg.Stop.Command != "" {
 			s.log.Info("sending stop command", "command", s.cfg.Stop.Command)
 			_, _ = ptmx.Write([]byte(s.cfg.Stop.Command + "\n"))
 		} else {
@@ -470,4 +494,18 @@ func exitCodeOf(err error) int {
 		return ee.ExitCode()
 	}
 	return 1
+}
+
+// stopSignal maps the Pterodactyl-style signal notation ("^C" = SIGINT) used
+// by imported templates to a real signal instead of console input.
+func stopSignal(command string) (syscall.Signal, bool) {
+	switch strings.ToUpper(strings.TrimSpace(command)) {
+	case "^C", "SIGINT":
+		return syscall.SIGINT, true
+	case "SIGTERM":
+		return syscall.SIGTERM, true
+	case "SIGKILL":
+		return syscall.SIGKILL, true
+	}
+	return 0, false
 }

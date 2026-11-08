@@ -45,17 +45,27 @@ func BuildRun(t *Template, vars map[string]string) (shim.RunConfig, []servers.Po
 	}
 	var run shim.RunConfig
 	var err error
-	if run.Command, err = Render(t.Start.Command, vars); err != nil {
-		return run, nil, fmt.Errorf("start.command: %w", err)
-	}
-	if run.Args, err = RenderArgs(t.Start.Args, vars); err != nil {
-		return run, nil, fmt.Errorf("start.args: %w", err)
+	if t.Start.Shell != "" {
+		// Values travel as environment variables; the shell text only ever
+		// references them, so a value cannot inject commands.
+		run.Command = "/bin/bash"
+		run.Args = []string{"-c", ShellReferences(t.Start.Shell)}
+		run.Env = ShellEnv(vars)
+	} else {
+		if run.Command, err = Render(t.Start.Command, vars); err != nil {
+			return run, nil, fmt.Errorf("start.command: %w", err)
+		}
+		if run.Args, err = RenderArgs(t.Start.Args, vars); err != nil {
+			return run, nil, fmt.Errorf("start.args: %w", err)
+		}
 	}
 	if run.Args == nil {
 		run.Args = []string{}
 	}
 	if len(t.Start.Env) > 0 {
-		run.Env = map[string]string{}
+		if run.Env == nil {
+			run.Env = map[string]string{}
+		}
 		for k, v := range t.Start.Env {
 			if run.Env[k], err = Render(v, vars); err != nil {
 				return run, nil, fmt.Errorf("start.env.%s: %w", k, err)
@@ -81,4 +91,39 @@ func BuildRun(t *Template, vars map[string]string) (shim.RunConfig, []servers.Po
 		ports = append(ports, servers.Port{Name: p.Name, Port: n, Protocol: p.Protocol})
 	}
 	return run, ports, nil
+}
+
+// ShellReferences turns {{KEY}} into "${KEY}" (and {{KEY...}} into ${KEY})
+// so a shell command line only references environment variables.
+func ShellReferences(s string) string {
+	return placeholderRe.ReplaceAllStringFunc(s, func(m string) string {
+		sub := placeholderRe.FindStringSubmatch(m)
+		if sub[2] != "" {
+			return "${" + sub[1] + "}"
+		}
+		return `"${` + sub[1] + `}"`
+	})
+}
+
+// ShellEnv exports every variable plus a PATH that puts the prepared runtime
+// (and a Python venv) first, like a Pterodactyl yolk image would.
+func ShellEnv(vars map[string]string) map[string]string {
+	env := map[string]string{}
+	for k, v := range vars {
+		if keyRe.MatchString(k) {
+			env[k] = v
+		}
+	}
+	path := "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+	if dir := vars[KeyServerDir]; dir != "" {
+		path = dir + "/.venv/bin:" + path
+	}
+	if bin := vars[KeyRuntimeBin]; bin != "" {
+		path = bin + ":" + path
+	}
+	env["PATH"] = path
+	if dir := vars[KeyServerDir]; dir != "" {
+		env["HOME"] = dir
+	}
+	return env
 }

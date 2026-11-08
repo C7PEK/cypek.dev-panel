@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"gopkg.in/yaml.v3"
 
@@ -67,6 +68,8 @@ type Variable struct {
 	Required  bool     `yaml:"required,omitempty" json:"required,omitempty"`
 	// Consent marks a bool the user must switch on (EULA, license terms).
 	Consent bool `yaml:"consent,omitempty" json:"consent,omitempty"`
+	// Hidden variables are not shown in forms; their default is used.
+	Hidden bool `yaml:"hidden,omitempty" json:"hidden,omitempty"`
 }
 
 // Runtime names the interpreter the server needs.
@@ -83,6 +86,16 @@ type Step struct {
 	Properties *PropertiesStep `yaml:"properties,omitempty" json:"properties,omitempty"`
 	Git        *GitStep        `yaml:"git,omitempty" json:"git,omitempty"`
 	Exec       *ExecStep       `yaml:"exec,omitempty" json:"exec,omitempty"`
+	Script     *ScriptStep     `yaml:"script,omitempty" json:"script,omitempty"`
+}
+
+// ScriptStep runs a bash script inside the server's own sandbox (the same
+// systemd unit the game runs in: write access to the server directory only,
+// as the panel user, no root). Template variables are passed as environment
+// variables, never spliced into the script text. Used by imported eggs.
+type ScriptStep struct {
+	Content    string `yaml:"content" json:"content"`
+	TimeoutSec int    `yaml:"timeoutSec,omitempty" json:"timeoutSec,omitempty"`
 }
 
 // GitStep clones a repository (or updates it when already present).
@@ -148,11 +161,35 @@ type PropertiesStep struct {
 
 // Start describes the process; command and args are rendered.
 type Start struct {
-	Command string            `yaml:"command" json:"command"`
-	Args    []string          `yaml:"args" json:"args"`
+	Command string            `yaml:"command,omitempty" json:"command"`
+	Args    []string          `yaml:"args,omitempty" json:"args"`
 	Env     map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
 	// Dir is the working directory relative to the server dir.
 	Dir string `yaml:"dir,omitempty" json:"dir,omitempty"`
+	// Shell is an alternative to Command/Args: a bash command line, as used
+	// by Pterodactyl/PufferPanel. {{KEY}} becomes "${KEY}" and every variable
+	// is exported to the environment, so values can never become code.
+	Shell string `yaml:"shell,omitempty" json:"shell,omitempty"`
+}
+
+// ConfigFile sets values in a config file before every start (Pterodactyl's
+// "config.files"). Parsers: properties, ini (key=value lines), file (lines
+// starting with the key are replaced by the value), yaml and json (dotted
+// keys). Values are rendered with the server's variables.
+type ConfigFile struct {
+	Path   string            `yaml:"path" json:"path"`
+	Parser string            `yaml:"parser" json:"parser"`
+	Set    map[string]string `yaml:"set" json:"set"`
+}
+
+// Source records where a template came from (imports from other panels).
+type Source struct {
+	Kind       string   `yaml:"kind" json:"kind"` // custom | pterodactyl | pelican | pufferpanel
+	Original   string   `yaml:"original,omitempty" json:"original,omitempty"`
+	Author     string   `yaml:"author,omitempty" json:"author,omitempty"`
+	URL        string   `yaml:"url,omitempty" json:"url,omitempty"`
+	ImportedAt string   `yaml:"importedAt,omitempty" json:"importedAt,omitempty"`
+	Warnings   []string `yaml:"warnings,omitempty" json:"warnings,omitempty"`
 }
 
 // Stop describes graceful shutdown.
@@ -218,13 +255,19 @@ type Template struct {
 	Console     Console          `yaml:"console,omitempty" json:"console"`
 	// ConfigDefaults are applied before every start (see ConfigDefault).
 	ConfigDefaults []ConfigDefault `yaml:"configDefaults,omitempty" json:"configDefaults,omitempty"`
+	// ConfigFiles are applied before every start (see ConfigFile).
+	ConfigFiles []ConfigFile `yaml:"configFiles,omitempty" json:"configFiles,omitempty"`
+	// Source describes imported templates.
+	Source *Source `yaml:"source,omitempty" json:"source,omitempty"`
 	// Builtin is true for templates embedded in the binary.
 	Builtin bool `yaml:"-" json:"builtin"`
+	// Raw is the YAML the template was parsed from.
+	Raw []byte `yaml:"-" json:"-"`
 }
 
 var (
 	idRe  = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,63}$`)
-	keyRe = regexp.MustCompile(`^[A-Z][A-Z0-9_]{0,63}$`)
+	keyRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,63}$`)
 )
 
 // Parse decodes and validates one template.
@@ -238,6 +281,7 @@ func Parse(data []byte) (*Template, error) {
 	if err := t.Validate(); err != nil {
 		return nil, err
 	}
+	t.Raw = append([]byte(nil), data...)
 	return &t, nil
 }
 
@@ -256,7 +300,7 @@ func (t *Template) Validate() error {
 	for i := range t.Variables {
 		v := &t.Variables[i]
 		if !keyRe.MatchString(v.Key) {
-			return fmt.Errorf("template %s: variable key %q must look like MY_VAR", t.ID, v.Key)
+			return fmt.Errorf("template %s: variable key %q must be a valid environment variable name (letters, digits, underscore)", t.ID, v.Key)
 		}
 		if seen[v.Key] || isBuiltinKey(v.Key) {
 			return fmt.Errorf("template %s: variable %s is duplicated or reserved", t.ID, v.Key)
@@ -356,12 +400,31 @@ func (t *Template) Validate() error {
 				}
 			}
 		}
+		if s.Script != nil {
+			n++
+			if strings.TrimSpace(s.Script.Content) == "" {
+				return fmt.Errorf("template %s: install step %d: script is empty", t.ID, i+1)
+			}
+			if s.Script.TimeoutSec < 0 || s.Script.TimeoutSec > 4*3600 {
+				return fmt.Errorf("template %s: install step %d: timeoutSec must be 0-14400", t.ID, i+1)
+			}
+		}
 		if n != 1 {
-			return fmt.Errorf("template %s: install step %d must have exactly one of download, extract, write, properties, git, exec", t.ID, i+1)
+			return fmt.Errorf("template %s: install step %d must have exactly one of download, extract, write, properties, git, exec, script", t.ID, i+1)
 		}
 	}
-	if t.Start.Command == "" {
-		return fmt.Errorf("template %s: start.command is required", t.ID)
+	if (t.Start.Command == "") == (t.Start.Shell == "") {
+		return fmt.Errorf("template %s: start needs exactly one of command or shell", t.ID)
+	}
+	for i, cf := range t.ConfigFiles {
+		if err := safeRelPath(cf.Path); err != nil {
+			return fmt.Errorf("template %s: configFiles %d: %w", t.ID, i+1, err)
+		}
+		switch cf.Parser {
+		case "properties", "ini", "file", "yaml", "json":
+		default:
+			return fmt.Errorf("template %s: configFiles %d: unknown parser %q", t.ID, i+1, cf.Parser)
+		}
 	}
 	if t.Start.Dir != "" {
 		if err := safeRelPath(t.Start.Dir); err != nil {
@@ -416,7 +479,13 @@ func safeRelPath(p string) error {
 }
 
 func (t *Template) allTemplatedStrings() []string {
-	out := []string{t.Start.Command, t.WarnCommand}
+	out := []string{t.Start.Command, t.Start.Shell, t.WarnCommand, t.Runtime.Version}
+	for _, cf := range t.ConfigFiles {
+		out = append(out, cf.Path)
+		for _, v := range cf.Set {
+			out = append(out, v)
+		}
+	}
 	out = append(out, t.Start.Args...)
 	for _, v := range t.Start.Env {
 		out = append(out, v)
@@ -467,11 +536,16 @@ const (
 	KeyPython   = "PYTHON" // the venv interpreter once created
 	KeyPip      = "PIP"
 	KeyMessage  = "message" // warnCommand only
+	// KeyServerDir is the absolute server directory; KeyRuntimeBin the bin
+	// directory of the prepared runtime (java/node/python), for PATH.
+	KeyServerDir  = "SERVER_DIR"
+	KeyRuntimeBin = "RUNTIME_BIN"
+	KeyJavaHome   = "JAVA_HOME"
 )
 
 func isBuiltinKey(k string) bool {
 	switch k {
-	case KeyJava, KeyJVMFlags, KeyNode, KeyNPM, KeyNPX, KeyPython, KeyPip, KeyMessage, KeyQueryKind, KeyQueryPort:
+	case KeyJava, KeyJVMFlags, KeyNode, KeyNPM, KeyNPX, KeyPython, KeyPip, KeyMessage, KeyQueryKind, KeyQueryPort, KeyServerDir, KeyRuntimeBin, KeyJavaHome:
 		return true
 	}
 	return false
@@ -615,6 +689,16 @@ type ValueError struct {
 
 func (e *ValueError) Error() string { return e.Key + " " + e.Message }
 
+// UsesScript reports whether installation runs a shell script.
+func (t *Template) UsesScript() bool {
+	for _, s := range t.Install {
+		if s.Script != nil {
+			return true
+		}
+	}
+	return false
+}
+
 // Variable returns the variable with key, or nil.
 func (t *Template) Variable(key string) *Variable {
 	for i := range t.Variables {
@@ -647,66 +731,179 @@ func contains(list []string, s string) bool {
 	return false
 }
 
-// Registry holds the built-in and user templates.
+// Registry holds the built-in and user templates. It is safe for concurrent
+// use; user templates can be added, replaced and removed at runtime.
 type Registry struct {
+	mu        sync.RWMutex
+	builtinFS fs.FS
+	userDir   string
 	templates map[string]*Template
+	builtins  map[string]*Template
+	// overrides marks user templates that replace a built-in id.
+	overrides map[string]bool
 }
 
 // Load reads built-in templates from builtin and user templates (*.yaml)
 // from userDir, which may not exist. A user template with the same id as a
-// built-in one overrides it.
+// built-in one overrides it. Broken user files are skipped (and reported by
+// LoadErrors) so one bad file cannot keep the panel from starting.
 func Load(builtin fs.FS, userDir string) (*Registry, error) {
-	r := &Registry{templates: map[string]*Template{}}
-	entries, err := fs.ReadDir(builtin, ".")
+	r := &Registry{builtinFS: builtin, userDir: userDir}
+	if err := r.reload(); err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+
+// loadErrors holds per-file problems of the last reload.
+var loadErrors = map[string]string{}
+
+// LoadErrors returns problems with user template files (file -> error).
+func (r *Registry) LoadErrors() map[string]string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := map[string]string{}
+	for k, v := range loadErrors {
+		out[k] = v
+	}
+	return out
+}
+
+func (r *Registry) reload() error {
+	templates := map[string]*Template{}
+	builtins := map[string]*Template{}
+	overrides := map[string]bool{}
+	errs := map[string]string{}
+	entries, err := fs.ReadDir(r.builtinFS, ".")
 	if err != nil {
-		return nil, fmt.Errorf("read built-in templates: %w", err)
+		return fmt.Errorf("read built-in templates: %w", err)
 	}
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".yaml") {
 			continue
 		}
-		b, err := fs.ReadFile(builtin, e.Name())
+		b, err := fs.ReadFile(r.builtinFS, e.Name())
 		if err != nil {
-			return nil, err
+			return err
 		}
 		t, err := Parse(b)
 		if err != nil {
-			return nil, fmt.Errorf("built-in %s: %w", e.Name(), err)
+			return fmt.Errorf("built-in %s: %w", e.Name(), err)
 		}
 		t.Builtin = true
-		r.templates[t.ID] = t
+		templates[t.ID] = t
+		builtins[t.ID] = t
 	}
-	if userDir != "" {
-		files, _ := filepath.Glob(filepath.Join(userDir, "*.yaml"))
+	if r.userDir != "" {
+		files, _ := filepath.Glob(filepath.Join(r.userDir, "*.yaml"))
+		sort.Strings(files)
 		for _, f := range files {
 			b, err := os.ReadFile(f)
 			if err != nil {
-				return nil, err
+				errs[filepath.Base(f)] = err.Error()
+				continue
 			}
 			t, err := Parse(b)
 			if err != nil {
-				return nil, fmt.Errorf("user template %s: %w", filepath.Base(f), err)
+				errs[filepath.Base(f)] = err.Error()
+				continue
 			}
-			r.templates[t.ID] = t
+			if _, ok := builtins[t.ID]; ok {
+				overrides[t.ID] = true
+			}
+			templates[t.ID] = t
 		}
 	}
-	return r, nil
+	r.mu.Lock()
+	r.templates, r.builtins, r.overrides = templates, builtins, overrides
+	loadErrors = errs
+	r.mu.Unlock()
+	return nil
 }
 
 // Get returns a template by id.
 func (r *Registry) Get(id string) (*Template, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	t, ok := r.templates[id]
 	return t, ok
 }
 
+// Builtin returns the embedded template with id, even when overridden.
+func (r *Registry) Builtin(id string) (*Template, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	t, ok := r.builtins[id]
+	return t, ok
+}
+
+// Overrides reports whether a user template replaces the built-in id.
+func (r *Registry) Overrides(id string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.overrides[id]
+}
+
 // List returns templates sorted by name.
 func (r *Registry) List() []*Template {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	out := make([]*Template, 0, len(r.templates))
 	for _, t := range r.templates {
 		out = append(out, t)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
+}
+
+// ErrNoUserDir means templates cannot be saved (no writable directory).
+var ErrNoUserDir = errors.New("no directory for user templates is configured")
+
+// Save validates yaml and writes it as <userDir>/<id>.yaml, then reloads.
+func (r *Registry) Save(data []byte) (*Template, error) {
+	if r.userDir == "" {
+		return nil, ErrNoUserDir
+	}
+	t, err := Parse(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(r.userDir, 0o750); err != nil {
+		return nil, err
+	}
+	path := filepath.Join(r.userDir, t.ID+".yaml")
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o640); err != nil {
+		return nil, err
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		return nil, err
+	}
+	if err := r.reload(); err != nil {
+		return nil, err
+	}
+	saved, _ := r.Get(t.ID)
+	return saved, nil
+}
+
+// IsUser reports whether id is backed by a user file.
+func (r *Registry) IsUser(id string) bool {
+	if r.userDir == "" || !idRe.MatchString(id) {
+		return false
+	}
+	_, err := os.Stat(filepath.Join(r.userDir, id+".yaml"))
+	return err == nil
+}
+
+// Delete removes the user file for id (a built-in override reverts to the built-in).
+func (r *Registry) Delete(id string) error {
+	if !r.IsUser(id) {
+		return os.ErrNotExist
+	}
+	if err := os.Remove(filepath.Join(r.userDir, id+".yaml")); err != nil {
+		return err
+	}
+	return r.reload()
 }
 
 // decodeList parses a JSON array of strings (how list builtins are stored).

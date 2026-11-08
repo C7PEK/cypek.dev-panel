@@ -41,7 +41,15 @@ type Deps struct {
 	Java   *runtimes.Java
 	Node   *runtimes.Node
 	Python *runtimes.Python
-	Log    *slog.Logger
+	// Scripts runs `script` steps inside the server's sandbox.
+	Scripts ScriptRunner
+	Log     *slog.Logger
+}
+
+// ScriptRunner executes an install script for a server in its sandbox and
+// streams output lines to logf. It returns an error for a non-zero exit.
+type ScriptRunner interface {
+	RunScript(ctx context.Context, serverID, serverDir, script string, env map[string]string, timeout time.Duration, logf func(string, ...any)) error
 }
 
 // JobState is the lifecycle of one installation.
@@ -95,6 +103,14 @@ const maxLines = 500
 
 // ErrInstallRunning means a job is already in progress for this server.
 var ErrInstallRunning = errors.New("installation already running")
+
+// SetScriptRunner wires the sandboxed script executor (it needs the
+// supervisor, which lives in the API layer).
+func (m *Manager) SetScriptRunner(r ScriptRunner) {
+	m.mu.Lock()
+	m.deps.Scripts = r
+	m.mu.Unlock()
+}
 
 // Get returns the last job for a server.
 func (m *Manager) Get(serverID string) (*Job, bool) {
@@ -203,9 +219,14 @@ func (m *Manager) run(ctx context.Context, job *Job, dir string, tpl *templates.
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, err
 	}
-	// Node and Python are needed by install steps (npm/pip), so they are
-	// prepared first; Java comes after the download step tells us the minimum.
-	if tpl.Runtime.Kind == "node" || tpl.Runtime.Kind == "python" {
+	if abs, err := filepath.Abs(dir); err == nil {
+		vars[templates.KeyServerDir] = abs
+	}
+	// The runtime is prepared before the install steps when they may need it
+	// (npm, pip, java -jar installer.jar in egg scripts). Only Java "auto"
+	// waits: it depends on what the download step reports as the minimum.
+	runtimeFirst := runtimeBeforeSteps(tpl.Runtime)
+	if runtimeFirst {
 		if err := c.runtime(ctx, 0, tpl.Runtime); err != nil {
 			return nil, err
 		}
@@ -224,6 +245,8 @@ func (m *Manager) run(ctx context.Context, job *Job, dir string, tpl *templates.
 			err = c.git(ctx, i+1, st.Git)
 		case st.Exec != nil:
 			err = c.exec(ctx, i+1, st.Exec)
+		case st.Script != nil:
+			err = c.script(ctx, i+1, st.Script)
 		case st.Write != nil:
 			err = c.write(i+1, st.Write)
 		case st.Properties != nil:
@@ -233,7 +256,7 @@ func (m *Manager) run(ctx context.Context, job *Job, dir string, tpl *templates.
 			return nil, err
 		}
 	}
-	if tpl.Runtime.Kind != "node" && tpl.Runtime.Kind != "python" {
+	if !runtimeFirst {
 		if err := c.runtime(ctx, len(tpl.Install)+1, tpl.Runtime); err != nil {
 			return nil, err
 		}
@@ -241,6 +264,13 @@ func (m *Manager) run(ctx context.Context, job *Job, dir string, tpl *templates.
 		c.begin(len(tpl.Install)+1, "Runtime ready")
 	}
 	c.begin(job.Steps, "Preparing start configuration")
+	if changed, err := templates.ApplyConfigFiles(dir, tpl, vars); err != nil {
+		c.logf("Warning: could not update config files: %v", err)
+	} else {
+		for _, f := range changed {
+			c.logf("Updated %s", f)
+		}
+	}
 	run, ports, err := templates.BuildRun(tpl, vars)
 	if err != nil {
 		return nil, fmt.Errorf("build run config: %w", err)
@@ -457,7 +487,26 @@ func escapeProp(v string) string {
 	return r.Replace(v)
 }
 
+// runtimeBeforeSteps: node/python always, java when the version is fixed
+// or chosen by a variable (imported eggs), not for "auto".
+func runtimeBeforeSteps(rt templates.Runtime) bool {
+	switch rt.Kind {
+	case "node", "python":
+		return true
+	case "java":
+		return rt.Version != "" && rt.Version != "auto"
+	}
+	return false
+}
+
 func (c *stepCtx) runtime(ctx context.Context, n int, rt templates.Runtime) error {
+	if strings.Contains(rt.Version, "{{") {
+		v, err := templates.Render(rt.Version, c.vars)
+		if err != nil {
+			return fmt.Errorf("runtime.version: %w", err)
+		}
+		rt.Version = strings.TrimSpace(v)
+	}
 	switch rt.Kind {
 	case "", "none":
 		c.begin(n, "No runtime needed")
@@ -492,6 +541,8 @@ func (c *stepCtx) runtime(ctx context.Context, n int, rt templates.Runtime) erro
 			return err
 		}
 		c.vars[templates.KeyJava] = path
+		c.vars[templates.KeyRuntimeBin] = filepath.Dir(path)
+		c.vars[templates.KeyJavaHome] = filepath.Dir(filepath.Dir(path))
 		c.vars["JAVA_FEATURE"] = strconv.Itoa(feature)
 		if _, ok := c.vars[templates.KeyJVMFlags]; !ok {
 			c.vars[templates.KeyJVMFlags] = "[]"
@@ -515,6 +566,7 @@ func (c *stepCtx) runtime(ctx context.Context, n int, rt templates.Runtime) erro
 		}
 		bin := filepath.Dir(node)
 		c.vars[templates.KeyNode] = node
+		c.vars[templates.KeyRuntimeBin] = bin
 		c.vars[templates.KeyNPM] = filepath.Join(bin, "npm")
 		c.vars[templates.KeyNPX] = filepath.Join(bin, "npx")
 		return nil
@@ -543,6 +595,10 @@ func (c *stepCtx) runtime(ctx context.Context, n int, rt templates.Runtime) erro
 		}
 		c.vars[templates.KeyPython] = ".venv/bin/python"
 		c.vars[templates.KeyPip] = ".venv/bin/pip"
+		c.vars[templates.KeyRuntimeBin] = filepath.Join(c.dir, ".venv", "bin")
+		if abs, err := filepath.Abs(c.vars[templates.KeyRuntimeBin]); err == nil {
+			c.vars[templates.KeyRuntimeBin] = abs
+		}
 		return nil
 	default:
 		return fmt.Errorf("runtime %q is not supported yet", rt.Kind)
@@ -638,6 +694,28 @@ func orDefault(s, d string) string {
 		return d
 	}
 	return s
+}
+
+// script runs a template's install script in the server sandbox.
+func (c *stepCtx) script(ctx context.Context, n int, st *templates.ScriptStep) error {
+	c.m.mu.Lock()
+	runner := c.m.deps.Scripts
+	c.m.mu.Unlock()
+	if runner == nil {
+		return errors.New("install scripts are not available in this panel build")
+	}
+	c.begin(n, "Running the install script")
+	timeout := time.Duration(st.TimeoutSec) * time.Second
+	if timeout <= 0 {
+		timeout = 30 * time.Minute
+	}
+	dir, _ := filepath.Abs(c.dir)
+	script := PrepareScript(st.Content, dir)
+	env := templates.ShellEnv(c.vars)
+	if exe, err := os.Executable(); err == nil {
+		env["HOMEPANEL_BIN"] = exe
+	}
+	return runner.RunScript(ctx, c.job.ServerID, c.dir, script, env, timeout, c.logf)
 }
 
 // exec runs a program without a shell, streaming its output to the log.

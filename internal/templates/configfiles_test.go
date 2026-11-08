@@ -1,0 +1,75 @@
+package templates
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestApplyConfigFiles(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, "settings.yml"), []byte("server:\n  port: 1\n  name: x\nother: true\n"), 0o640)
+	_ = os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"net":{"port":1},"keep":"y"}`), 0o640)
+	_ = os.WriteFile(filepath.Join(dir, "serverconfig.txt"), []byte("worldname=old\nport=7777\n#maxplayers=8\n"), 0o640)
+	_ = os.WriteFile(filepath.Join(dir, "start.txt"), []byte("Port: 1\nName: a\n"), 0o640)
+	tpl := &Template{ConfigFiles: []ConfigFile{
+		{Path: "server.properties", Parser: "properties", Set: map[string]string{"server-port": "{{SERVER_PORT}}", "server-ip": "0.0.0.0"}},
+		{Path: "settings.yml", Parser: "yaml", Set: map[string]string{"server.port": "{{SERVER_PORT}}", "server.motd": "Hi {{NAME}}"}},
+		{Path: "config.json", Parser: "json", Set: map[string]string{"net.port": "{{SERVER_PORT}}", "net.host": "0.0.0.0"}},
+		{Path: "serverconfig.txt", Parser: "properties", Set: map[string]string{"worldname": "{{NAME}}"}},
+		{Path: "start.txt", Parser: "file", Set: map[string]string{"Port:": "Port: {{SERVER_PORT}}"}},
+		{Path: "missing.yml", Parser: "yaml", Set: map[string]string{"a": "b"}},
+	}}
+	vars := map[string]string{"SERVER_PORT": "25570", "NAME": "World"}
+	changed, err := ApplyConfigFiles(dir, tpl, vars)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(changed, ",") != "server.properties,settings.yml,config.json,serverconfig.txt,start.txt" {
+		t.Errorf("changed = %v", changed)
+	}
+	read := func(n string) string { b, _ := os.ReadFile(filepath.Join(dir, n)); return string(b) }
+	if p := read("server.properties"); !strings.Contains(p, "server-port=25570") || !strings.Contains(p, "server-ip=0.0.0.0") {
+		t.Errorf("properties = %q", p)
+	}
+	if y := read("settings.yml"); !strings.Contains(y, "port: 25570") || !strings.Contains(y, `motd: "Hi World"`) || !strings.Contains(y, "other: true") {
+		t.Errorf("yaml = %q", y)
+	}
+	if j := read("config.json"); !strings.Contains(j, `"port": 25570`) || !strings.Contains(j, `"keep": "y"`) || !strings.Contains(j, `"host": "0.0.0.0"`) {
+		t.Errorf("json = %q", j)
+	}
+	if s := read("serverconfig.txt"); !strings.HasPrefix(s, "worldname=World\nport=7777\n#maxplayers=8") {
+		t.Errorf("txt = %q", s)
+	}
+	if s := read("start.txt"); s != "Port: 25570\nName: a\n" {
+		t.Errorf("file = %q", s)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "missing.yml")); err == nil {
+		t.Error("missing yaml created")
+	}
+	if changed, _ := ApplyConfigFiles(dir, tpl, vars); len(changed) != 0 {
+		t.Errorf("second run changed %v", changed)
+	}
+}
+
+func TestShellStartIsInjectionSafe(t *testing.T) {
+	tpl, err := Parse([]byte("id: sh\nname: S\ncategory: other\nvariables: [{key: JAR, type: string, default: server.jar}]\nstart:\n  shell: java -Xmx{{SERVER_MEMORY}}M -jar {{JAR}} {{EXTRA...}}\n"))
+	if err == nil {
+		t.Fatal("unknown placeholders accepted")
+	}
+	tpl, err = Parse([]byte("id: sh\nname: S\ncategory: other\nvariables: [{key: JAR, type: string, default: server.jar}, {key: SERVER_MEMORY, type: number, default: '1024'}]\nstart:\n  shell: java -Xmx{{SERVER_MEMORY}}M -jar {{JAR}}\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	run, _, err := BuildRun(tpl, map[string]string{"JAR": "x.jar; rm -rf /", "SERVER_MEMORY": "1024", KeyRuntimeBin: "/rt/java-21/bin", KeyServerDir: "/srv/a"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.Command != "/bin/bash" || run.Args[1] != `java -Xmx"${SERVER_MEMORY}"M -jar "${JAR}"` {
+		t.Errorf("run = %+v", run)
+	}
+	if run.Env["JAR"] != "x.jar; rm -rf /" || !strings.HasPrefix(run.Env["PATH"], "/rt/java-21/bin:/srv/a/.venv/bin:") || run.Env["HOME"] != "/srv/a" {
+		t.Errorf("env = %v", run.Env)
+	}
+}

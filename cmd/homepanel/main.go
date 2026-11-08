@@ -21,6 +21,7 @@ Usage:
   homepanel init-config [--port N]                           create /etc/homepanel/config.toml if missing (root)
   homepanel install-database [--phpmyadmin-port 8081]        install MariaDB + phpMyAdmin for game servers (root)
   homepanel reset-password <username>                        set a new password from the terminal
+  homepanel fetch mojang|paper|fabric-installer ...          download server jars (used by imported templates)
   homepanel version                                          print the version
 `, version)
 }
@@ -46,6 +47,8 @@ func main() {
 		err = runInstallDatabase(os.Args[2:])
 	case "reset-password":
 		err = runResetPassword(os.Args[2:])
+	case "fetch":
+		err = runFetch(os.Args[2:])
 	case "version", "--version", "-v":
 		fmt.Println(version)
 	case "help", "--help", "-h":

@@ -45,7 +45,7 @@ func TestUserTemplateOverridesAndRejectsBad(t *testing.T) {
 		"id: ok\nname: n\ncategory: other\ninstall: [{write: {path: ../x, content: y}}]\nstart: {command: x}\n", // traversal
 		"id: ok\nname: n\ncategory: other\ninstall: [{write: {path: /etc/x, content: y}}]\nstart: {command: x}\n",
 		"id: ok\nname: n\ncategory: other\nvariables: [{key: JAVA, type: string}]\nstart: {command: x}\n", // reserved key
-		"id: ok\nname: n\ncategory: other\nvariables: [{key: a, type: string}]\nstart: {command: x}\n",    // bad key
+		"id: ok\nname: n\ncategory: other\nvariables: [{key: 1a, type: string}]\nstart: {command: x}\n",   // bad key
 		"id: ok\nname: n\ncategory: other\nvariables: [{key: A, type: select}]\nstart: {command: x}\n",    // select w/o options
 		"id: ok\nname: n\ncategory: other\nbogus: 1\nstart: {command: x}\n",                               // unknown field
 		"id: ok\nname: n\ncategory: other\nstart: {command: x}\nreadyRegex: '('\n",

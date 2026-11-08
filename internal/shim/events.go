@@ -53,6 +53,7 @@ type eventLog struct {
 	inMinute   int
 	suppressed int
 	stop       chan struct{}
+	disabled   bool // oneshot tasks do not pollute the server's history
 }
 
 func newEventLog(serverDir, errorRegex string) *eventLog {
@@ -173,6 +174,9 @@ func (l *eventLog) flushLocked() {
 }
 
 func (l *eventLog) appendLocked(e Event) {
+	if l.disabled {
+		return
+	}
 	if e.At == "" {
 		e.At = time.Now().UTC().Format(time.RFC3339Nano)
 	}
