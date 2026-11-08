@@ -100,3 +100,22 @@ func (s *Store) VisibleServerIDs(ctx context.Context, u *User) (ids []string, al
 	}
 	return ids, false, rows.Err()
 }
+
+// ServerGrants returns every user's permissions on a server.
+func (s *Store) ServerGrants(ctx context.Context, serverID string) (map[int64][]Permission, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT user_id, permission FROM server_permissions WHERE server_id = ? ORDER BY user_id, permission`, serverID)
+	if err != nil {
+		return nil, fmt.Errorf("list grants: %w", err)
+	}
+	defer rows.Close()
+	out := map[int64][]Permission{}
+	for rows.Next() {
+		var uid int64
+		var p string
+		if err := rows.Scan(&uid, &p); err != nil {
+			return nil, err
+		}
+		out[uid] = append(out[uid], Permission(p))
+	}
+	return out, rows.Err()
+}

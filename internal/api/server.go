@@ -186,6 +186,15 @@ func New(d Deps) (http.Handler, error) {
 			priv.Get("/events", s.handleEvents)
 
 			priv.With(s.requireRole(auth.RoleAdmin)).Get("/audit", s.handleAuditRecent)
+			priv.Post("/auth/password", s.handleChangePassword)
+
+			priv.Route("/users", func(ur chi.Router) {
+				ur.Use(s.requireRole(auth.RoleAdmin))
+				ur.Get("/", s.handleListUsers)
+				ur.Post("/", s.handleCreateUser)
+				ur.Patch("/{uid}", s.handleUpdateUser)
+				ur.Delete("/{uid}", s.handleDeleteUser)
+			})
 
 			priv.With(s.requireRole(auth.RoleAdmin)).Get("/templates", s.handleListTemplates)
 			priv.With(s.requireRole(auth.RoleAdmin)).Get("/templates/{id}/sources/{source}", s.handleTemplateSource)
@@ -202,6 +211,12 @@ func New(d Deps) (http.Handler, error) {
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/stats", s.handleServerStats)
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/install", s.handleInstallStatus)
 				sr.With(s.withServer(auth.PermSettings)).Post("/install", s.handleReinstall)
+
+				sr.Route("/users", func(sur chi.Router) {
+					sur.Use(s.requireRole(auth.RoleAdmin), s.withServer(auth.PermSettings))
+					sur.Get("/", s.handleListServerUsers)
+					sur.Put("/{uid}", s.handleSetServerUser)
+				})
 
 				sr.Route("/schedules", func(scr chi.Router) {
 					scr.Use(s.withServer(auth.PermSchedules))

@@ -191,6 +191,52 @@ func (s *Store) SetPassword(ctx context.Context, userID int64, password string) 
 	return tx.Commit()
 }
 
+// SetRole changes a user's global role.
+func (s *Store) SetRole(ctx context.Context, userID int64, role Role) error {
+	if !role.Valid() {
+		return fmt.Errorf("invalid role %q", role)
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE users SET role = ?, updated_at = ? WHERE id = ?`, string(role), db.Now(), userID)
+	if err != nil {
+		return fmt.Errorf("set role for user %d: %w", userID, err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// SetDisabled blocks or unblocks an account; disabling also ends its sessions.
+func (s *Store) SetDisabled(ctx context.Context, userID int64, disabled bool) error {
+	d := 0
+	if disabled {
+		d = 1
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE users SET disabled = ?, updated_at = ? WHERE id = ?`, d, db.Now(), userID)
+	if err != nil {
+		return fmt.Errorf("set disabled for user %d: %w", userID, err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	if disabled {
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, userID)
+	}
+	return nil
+}
+
+// DeleteUser removes an account; sessions and grants cascade.
+func (s *Store) DeleteUser(ctx context.Context, userID int64) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, userID)
+	if err != nil {
+		return fmt.Errorf("delete user %d: %w", userID, err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // Authenticate verifies credentials. A wrong username and a wrong password
 // both return ErrInvalidCredentials, and both cost one argon2 computation so
 // usernames cannot be enumerated by timing.
