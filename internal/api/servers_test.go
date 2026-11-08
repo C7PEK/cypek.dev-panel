@@ -393,3 +393,53 @@ func TestStartRejectsMissingCommand(t *testing.T) {
 		t.Errorf("server should still be stopped: %v", st)
 	}
 }
+
+func TestEventsWebSocket(t *testing.T) {
+	e := newEnv(t)
+	e.completeSetup("owner", "password123")
+	resp, body := e.do(http.MethodPost, "/api/v1/servers", fakeServerBody("Ev"))
+	if resp.StatusCode != 201 {
+		t.Fatalf("create: %d %v", resp.StatusCode, body)
+	}
+	id := body["id"].(string)
+	_, stats := e.do(http.MethodGet, "/api/v1/system/stats", nil)
+	if stats["memTotal"] == nil || stats["cpuCount"] == nil {
+		t.Errorf("system stats = %v", stats)
+	}
+	u, _ := url.Parse(e.srv.URL)
+	var cookies []string
+	for _, c := range e.client.Jar.Cookies(u) {
+		cookies = append(cookies, c.Name+"="+c.Value)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(e.srv.URL, "http")+"/api/v1/events",
+		&websocket.DialOptions{HTTPHeader: http.Header{"Cookie": {strings.Join(cookies, "; ")}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+	_, data, err := conn.Read(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	_ = json.Unmarshal(data, &m)
+	if m["type"] != "snapshot" || m["host"].(map[string]any)["memTotal"] == nil {
+		t.Fatalf("first message = %s", data)
+	}
+	found := false
+	for _, s := range m["servers"].([]any) {
+		if s.(map[string]any)["id"] == id {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("snapshot missing server: %s", data)
+	}
+	// Unauthenticated sockets are refused before the upgrade.
+	_, resp2, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(e.srv.URL, "http")+"/api/v1/events", nil)
+	if err == nil || resp2 == nil || resp2.StatusCode != 401 {
+		t.Errorf("anonymous events: err=%v status=%v", err, resp2)
+	}
+}

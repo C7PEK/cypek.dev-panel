@@ -17,6 +17,7 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/auth"
 	"github.com/cypek019/cypek.dev---panel/internal/config"
 	"github.com/cypek019/cypek.dev---panel/internal/installer"
+	"github.com/cypek019/cypek.dev---panel/internal/metrics"
 	"github.com/cypek019/cypek.dev---panel/internal/providers"
 	"github.com/cypek019/cypek.dev---panel/internal/query"
 	"github.com/cypek019/cypek.dev---panel/internal/secrets"
@@ -40,6 +41,8 @@ type Deps struct {
 	Paper     *providers.Paper
 	FiveM     *providers.FiveM
 	Secrets   *secrets.Box
+	// Metrics is the running collector (created and started by New when nil).
+	Metrics *metrics.Collector
 	// BgCtx outlives requests; background installs run under it.
 	BgCtx context.Context
 	// Dist is the built frontend. Ignored when DevProxy is set.
@@ -66,6 +69,7 @@ type Server struct {
 	secrets   *secrets.Box
 	bgCtx     context.Context
 	players   *query.Cache
+	metrics   *metrics.Collector
 
 	loginLimitIP   *auth.RateLimiter
 	loginLimitUser *auth.RateLimiter
@@ -89,6 +93,7 @@ func New(d Deps) (http.Handler, error) {
 		secrets:        d.Secrets,
 		bgCtx:          d.BgCtx,
 		players:        query.NewCache(3 * time.Second),
+		metrics:        d.Metrics,
 		loginLimitIP:   auth.NewRateLimiter(20, 10*time.Minute),
 		loginLimitUser: auth.NewRateLimiter(8, 15*time.Minute),
 		setupLimit:     auth.NewRateLimiter(10, 15*time.Minute),
@@ -115,6 +120,10 @@ func New(d Deps) (http.Handler, error) {
 	if s.servers != nil {
 		s.recoverInstalls(s.bgCtx)
 	}
+	if s.metrics == nil && s.servers != nil && s.sup != nil {
+		s.metrics = metrics.New(storeSource{servers: s.servers, sup: s.sup}, 3*time.Second, 60, d.Config.DataDir, d.Log)
+		go s.metrics.Run(s.bgCtx)
+	}
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -135,6 +144,8 @@ func New(d Deps) (http.Handler, error) {
 			priv.Post("/auth/logout", s.handleLogout)
 			priv.Get("/auth/me", s.handleMe)
 			priv.Get("/system/info", s.handleSystemInfo)
+			priv.Get("/system/stats", s.handleSystemStats)
+			priv.Get("/events", s.handleEvents)
 
 			priv.With(s.requireRole(auth.RoleAdmin)).Get("/audit", s.handleAuditRecent)
 
@@ -150,6 +161,7 @@ func New(d Deps) (http.Handler, error) {
 				sr.With(s.withServer(auth.PermPower)).Post("/power", s.handlePower)
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/console", s.handleConsole)
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/console/hints", s.handleConsoleHints)
+				sr.With(s.withServer(auth.PermConsoleRead)).Get("/stats", s.handleServerStats)
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/install", s.handleInstallStatus)
 				sr.With(s.withServer(auth.PermSettings)).Post("/install", s.handleReinstall)
 
