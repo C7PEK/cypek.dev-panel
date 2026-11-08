@@ -193,6 +193,7 @@ export function ServerDatabasesTab({ server, user }: { server: Server; user: Use
 
       <CreateDialog
         serverId={server.id}
+        suggested={list.data?.suggestedName ?? ""}
         open={createOpen}
         onOpenChange={setCreateOpen}
         onCreated={(c) => {
@@ -280,11 +281,13 @@ export function ServerDatabasesTab({ server, user }: { server: Server; user: Use
 
 function CreateDialog({
   serverId,
+  suggested,
   open,
   onOpenChange,
   onCreated,
 }: {
   serverId: string
+  suggested: string
   open: boolean
   onOpenChange: (o: boolean) => void
   onCreated: (c: DatabaseCredentials) => void
@@ -345,8 +348,8 @@ function CreateDialog({
                   setName(e.target.value)
                   setLocalErr(null)
                 }}
-                placeholder="main"
-                maxLength={16}
+                placeholder={suggested || "esx"}
+                maxLength={24}
                 className="font-mono"
                 autoComplete="off"
                 spellCheck={false}
@@ -354,7 +357,7 @@ function CreateDialog({
                 autoFocus
               />
               <FieldDescription>
-                {t("database.namePreview")} <code className="font-mono text-foreground">{previewName(serverId, name)}</code>
+                {t("database.namePreview")} <code className="font-mono text-foreground">{previewName(name, suggested)}</code>
               </FieldDescription>
               <FieldError>{nameErr}</FieldError>
             </Field>

@@ -111,6 +111,20 @@ func (m *Manager) Create(ctx context.Context, name, password string) error {
 	return execAll(ctx, db, stmts)
 }
 
+// Exists reports whether a database or account with this name already exists
+// in MariaDB (it may have been created outside the panel).
+func (m *Manager) Exists(ctx context.Context, name string) (bool, error) {
+	db, _, err := m.conn(ctx)
+	if err != nil {
+		return false, err
+	}
+	var n int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name = ?`, name).Scan(&n); err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
 // grantPattern escapes LIKE wildcards in a database name for GRANT.
 func grantPattern(name string) string {
 	return strings.NewReplacer("_", `\_`, "%", `\%`).Replace(name)

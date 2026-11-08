@@ -136,7 +136,7 @@ func (s *Server) handleListServerDatabases(w http.ResponseWriter, r *http.Reques
 	for _, rec := range recs {
 		items = append(items, s.dbView(r.Context(), rec, creds))
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items, "status": st})
+	writeJSON(w, http.StatusOK, map[string]any{"items": items, "status": st, "suggestedName": database.Slug(srv.Name)})
 }
 
 type createDBRequest struct {
@@ -164,18 +164,57 @@ func (s *Server) handleCreateServerDatabase(w http.ResponseWriter, r *http.Reque
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	name, err := database.DatabaseName(srv.ID, req.Name)
-	if err != nil {
-		writeFieldError(w, CodeValidation, "name", err.Error())
-		return
-	}
 	label := strings.TrimSpace(req.Label)
 	if len(label) > 80 {
 		writeFieldError(w, CodeValidation, "label", "Label must be at most 80 characters.")
 		return
 	}
+	short := strings.ToLower(strings.TrimSpace(req.Name))
+	if short != "" {
+		if _, err := database.DatabaseName(short); err != nil {
+			writeFieldError(w, CodeValidation, "name", err.Error())
+			return
+		}
+	}
 	if !s.requireDatabase(w, r) {
 		return
+	}
+	var name string
+	if short != "" {
+		name, _ = database.DatabaseName(short)
+		if exists, err := s.databases.Exists(r.Context(), name); err != nil {
+			writeError(w, http.StatusBadGateway, CodeDBUnavailable, err.Error())
+			return
+		} else if exists {
+			writeFieldError(w, CodeDBExists, "name", "A database with this name already exists.")
+			return
+		}
+	} else {
+		// Derive from the server name, adding _2, _3, … until it is free.
+		base := database.Slug(srv.Name)
+		for i := 1; i < 100; i++ {
+			candidate := base
+			if i > 1 {
+				candidate = fmt.Sprintf("%s_%d", base, i)
+			}
+			n, err := database.DatabaseName(candidate)
+			if err != nil {
+				continue
+			}
+			exists, err := s.databases.Exists(r.Context(), n)
+			if err != nil {
+				writeError(w, http.StatusBadGateway, CodeDBUnavailable, err.Error())
+				return
+			}
+			if !exists {
+				name = n
+				break
+			}
+		}
+		if name == "" {
+			writeFieldError(w, CodeDBExists, "name", "Choose a name for the database.")
+			return
+		}
 	}
 	password, err := database.NewPassword(24)
 	if err != nil {

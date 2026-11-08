@@ -76,24 +76,49 @@ func LoadCreds(path string) (*Creds, error) {
 }
 
 var (
-	identRe  = regexp.MustCompile(`^[a-z0-9_]{1,64}$`)
-	suffixRe = regexp.MustCompile(`^[a-z0-9_]{1,16}$`)
+	identRe = regexp.MustCompile(`^[a-z0-9_]{1,64}$`)
+	shortRe = regexp.MustCompile(`^[a-z][a-z0-9_]{0,23}$`)
 )
 
-// DatabaseName builds the database (and user) name for a server: hp_<id>_<suffix>.
-func DatabaseName(serverID, suffix string) (string, error) {
-	suffix = strings.ToLower(strings.TrimSpace(suffix))
-	if suffix == "" {
-		suffix = "main"
+// MaxShortName is the longest user-chosen part of a database name.
+const MaxShortName = 24
+
+// DatabaseName builds the database (and user) name: hp_<name>. Names are
+// short and global, so they read well in phpMyAdmin and server.cfg; the
+// panel tracks which server owns which database.
+func DatabaseName(short string) (string, error) {
+	short = strings.ToLower(strings.TrimSpace(short))
+	if !shortRe.MatchString(short) {
+		return "", fmt.Errorf("name must be 1-24 characters: lowercase letters, digits, underscore, starting with a letter")
 	}
-	if !suffixRe.MatchString(suffix) {
-		return "", fmt.Errorf("name must be 1-16 characters: lowercase letters, digits, underscore")
+	return NamePrefix + short, nil
+}
+
+// Slug turns a server name into a default database name ("Mój ESX #2" -> "moj_esx_2").
+func Slug(s string) string {
+	repl := strings.NewReplacer("ą", "a", "ć", "c", "ę", "e", "ł", "l", "ń", "n", "ó", "o", "ś", "s", "ź", "z", "ż", "z")
+	s = repl.Replace(strings.ToLower(s))
+	var b strings.Builder
+	lastUnderscore := true
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z' || r >= '0' && r <= '9':
+			b.WriteRune(r)
+			lastUnderscore = false
+		case !lastUnderscore:
+			b.WriteByte('_')
+			lastUnderscore = true
+		}
 	}
-	name := NamePrefix + serverID + "_" + suffix
-	if !identRe.MatchString(name) {
-		return "", fmt.Errorf("invalid database name %q", name)
+	out := strings.Trim(b.String(), "_")
+	out = strings.TrimLeft(out, "0123456789_")
+	if len(out) > MaxShortName-3 { // leave room for a _N suffix
+		out = strings.TrimRight(out[:MaxShortName-3], "_")
 	}
-	return name, nil
+	if out == "" {
+		out = "db"
+	}
+	return out
 }
 
 // ValidIdent guards every identifier interpolated into SQL (identifiers

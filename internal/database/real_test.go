@@ -23,7 +23,7 @@ func TestRealMariaDB(t *testing.T) {
 		t.Fatalf("status = %+v", st)
 	}
 	t.Logf("MariaDB %s", st.Version)
-	name, _ := DatabaseName("zzreal01", "test")
+	name, _ := DatabaseName("zzrealtest")
 	pw, _ := NewPassword(24)
 	defer m.Drop(ctx, name)
 	if err := m.Create(ctx, name, pw); err != nil {

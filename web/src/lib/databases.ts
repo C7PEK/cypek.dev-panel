@@ -83,7 +83,7 @@ export function useRestartPhpMyAdmin() {
 export function useServerDatabases(id: string) {
   return useQuery({
     queryKey: serverKey(id),
-    queryFn: () => api<{ items: ServerDatabase[]; status: DatabaseStatus }>("GET", `${base(id)}/`),
+    queryFn: () => api<{ items: ServerDatabase[]; status: DatabaseStatus; suggestedName?: string }>("GET", `${base(id)}/`),
     refetchInterval: 30000,
     retry: false,
   })
@@ -121,13 +121,13 @@ export function phpMyAdminUrl(port: number | undefined) {
   return `${window.location.protocol}//${window.location.hostname}:${port}/`
 }
 
-/** The full database name the backend will create for a suffix. */
-export function previewName(serverId: string, suffix: string) {
-  const s = suffix.trim().toLowerCase() || "main"
-  return `hp_${serverId}_${s}`
+/** The full database name the backend will create: hp_<name>. */
+export function previewName(name: string, suggested: string) {
+  const s = name.trim().toLowerCase() || suggested || "db"
+  return `hp_${s}`
 }
 
-export const SUFFIX_RE = /^[a-z0-9_]{1,16}$/
+export const SUFFIX_RE = /^[a-z][a-z0-9_]{0,23}$/
 
 export interface RootLogin {
   enabled: boolean

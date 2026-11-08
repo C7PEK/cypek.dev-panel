@@ -45,7 +45,7 @@ installer rewrites `60-homepanel.cnf` on every run.
 
 ## Per-server databases
 
-Server → Databases → Create. Names are `hp_<server id>_<suffix>`; the user has
+Server → Databases → Create. Names are `hp_<name>`; the user has
 the same name and access to that database only, from `localhost` (socket,
 phpMyAdmin) and `127.0.0.1` (TCP, game servers). The password is random,
 stored encrypted, revealed on demand (audited) and can be rotated.
@@ -53,7 +53,7 @@ stored encrypted, revealed on demand (audited) and can be rotated.
 FiveM (`server.cfg`):
 
 ```
-set mysql_connection_string "mysql://hp_abcd1234_main:PASSWORD@127.0.0.1:3306/hp_abcd1234_main?charset=utf8mb4"
+set mysql_connection_string "mysql://hp_esx:PASSWORD@127.0.0.1:3306/hp_esx?charset=utf8mb4"
 ```
 
 Deleting a server together with its files also drops its databases.

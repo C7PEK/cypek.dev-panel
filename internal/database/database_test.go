@@ -8,17 +8,22 @@ import (
 )
 
 func TestNamesAndPasswords(t *testing.T) {
-	n, err := DatabaseName("abcd1234", "")
-	if err != nil || n != "hp_abcd1234_main" {
-		t.Errorf("default = %q, %v", n, err)
-	}
-	for _, bad := range []string{"x y", "a`b", "toolongtoolongtoolong", "a;drop", "Ą", "a'b", "a-b"} {
-		if _, err := DatabaseName("abcd1234", bad); err == nil {
-			t.Errorf("suffix %q accepted", bad)
+	for _, bad := range []string{"", "x y", "a`b", "toolongtoolongtoolongtoolong", "a;drop", "Ą", "a'b", "a-b", "1abc", "_x"} {
+		if _, err := DatabaseName(bad); err == nil {
+			t.Errorf("name %q accepted", bad)
 		}
 	}
-	if n, _ := DatabaseName("abcd1234", "  ESX "); n != "hp_abcd1234_esx" {
+	if n, _ := DatabaseName("  ESX "); n != "hp_esx" {
 		t.Errorf("normalised = %q", n)
+	}
+	slugs := map[string]string{"Mój ESX #2": "moj_esx_2", "test": "test", "!!!": "db", "123 server": "server", "Bardzo Długa Nazwa Serwera Do Testu": "bardzo_dluga_nazwa_se"}
+	for in, want := range slugs {
+		if got := Slug(in); got != want {
+			t.Errorf("Slug(%q) = %q, want %q", in, got, want)
+		}
+		if _, err := DatabaseName(Slug(in)); err != nil {
+			t.Errorf("slug of %q not a valid name: %v", in, err)
+		}
 	}
 	for i := 0; i < 50; i++ {
 		p, err := NewPassword(24)
