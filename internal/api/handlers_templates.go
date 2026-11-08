@@ -280,6 +280,23 @@ func (s *Server) handleConsoleHints(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, hints)
 }
 
+// warnCommandFor renders the template's warnCommand for a scheduled warning.
+func (s *Server) warnCommandFor(ctx context.Context, serverID, message string) (string, bool, error) {
+	srv, err := s.servers.Get(ctx, serverID)
+	if err != nil {
+		return "", false, err
+	}
+	tpl, ok := s.templates.Get(srv.TemplateID)
+	if !ok || !isTemplateServer(srv) || tpl.WarnCommand == "" {
+		return "", false, nil
+	}
+	cmd, err := templates.Render(tpl.WarnCommand, map[string]string{templates.KeyMessage: message})
+	if err != nil {
+		return "", false, err
+	}
+	return cmd, true, nil
+}
+
 func isTemplateServer(srv *servers.Server) bool {
 	return srv.TemplateID != "" && srv.TemplateID != customTemplateID
 }

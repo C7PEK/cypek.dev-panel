@@ -24,6 +24,7 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/netinfo"
 	"github.com/cypek019/cypek.dev---panel/internal/providers"
 	"github.com/cypek019/cypek.dev---panel/internal/runtimes"
+	"github.com/cypek019/cypek.dev---panel/internal/scheduler"
 	"github.com/cypek019/cypek.dev---panel/internal/secrets"
 	"github.com/cypek019/cypek.dev---panel/internal/servers"
 	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
@@ -120,6 +121,7 @@ func runServe(args []string) error {
 		Paper:     paper,
 		FiveM:     fivem,
 		Secrets:   box,
+		Schedules: scheduler.NewStore(sqlDB),
 		BgCtx:     ctx,
 		Dist:      mustSub(web.Dist, "dist"),
 	}

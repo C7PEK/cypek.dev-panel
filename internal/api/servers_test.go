@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -441,5 +442,79 @@ func TestEventsWebSocket(t *testing.T) {
 	_, resp2, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(e.srv.URL, "http")+"/api/v1/events", nil)
 	if err == nil || resp2 == nil || resp2.StatusCode != 401 {
 		t.Errorf("anonymous events: err=%v status=%v", err, resp2)
+	}
+}
+
+func TestSchedulesAPI(t *testing.T) {
+	e := newEnv(t)
+	e.completeSetup("owner", "password123")
+	_, body := e.do(http.MethodPost, "/api/v1/servers", fakeServerBody("Sched"))
+	id := body["id"].(string)
+	base := "/api/v1/servers/" + id + "/schedules"
+
+	resp, body := e.do(http.MethodGet, "/api/v1/system/cron/preview?expr=0+4+*+*+*", nil)
+	if resp.StatusCode != 200 || len(body["next"].([]any)) != 5 || body["timezone"] == "" {
+		t.Fatalf("preview: %d %v", resp.StatusCode, body)
+	}
+	resp, body = e.do(http.MethodGet, "/api/v1/system/cron/preview?expr=nope", nil)
+	if resp.StatusCode != 422 || errCode(body) != CodeInvalidCron {
+		t.Errorf("bad preview: %d %v", resp.StatusCode, body)
+	}
+
+	resp, body = e.do(http.MethodPost, base+"/", map[string]any{"name": "x", "cron": "bad", "actions": []map[string]any{{"type": "restart"}}})
+	if resp.StatusCode != 422 || body["error"].(map[string]any)["field"] != "cron" {
+		t.Errorf("bad cron: %d %v", resp.StatusCode, body)
+	}
+	resp, body = e.do(http.MethodPost, base+"/", map[string]any{"name": "Nightly", "cron": "0 4 * * *",
+		"actions": []map[string]any{{"type": "command", "text": "say hi"}, {"type": "wait", "seconds": 1}, {"type": "stop"}}, "onlyIfRunning": false})
+	if resp.StatusCode != 201 || body["nextRunAt"] == "" || body["enabled"] != true {
+		t.Fatalf("create: %d %v", resp.StatusCode, body)
+	}
+	sid := strconv.Itoa(int(body["id"].(float64)))
+	resp, body = e.do(http.MethodGet, base+"/", nil)
+	if len(body["items"].([]any)) != 1 || body["timezone"] == nil {
+		t.Errorf("list: %v", body)
+	}
+	resp, body = e.do(http.MethodPatch, base+"/"+sid, map[string]any{"enabled": false, "name": "Paused"})
+	if resp.StatusCode != 200 || body["name"] != "Paused" || body["enabled"] != false {
+		t.Errorf("patch: %d %v", resp.StatusCode, body)
+	}
+
+	// Run now against the stopped fake server: command fails (not running) -> failed run recorded.
+	resp, _ = e.do(http.MethodPost, base+"/"+sid+"/run", nil)
+	if resp.StatusCode != 202 {
+		t.Fatalf("run: %d", resp.StatusCode)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	var runs []any
+	for time.Now().Before(deadline) {
+		_, rb := e.do(http.MethodGet, base+"/"+sid+"/runs", nil)
+		runs = rb["items"].([]any)
+		if len(runs) == 1 && runs[0].(map[string]any)["result"] != "running" {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if len(runs) != 1 || runs[0].(map[string]any)["result"] != "failed" || runs[0].(map[string]any)["trigger"] != "manual" {
+		t.Errorf("runs = %v", runs)
+	}
+
+	// Permission: plain user without `schedules` gets 403; with it, 200.
+	plain, _ := e.store.CreateUser(t.Context(), "plain", "password123", auth.RoleUser)
+	_ = e.store.GrantPermissions(t.Context(), id, plain.ID, []auth.Permission{auth.PermConsoleRead})
+	e.loginAs("plain")
+	if resp, _ := e.do(http.MethodGet, base+"/", nil); resp.StatusCode != 403 {
+		t.Errorf("schedules without perm: %d", resp.StatusCode)
+	}
+	_ = e.store.GrantPermissions(t.Context(), id, plain.ID, []auth.Permission{auth.PermConsoleRead, auth.PermSchedules})
+	if resp, _ := e.do(http.MethodGet, base+"/", nil); resp.StatusCode != 200 {
+		t.Errorf("schedules with perm: %d", resp.StatusCode)
+	}
+	e.loginAs("owner")
+	if resp, _ := e.do(http.MethodDelete, base+"/"+sid, nil); resp.StatusCode != 204 {
+		t.Errorf("delete: %d", resp.StatusCode)
+	}
+	if resp, _ := e.do(http.MethodGet, base+"/"+sid+"/runs", nil); resp.StatusCode != 404 {
+		t.Errorf("runs after delete: %d", resp.StatusCode)
 	}
 }

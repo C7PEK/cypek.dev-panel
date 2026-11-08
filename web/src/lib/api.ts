@@ -62,3 +62,62 @@ export async function api<T>(method: Method, path: string, body?: unknown): Prom
 export function isApiError(e: unknown): e is ApiError {
   return e instanceof ApiError
 }
+
+/** Base URL for same-origin links that bypass the JSON wrapper (downloads). */
+export const apiBase = "/api/v1"
+
+/** Sends a non-JSON body (text, FormData) with the CSRF header; returns the parsed JSON (or undefined on 204). */
+export async function apiRaw<T>(method: Method, path: string, body: BodyInit, contentType?: string): Promise<T> {
+  const headers: Record<string, string> = { Accept: "application/json" }
+  if (contentType) headers["Content-Type"] = contentType
+  if (csrfToken) headers["X-CSRF-Token"] = csrfToken
+  let res: Response
+  try {
+    res = await fetch(`${apiBase}${path}`, { method, headers, body, credentials: "same-origin" })
+  } catch {
+    throw new ApiError(0, "network", "network error")
+  }
+  if (res.status === 204) return undefined as T
+  const text = await res.text()
+  let data: unknown = null
+  if (text) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      throw new ApiError(res.status, "bad_response", "invalid JSON from server")
+    }
+  }
+  if (!res.ok) {
+    const err = (data as { error?: { code?: string; message?: string; field?: string } } | null)?.error
+    throw new ApiError(res.status, err?.code ?? "internal_error", err?.message ?? res.statusText, err?.field)
+  }
+  return data as T
+}
+
+/** Fetches a plain-text response (file content). */
+export async function apiText(path: string): Promise<string> {
+  let res: Response
+  try {
+    res = await fetch(`${apiBase}${path}`, { headers: { Accept: "text/plain" }, credentials: "same-origin" })
+  } catch {
+    throw new ApiError(0, "network", "network error")
+  }
+  if (!res.ok) {
+    let code = "internal_error"
+    let message = res.statusText
+    try {
+      const data = (await res.json()) as { error?: { code?: string; message?: string } }
+      code = data.error?.code ?? code
+      message = data.error?.message ?? message
+    } catch {
+      // not JSON
+    }
+    throw new ApiError(res.status, code, message)
+  }
+  return res.text()
+}
+
+/** Current CSRF token, for XHR uploads that need progress events. */
+export function getCsrfToken() {
+  return csrfToken
+}

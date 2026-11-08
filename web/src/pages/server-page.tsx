@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { AppShell } from "@/components/layout/app-shell"
 import { CategoryIcon } from "@/components/servers/category-icon"
 import { Console } from "@/components/console/console"
+import { FileBrowser } from "@/components/files/file-browser"
 import { InstallBadge } from "@/components/servers/install-badge"
 import { InstallPanel } from "@/components/servers/install-panel"
 import { TemplateSettings } from "@/components/servers/template-settings"
@@ -55,8 +56,14 @@ export function ServerPage({ user }: { user: User }) {
       </AppShell>
     )
   }
-  const s = server.data
+  return <ServerView server={server.data} user={user} />
+}
+
+function ServerView({ server: s, user }: { server: Server; user: User }) {
+  const { t } = useTranslation()
   const ready = s.installState === "ready"
+  // The Files tab keeps its folder while the page stays open.
+  const [filesPath, setFilesPath] = useState("")
   return (
     <AppShell user={user}>
       <div className="flex flex-col gap-5">
@@ -94,9 +101,7 @@ export function ServerPage({ user }: { user: User }) {
         <Tabs defaultValue="console">
           <TabsList className="w-full justify-start overflow-x-auto">
             <TabsTrigger value="console">{t("serverPage.tabs.console")}</TabsTrigger>
-            <TabsTrigger value="files" disabled>
-              {t("serverPage.tabs.files")}
-            </TabsTrigger>
+            <TabsTrigger value="files">{t("serverPage.tabs.files")}</TabsTrigger>
             <TabsTrigger value="schedule" disabled>
               {t("serverPage.tabs.schedule")}
             </TabsTrigger>
@@ -110,6 +115,9 @@ export function ServerPage({ user }: { user: User }) {
           </TabsList>
           <TabsContent value="console" className="pt-3">
             {ready ? <Console serverId={s.id} initialState={s.status.state} /> : <InstallPanel server={s} />}
+          </TabsContent>
+          <TabsContent value="files" className="pt-3">
+            <FileBrowser serverId={s.id} path={filesPath} onPathChange={setFilesPath} />
           </TabsContent>
           <TabsContent value="settings" className="pt-3">
             <SettingsTab server={s} />
