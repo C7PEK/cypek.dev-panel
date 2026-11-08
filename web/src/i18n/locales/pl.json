@@ -1,10 +1,12 @@
 {
   "app": {
-    "name": "HomePanel",
+    "name": "panel.cypek.dev",
     "tagline": "Serwery gier i boty na Twojej maszynie",
     "loading": "Ładowanie…",
     "retry": "Spróbuj ponownie",
-    "version": "Wersja {{version}}"
+    "version": "Wersja {{version}}",
+    "company": "cypek.dev",
+    "status": "cypek.dev · panel"
   },
   "nav": {
     "dashboard": "Pulpit",

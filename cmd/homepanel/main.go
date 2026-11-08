@@ -11,7 +11,7 @@ import (
 var version = "dev"
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `HomePanel %s
+	fmt.Fprintf(os.Stderr, `panel.cypek.dev %s
 
 Usage:
   homepanel serve [--config PATH] [--dev] [--listen ADDR]   run the web panel

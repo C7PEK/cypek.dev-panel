@@ -1,12 +1,20 @@
+import { BrandMark } from "@/components/brand/mark"
 import { cn } from "@/lib/utils"
 
-export function Logo({ className }: { className?: string }) {
+// Wordmark: "panel" in the display face, ".cypek.dev" muted, after the brand mark.
+export function Logo({ className, size = "md" }: { className?: string; size?: "md" | "lg" }) {
   return (
-    <span className={cn("inline-flex items-center gap-2 font-semibold tracking-tight", className)}>
-      <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-bold">
-        H
+    <span className={cn("inline-flex items-center gap-2.5", className)}>
+      <BrandMark className={size === "lg" ? "size-10" : "size-7"} />
+      <span
+        className={cn(
+          "font-heading leading-none tracking-[0.08em] uppercase",
+          size === "lg" ? "text-2xl" : "text-lg",
+        )}
+      >
+        <span className="font-semibold text-foreground">panel</span>
+        <span className="font-light text-muted-foreground">.cypek.dev</span>
       </span>
-      HomePanel
     </span>
   )
 }

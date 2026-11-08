@@ -16,7 +16,7 @@ export function DashboardPage({ user }: { user: User }) {
     <AppShell user={user}>
       <div className="flex flex-col gap-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard.title")}</h1>
+          <h1 className="font-heading text-3xl font-semibold tracking-[0.04em] uppercase">{t("dashboard.title")}</h1>
           <Button disabled title={t("dashboard.comingSoon")}>
             <PlusIcon />
             {t("dashboard.createServer")}
@@ -29,7 +29,7 @@ export function DashboardPage({ user }: { user: User }) {
               <ServerIcon className="size-6 text-muted-foreground" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-lg font-medium">{t("dashboard.emptyTitle")}</h2>
+              <h2 className="font-heading text-xl font-medium tracking-[0.04em] uppercase">{t("dashboard.emptyTitle")}</h2>
               <p className="max-w-md text-sm text-muted-foreground">{t("dashboard.emptyBody")}</p>
             </div>
             <Button disabled className="mt-2">
@@ -43,7 +43,7 @@ export function DashboardPage({ user }: { user: User }) {
         {info.data && (
           <Card>
             <CardHeader>
-              <CardTitle>{t("dashboard.host")}</CardTitle>
+              <CardTitle className="label-caps text-xs text-muted-foreground">{t("dashboard.host")}</CardTitle>
               <CardDescription>
                 {info.data.hostname} · {info.data.os}/{info.data.arch} · {t("app.version", { version: info.data.version })}
                 {info.data.dev && <> · {t("dashboard.devMode")}</>}
@@ -59,8 +59,9 @@ export function DashboardPage({ user }: { user: User }) {
                       <a
                         key={u}
                         href={u}
-                        className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2 py-1 font-mono text-xs hover:bg-muted"
+                        className="inline-flex items-center gap-2 rounded-md border bg-muted/40 px-2 py-1 font-mono text-xs hover:bg-muted"
                       >
+                        <span className="brand-pulse size-1.5 rounded-full bg-brand-cyan shadow-[0_0_8px_var(--brand-cyan)]" />
                         {u}
                         {kind && <span className="text-muted-foreground">· {t(`dashboard.addressKind.${kind}`)}</span>}
                       </a>

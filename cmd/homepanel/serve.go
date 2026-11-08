@@ -164,7 +164,7 @@ func printBanner(cfg *config.Config, setupToken string) {
 	urls := netinfo.URLs(cfg.Listen, cfg.TLS.Enabled, addrs)
 	var b strings.Builder
 	b.WriteString("\n============================================================\n")
-	b.WriteString(fmt.Sprintf("  HomePanel %s is running\n\n", version))
+	b.WriteString(fmt.Sprintf("  panel.cypek.dev %s is running\n\n", version))
 	b.WriteString("  Open in your browser:\n")
 	for _, u := range urls {
 		b.WriteString("    " + u + "\n")

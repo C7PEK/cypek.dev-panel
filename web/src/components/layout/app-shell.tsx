@@ -24,13 +24,16 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
   const logout = useLogout()
   return (
     <div className="flex min-h-svh flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <nav className="flex items-center gap-6">
             <Link to="/" className="shrink-0">
               <Logo />
             </Link>
-            <Link to="/" className="hidden text-sm text-muted-foreground hover:text-foreground sm:block">
+            <Link
+              to="/"
+              className="label-caps hidden text-[0.72rem] text-muted-foreground transition-colors hover:text-foreground sm:block"
+            >
               {t("nav.dashboard")}
             </Link>
           </nav>
@@ -60,6 +63,7 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
         </div>
       </header>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">{children}</main>
+      <footer className="label-caps px-4 pb-5 text-center text-[0.66rem] text-muted-foreground/60">{t("app.company")}</footer>
     </div>
   )
 }

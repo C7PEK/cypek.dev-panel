@@ -1,10 +1,11 @@
-# HomePanel
+# panel.cypek.dev
 
 A simple web panel for running game servers and bots (FiveM, Minecraft, Discord bots)
 on a single homelab machine. One static Go binary, SQLite, embedded React UI, servers
 run as systemd units so they survive panel restarts and updates.
 
-> Working name. Early development — see `CLAUDE.md` for the architecture and roadmap.
+> Brand: **panel.cypek.dev** by **cypek.dev**. The technical name used for the binary, the
+> systemd user and the paths is still `homepanel`. Early development — see `CLAUDE.md`.
 
 ## Development
 
