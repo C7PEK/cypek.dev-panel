@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -77,7 +78,11 @@ func runServe(args []string) error {
 		Dist:    mustSub(web.Dist, "dist"),
 	}
 	if cfg.Dev {
-		deps.DevProxy = devViteURL
+		if viteReachable(devViteURL) {
+			deps.DevProxy = devViteURL
+		} else {
+			log.Warn("dev mode: Vite dev server not reachable, serving the embedded frontend (run `make dev` for hot reload)", "vite", devViteURL)
+		}
 	}
 	handler, err := api.New(deps)
 	if err != nil {
@@ -193,6 +198,21 @@ func sessionJanitor(ctx context.Context, store *auth.Store, log *slog.Logger) {
 			}
 		}
 	}
+}
+
+// viteReachable probes the Vite dev server so `serve --dev` also works
+// standalone against a previously built frontend.
+func viteReachable(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	conn, err := net.DialTimeout("tcp", u.Host, 500*time.Millisecond)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
 }
 
 func newLogger(level string) *slog.Logger {

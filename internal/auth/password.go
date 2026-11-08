@@ -6,17 +6,35 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
 )
 
-// argon2id parameters, following the OWASP "second recommended" option
-// (64 MiB, 3 iterations, 2 lanes): fine for a Raspberry Pi and far above bcrypt.
+// hashSem serialises argon2 runs so concurrent logins cannot multiply the
+// 19 MiB working set, which also blunts login floods as a memory DoS.
+var hashSem = make(chan struct{}, 1)
+
+// deriveKey runs argon2id under hashSem and hands the freed memory back to the
+// OS right away: Go's scavenger would otherwise keep ~20 MiB resident for
+// minutes after every login, which matters for the panel's small-footprint goal.
+func deriveKey(pw string, salt []byte, iters, mem uint32, threads uint8, keyLen uint32) []byte {
+	hashSem <- struct{}{}
+	defer func() {
+		<-hashSem
+		debug.FreeOSMemory()
+	}()
+	return argon2.IDKey([]byte(pw), salt, iters, mem, threads, keyLen)
+}
+
+// argon2id parameters, following the OWASP recommended minimum
+// (19 MiB, 2 iterations, 1 lane). Chosen over the 64 MiB variant because the
+// panel targets < 60 MB RSS on small boxes; see hashSem below.
 const (
-	argonTime    = 3
-	argonMemory  = 64 * 1024
-	argonThreads = 2
+	argonTime    = 2
+	argonMemory  = 19 * 1024
+	argonThreads = 1
 	argonKeyLen  = 32
 	argonSaltLen = 16
 
@@ -45,7 +63,7 @@ func HashPassword(pw string) (string, error) {
 	if _, err := rand.Read(salt); err != nil {
 		return "", fmt.Errorf("generate salt: %w", err)
 	}
-	key := argon2.IDKey([]byte(pw), salt, argonTime, argonMemory, argonThreads, argonKeyLen)
+	key := deriveKey(pw, salt, argonTime, argonMemory, argonThreads, argonKeyLen)
 	return fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
 		argon2.Version, argonMemory, argonTime, argonThreads,
 		base64.RawStdEncoding.EncodeToString(salt),
@@ -77,6 +95,6 @@ func VerifyPassword(hash, pw string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("decode hash: %w", err)
 	}
-	got := argon2.IDKey([]byte(pw), salt, iters, mem, threads, uint32(len(want)))
+	got := deriveKey(pw, salt, iters, mem, threads, uint32(len(want)))
 	return subtle.ConstantTimeCompare(got, want) == 1, nil
 }

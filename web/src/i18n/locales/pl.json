@@ -1,0 +1,88 @@
+{
+  "app": {
+    "name": "HomePanel",
+    "tagline": "Serwery gier i boty na Twojej maszynie",
+    "loading": "Ładowanie…",
+    "retry": "Spróbuj ponownie",
+    "version": "Wersja {{version}}"
+  },
+  "nav": {
+    "dashboard": "Pulpit",
+    "logout": "Wyloguj",
+    "language": "Język",
+    "theme": "Motyw",
+    "themeDark": "Ciemny",
+    "themeLight": "Jasny",
+    "themeSystem": "Systemowy",
+    "account": "Zalogowano jako {{username}}"
+  },
+  "roles": {
+    "owner": "Właściciel",
+    "admin": "Administrator",
+    "user": "Użytkownik"
+  },
+  "setup": {
+    "title": "Witaj w HomePanel",
+    "subtitle": "Utwórz konto właściciela, żeby zacząć. To zajmie minutę.",
+    "tokenLabel": "Token konfiguracyjny",
+    "tokenHelp": "Instalator wypisał go w terminalu; jest też zapisany w katalogu danych jako setup-token. Potwierdza, że masz dostęp do tej maszyny.",
+    "tokenPlaceholder": "Wklej token tutaj",
+    "usernameLabel": "Nazwa użytkownika",
+    "usernameHelp": "2–32 znaki: litery, cyfry, kropka, podkreślenie lub myślnik.",
+    "passwordLabel": "Hasło",
+    "passwordHelp": "Co najmniej 8 znaków. Dłuższe jest lepsze niż skomplikowane.",
+    "passwordRepeatLabel": "Powtórz hasło",
+    "passwordMismatch": "Hasła nie są takie same.",
+    "submit": "Utwórz konto właściciela",
+    "submitting": "Tworzenie…",
+    "done": "Konto właściciela utworzone. Witaj!"
+  },
+  "login": {
+    "title": "Zaloguj się",
+    "subtitle": "Zaloguj się, aby zarządzać serwerami.",
+    "usernameLabel": "Nazwa użytkownika",
+    "passwordLabel": "Hasło",
+    "submit": "Zaloguj",
+    "submitting": "Logowanie…"
+  },
+  "dashboard": {
+    "title": "Pulpit",
+    "emptyTitle": "Nie masz jeszcze serwera",
+    "emptyBody": "Utwórz pierwszy serwer FiveM, Minecraft albo bota Discord. Kreator przeprowadzi Cię krok po kroku.",
+    "createServer": "Utwórz serwer",
+    "comingSoon": "Tworzenie serwerów pojawi się w następnej aktualizacji.",
+    "host": "Ta maszyna",
+    "hostname": "Nazwa hosta",
+    "system": "System",
+    "addresses": "Dostępny pod adresem",
+    "addressKind": {
+      "lan": "LAN",
+      "tailscale": "Tailscale",
+      "other": "Publiczny"
+    },
+    "devMode": "Tryb developerski"
+  },
+  "errors": {
+    "title": "Coś poszło nie tak",
+    "network": "Nie można połączyć się z panelem. Sprawdź, czy działa, i spróbuj ponownie.",
+    "bad_request": "Żądanie było nieprawidłowe.",
+    "validation_failed": "Sprawdź zaznaczone pola.",
+    "unauthorized": "Sesja wygasła. Zaloguj się ponownie.",
+    "forbidden": "Nie masz uprawnień do tej operacji.",
+    "not_found": "Nie znaleziono.",
+    "conflict": "To koliduje z obecnym stanem. Odśwież stronę.",
+    "rate_limited": "Za dużo prób. Odczekaj chwilę i spróbuj ponownie.",
+    "internal_error": "Panel napotkał błąd wewnętrzny. Sprawdź jego logi.",
+    "invalid_credentials": "Nieprawidłowa nazwa użytkownika lub hasło.",
+    "account_disabled": "To konto jest zablokowane.",
+    "setup_required": "Panel nie został jeszcze skonfigurowany.",
+    "setup_completed": "Konfiguracja została już zakończona. Zaloguj się.",
+    "invalid_setup_token": "Ten token jest nieprawidłowy. Skopiuj go ponownie z terminala albo z pliku setup-token.",
+    "username_taken": "Ta nazwa użytkownika jest już zajęta.",
+    "invalid_username": "Użyj 2–32 znaków: litery, cyfry, kropka, podkreślenie lub myślnik.",
+    "weak_password": "Użyj co najmniej 8 znaków.",
+    "csrf_failed": "Weryfikacja bezpieczeństwa nie powiodła się. Odśwież stronę i spróbuj ponownie.",
+    "payload_too_large": "Żądanie było zbyt duże.",
+    "frontend_not_built": "Interfejs webowy nie został wbudowany w tę binarkę."
+  }
+}

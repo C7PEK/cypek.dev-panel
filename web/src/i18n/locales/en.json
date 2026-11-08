@@ -1,0 +1,88 @@
+{
+  "app": {
+    "name": "HomePanel",
+    "tagline": "Game servers and bots on your own machine",
+    "loading": "Loading…",
+    "retry": "Try again",
+    "version": "Version {{version}}"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "logout": "Log out",
+    "language": "Language",
+    "theme": "Theme",
+    "themeDark": "Dark",
+    "themeLight": "Light",
+    "themeSystem": "System",
+    "account": "Signed in as {{username}}"
+  },
+  "roles": {
+    "owner": "Owner",
+    "admin": "Administrator",
+    "user": "User"
+  },
+  "setup": {
+    "title": "Welcome to HomePanel",
+    "subtitle": "Create the owner account to get started. This takes a minute.",
+    "tokenLabel": "Setup token",
+    "tokenHelp": "Printed in the terminal by the installer, and saved in the data directory as setup-token. It proves you control this machine.",
+    "tokenPlaceholder": "Paste the token here",
+    "usernameLabel": "Username",
+    "usernameHelp": "2–32 characters: letters, digits, dot, underscore or dash.",
+    "passwordLabel": "Password",
+    "passwordHelp": "At least 8 characters. Longer is better than complicated.",
+    "passwordRepeatLabel": "Repeat password",
+    "passwordMismatch": "Passwords do not match.",
+    "submit": "Create owner account",
+    "submitting": "Creating…",
+    "done": "Owner account created. Welcome!"
+  },
+  "login": {
+    "title": "Log in",
+    "subtitle": "Sign in to manage your servers.",
+    "usernameLabel": "Username",
+    "passwordLabel": "Password",
+    "submit": "Log in",
+    "submitting": "Logging in…"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "emptyTitle": "You don't have a server yet",
+    "emptyBody": "Create your first FiveM, Minecraft or Discord bot server. The wizard will guide you through it.",
+    "createServer": "Create a server",
+    "comingSoon": "Server creation arrives in the next update.",
+    "host": "This machine",
+    "hostname": "Hostname",
+    "system": "System",
+    "addresses": "Reachable at",
+    "addressKind": {
+      "lan": "LAN",
+      "tailscale": "Tailscale",
+      "other": "Public"
+    },
+    "devMode": "Development mode"
+  },
+  "errors": {
+    "title": "Something went wrong",
+    "network": "Cannot reach the panel. Check that it is running and try again.",
+    "bad_request": "The request was malformed.",
+    "validation_failed": "Please check the highlighted fields.",
+    "unauthorized": "Your session has expired. Please log in again.",
+    "forbidden": "You do not have permission to do this.",
+    "not_found": "Not found.",
+    "conflict": "This conflicts with the current state. Reload the page.",
+    "rate_limited": "Too many attempts. Wait a moment and try again.",
+    "internal_error": "The panel hit an internal error. Check its logs.",
+    "invalid_credentials": "Wrong username or password.",
+    "account_disabled": "This account is disabled.",
+    "setup_required": "The panel has not been set up yet.",
+    "setup_completed": "Setup has already been completed. Please log in.",
+    "invalid_setup_token": "That setup token is not valid. Copy it again from the terminal or from the setup-token file.",
+    "username_taken": "This username is already taken.",
+    "invalid_username": "Use 2–32 characters: letters, digits, dot, underscore or dash.",
+    "weak_password": "Use at least 8 characters.",
+    "csrf_failed": "Security check failed. Reload the page and try again.",
+    "payload_too_large": "The request was too large.",
+    "frontend_not_built": "The web UI was not built into this binary."
+  }
+}

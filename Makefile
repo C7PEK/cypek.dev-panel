@@ -5,7 +5,10 @@ MODULE   := github.com/cypek019/cypek.dev---panel
 VERSION  ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS  := -s -w -X main.version=$(VERSION)
 GOFLAGS  := -trimpath
+# Builds are always pure Go (modernc sqlite, no cgo). The race detector needs
+# cgo + a C compiler, so tests enable it only when gcc is available.
 export CGO_ENABLED := 0
+RACE     := $(shell command -v gcc >/dev/null 2>&1 && echo -race)
 
 .PHONY: all dev dev-backend dev-frontend build build-frontend build-backend test test-go test-web lint fmt clean release
 
@@ -49,7 +52,7 @@ test: test-go test-web
 
 test-go:
 	go vet ./...
-	go test -race ./...
+	CGO_ENABLED=$(if $(RACE),1,0) go test $(RACE) ./...
 
 test-web: web/node_modules
 	cd web && npx tsc -b && npm run lint
