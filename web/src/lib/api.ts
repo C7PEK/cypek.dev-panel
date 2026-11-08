@@ -54,9 +54,20 @@ export async function api<T>(method: Method, path: string, body?: unknown): Prom
 
   if (!res.ok) {
     const err = (data as { error?: { code?: string; message?: string; field?: string } } | null)?.error
-    throw new ApiError(res.status, err?.code ?? "internal_error", err?.message ?? res.statusText, err?.field)
+    const apiErr = new ApiError(res.status, err?.code ?? "internal_error", err?.message ?? res.statusText, err?.field)
+    notifyGlobalError(apiErr)
+    throw apiErr
   }
   return data as T
+}
+
+/** Name of the window event fired when the backend demands 2FA enrolment. */
+export const TOTP_REQUIRED_EVENT = "homepanel:totp-required"
+
+function notifyGlobalError(e: ApiError) {
+  if (e.code === "totp_required" && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(TOTP_REQUIRED_EVENT))
+  }
 }
 
 export function isApiError(e: unknown): e is ApiError {

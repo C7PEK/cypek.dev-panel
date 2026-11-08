@@ -15,6 +15,7 @@ import { PowerButtons } from "@/components/servers/power-buttons"
 import { ServerForm, valuesFromServer } from "@/components/servers/server-form"
 import { StateBadge } from "@/components/servers/state-badge"
 import { ScheduleTab } from "@/components/schedules/schedule-tab"
+import { ServerUsersTab } from "@/components/admin/server-users-tab"
 import { BackupsTab } from "@/components/backups/backups-tab"
 import { Sparkline } from "@/components/stats/sparkline"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -140,9 +141,7 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
             <TabsTrigger value="schedule">{t("serverPage.tabs.schedule")}</TabsTrigger>
             <TabsTrigger value="backups">{t("serverPage.tabs.backups")}</TabsTrigger>
             <TabsTrigger value="settings">{t("serverPage.tabs.settings")}</TabsTrigger>
-            <TabsTrigger value="users" disabled>
-              {t("serverPage.tabs.users")}
-            </TabsTrigger>
+            {user.role !== "user" && <TabsTrigger value="users">{t("serverPage.tabs.users")}</TabsTrigger>}
           </TabsList>
           <TabsContent value="console" className="pt-3">
             {ready ? <Console serverId={s.id} initialState={s.status.state} /> : <InstallPanel server={s} />}
@@ -159,6 +158,11 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
           <TabsContent value="settings" className="pt-3">
             <SettingsTab server={s} />
           </TabsContent>
+          {user.role !== "user" && (
+            <TabsContent value="users" className="pt-3">
+              <ServerUsersTab serverId={s.id} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </AppShell>

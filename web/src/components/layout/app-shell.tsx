@@ -1,4 +1,4 @@
-import { LogOutIcon, UserIcon } from "lucide-react"
+import { LogOutIcon, ScrollTextIcon, UserCogIcon, UserIcon, UsersIcon } from "lucide-react"
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
@@ -36,6 +36,22 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
             >
               {t("nav.dashboard")}
             </Link>
+            {user.role !== "user" && (
+              <>
+                <Link
+                  to="/admin/users"
+                  className="label-caps hidden text-[0.72rem] text-muted-foreground transition-colors hover:text-foreground md:block"
+                >
+                  {t("nav.users")}
+                </Link>
+                <Link
+                  to="/admin/audit"
+                  className="label-caps hidden text-[0.72rem] text-muted-foreground transition-colors hover:text-foreground md:block"
+                >
+                  {t("nav.audit")}
+                </Link>
+              </>
+            )}
           </nav>
           <div className="flex items-center gap-1">
             <LanguageSwitcher />
@@ -52,6 +68,29 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
                   <div className="text-sm font-medium">{user.username}</div>
                   <div className="text-xs text-muted-foreground">{t(`roles.${user.role}`)}</div>
                 </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/profile">
+                    <UserCogIcon />
+                    {t("nav.profile")}
+                  </Link>
+                </DropdownMenuItem>
+                {user.role !== "user" && (
+                  <>
+                    <DropdownMenuItem asChild className="md:hidden">
+                      <Link to="/admin/users">
+                        <UsersIcon />
+                        {t("nav.users")}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="md:hidden">
+                      <Link to="/admin/audit">
+                        <ScrollTextIcon />
+                        {t("nav.audit")}
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => logout.mutate()} disabled={logout.isPending}>
                   <LogOutIcon />

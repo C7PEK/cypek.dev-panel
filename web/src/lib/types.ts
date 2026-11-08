@@ -294,3 +294,64 @@ export interface CronPreview {
   next: string[]
   timezone: string
 }
+
+// --- Account, users, audit ----------------------------------------------------
+
+export type Permission =
+  | "console.read"
+  | "console.write"
+  | "power"
+  | "files.read"
+  | "files.write"
+  | "schedules"
+  | "backups"
+  | "settings"
+  | "delete"
+
+export interface TotpStatus {
+  enabled: boolean
+  backupCodesLeft: number
+  required: boolean
+  policy: "none" | "admins" | "all"
+}
+
+export interface TotpSetup {
+  secret: string
+  otpauthUrl: string
+  qrPng: string
+}
+
+export interface ApiKey {
+  id: number
+  userId: number
+  name: string
+  prefix: string
+  scope: string[]
+  createdAt: string
+  expiresAt?: string
+  lastUsedAt?: string
+}
+
+export interface AuditEntry {
+  id: number
+  createdAt: string
+  userId?: number
+  username: string
+  action: string
+  target: string
+  ip: string
+  details: Record<string, unknown>
+}
+
+export type TotpPolicy = "none" | "admins" | "all"
+
+export interface SecuritySettings {
+  requireTotp: TotpPolicy
+}
+
+export interface UserGrant {
+  user: User
+  permissions: Permission[]
+}
+
+export type LoginResult = SessionResponse | { totpRequired: true; token: string }

@@ -1,11 +1,16 @@
-import { Navigate, Route, Routes, useLocation } from "react-router"
+import { useEffect } from "react"
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router"
 
 import { FullPageError, FullPageLoading } from "@/components/layout/full-page-state"
+import { TOTP_REQUIRED_EVENT } from "@/lib/api"
 import { useMe, useSetupStatus } from "@/lib/auth"
 import type { User } from "@/lib/types"
+import { AdminAuditPage } from "@/pages/admin-audit-page"
+import { AdminUsersPage } from "@/pages/admin-users-page"
 import { DashboardPage } from "@/pages/dashboard-page"
 import { LoginPage } from "@/pages/login-page"
 import { NewServerPage } from "@/pages/new-server-page"
+import { ProfilePage } from "@/pages/profile-page"
 import { ServerPage } from "@/pages/server-page"
 import { SetupPage } from "@/pages/setup-page"
 
@@ -35,11 +40,26 @@ function Gate() {
 }
 
 function AuthedRoutes({ user }: { user: User }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  // The backend answers totp_required until the user enrols: send them to the 2FA card.
+  useEffect(() => {
+    const onRequired = () => {
+      if (!location.pathname.startsWith("/profile")) void navigate("/profile?enroll=1", { replace: true })
+    }
+    window.addEventListener(TOTP_REQUIRED_EVENT, onRequired)
+    return () => window.removeEventListener(TOTP_REQUIRED_EVENT, onRequired)
+  }, [navigate, location.pathname])
+
+  const admin = user.role !== "user"
   return (
     <Routes>
       <Route path="/" element={<DashboardPage user={user} />} />
-      <Route path="/servers/new" element={user.role === "user" ? <Navigate to="/" replace /> : <NewServerPage user={user} />} />
+      <Route path="/servers/new" element={admin ? <NewServerPage user={user} /> : <Navigate to="/" replace />} />
       <Route path="/servers/:id" element={<ServerPage user={user} />} />
+      <Route path="/profile" element={<ProfilePage user={user} />} />
+      <Route path="/admin/users" element={admin ? <AdminUsersPage user={user} /> : <Navigate to="/" replace />} />
+      <Route path="/admin/audit" element={admin ? <AdminAuditPage user={user} /> : <Navigate to="/" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
