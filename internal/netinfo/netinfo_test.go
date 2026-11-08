@@ -43,3 +43,17 @@ func TestURLs(t *testing.T) {
 		t.Errorf("bad listen = %v", got)
 	}
 }
+
+func TestOpenPortCommands(t *testing.T) {
+	got := OpenPortCommands(Firewall{Kind: "ufw"}, 30120, "tcp+udp")
+	if len(got) != 2 || got[0] != "sudo ufw allow 30120/tcp" || got[1] != "sudo ufw allow 30120/udp" {
+		t.Errorf("ufw = %v", got)
+	}
+	got = OpenPortCommands(Firewall{Kind: "firewalld"}, 25565, "tcp")
+	if len(got) != 2 || got[0] != "sudo firewall-cmd --permanent --add-port=25565/tcp" {
+		t.Errorf("firewalld = %v", got)
+	}
+	if got := OpenPortCommands(Firewall{Kind: "none"}, 1, "tcp"); len(got) != 0 {
+		t.Errorf("none = %v", got)
+	}
+}

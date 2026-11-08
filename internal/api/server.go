@@ -145,6 +145,7 @@ func New(d Deps) (http.Handler, error) {
 			priv.Get("/auth/me", s.handleMe)
 			priv.Get("/system/info", s.handleSystemInfo)
 			priv.Get("/system/stats", s.handleSystemStats)
+			priv.Get("/system/firewall", s.handleFirewall)
 			priv.Get("/events", s.handleEvents)
 
 			priv.With(s.requireRole(auth.RoleAdmin)).Get("/audit", s.handleAuditRecent)

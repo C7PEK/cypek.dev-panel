@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strconv"
+	"strings"
 
 	"github.com/cypek019/cypek.dev---panel/internal/audit"
 	"github.com/cypek019/cypek.dev---panel/internal/netinfo"
@@ -11,6 +13,34 @@ import (
 
 type versionResponse struct {
 	Version string `json:"version"`
+}
+
+type portHint struct {
+	Port     int      `json:"port"`
+	Protocol string   `json:"protocol"`
+	Commands []string `json:"commands"`
+}
+
+// handleFirewall reports the host firewall and the commands to open the
+// given ports (?port=25565/tcp&port=30120/tcp+udp). Advice only, never applied.
+func (s *Server) handleFirewall(w http.ResponseWriter, r *http.Request) {
+	fw := netinfo.DetectFirewall(r.Context())
+	hints := []portHint{}
+	for _, spec := range r.URL.Query()["port"] {
+		var port int
+		proto := "tcp"
+		if i := strings.IndexByte(spec, '/'); i > 0 {
+			proto = spec[i+1:]
+			spec = spec[:i]
+		}
+		if n, err := strconv.Atoi(spec); err == nil && n > 0 && n < 65536 && (proto == "tcp" || proto == "udp" || proto == "tcp+udp") {
+			port = n
+		} else {
+			continue
+		}
+		hints = append(hints, portHint{Port: port, Protocol: proto, Commands: netinfo.OpenPortCommands(fw, port, proto)})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"firewall": fw, "ports": hints})
 }
 
 type systemInfoResponse struct {
