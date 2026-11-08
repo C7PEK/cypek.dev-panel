@@ -10,7 +10,14 @@ GOFLAGS  := -trimpath
 export CGO_ENABLED := 0
 RACE     := $(shell command -v gcc >/dev/null 2>&1 && echo -race)
 
-.PHONY: all dev dev-backend dev-frontend build build-frontend build-backend test test-go test-web lint fmt clean release
+.PHONY: all dev dev-backend dev-frontend build build-frontend build-backend sync-systemfiles test test-go test-web lint fmt clean release deploy
+
+## deploy: build and install on this machine (root), restarting only the panel
+deploy: build
+	install -m 755 bin/$(BINARY) /usr/local/bin/$(BINARY)
+	/usr/local/bin/$(BINARY) install-files
+	systemctl daemon-reload
+	systemctl restart homepanel
 
 all: build
 
@@ -38,11 +45,15 @@ build-frontend: web/node_modules
 	cd web && npm run build
 	@touch web/dist/.gitkeep
 
-build-backend:
+## sync-systemfiles: copy packaging/ units + polkit rule into the binary's embed dir
+sync-systemfiles:
+	cp packaging/systemd/homepanel.service packaging/systemd/homepanel-server@.service packaging/polkit/50-homepanel.rules cmd/homepanel/systemfiles/
+
+build-backend: sync-systemfiles
 	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o bin/$(BINARY) ./cmd/homepanel
 
 ## release: cross-compile linux/amd64 and linux/arm64 (frontend must be built)
-release: build-frontend
+release: build-frontend sync-systemfiles
 	GOOS=linux GOARCH=amd64 go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o dist/$(BINARY)-linux-amd64 ./cmd/homepanel
 	GOOS=linux GOARCH=arm64 go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o dist/$(BINARY)-linux-arm64 ./cmd/homepanel
 	cd dist && sha256sum $(BINARY)-linux-* > SHA256SUMS

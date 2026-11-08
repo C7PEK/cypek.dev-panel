@@ -7,6 +7,14 @@ run as systemd units so they survive panel restarts and updates.
 > Brand: **panel.cypek.dev** by **cypek.dev**. The technical name used for the binary, the
 > systemd user and the paths is still `homepanel`. Early development — see `CLAUDE.md`.
 
+## Install (Debian 12+ / Ubuntu 22.04+, amd64/arm64)
+
+```sh
+curl -sSL https://panel.cypek.dev/install.sh | sudo bash
+```
+
+See `docs/install.md` for paths, updates (`sudo homepanel update`) and uninstall.
+
 ## Development
 
 Requirements: Go 1.27+, Node 22+ with npm.

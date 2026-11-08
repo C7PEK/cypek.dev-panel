@@ -16,7 +16,9 @@ func usage() {
 Usage:
   homepanel serve [--config PATH] [--dev] [--listen ADDR]   run the web panel
   homepanel shim <server-id>                                 supervise one game server (used by systemd)
-  homepanel update                                           update the panel binary
+  homepanel update [--check]                                 update the panel binary from GitHub releases
+  homepanel install-files                                    write systemd units + polkit rule (root)
+  homepanel init-config [--port N]                           create /etc/homepanel/config.toml if missing (root)
   homepanel reset-password <username>                        set a new password from the terminal
   homepanel version                                          print the version
 `, version)
@@ -35,6 +37,10 @@ func main() {
 		err = runShim(os.Args[2:])
 	case "update":
 		err = runUpdate(os.Args[2:])
+	case "install-files":
+		err = runInstallFiles(os.Args[2:])
+	case "init-config":
+		err = runInitConfig(os.Args[2:])
 	case "reset-password":
 		err = runResetPassword(os.Args[2:])
 	case "version", "--version", "-v":
@@ -50,8 +56,4 @@ func main() {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
 	}
-}
-
-func runUpdate(args []string) error {
-	return fmt.Errorf("update is not implemented yet (milestone M6)")
 }
