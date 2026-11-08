@@ -1,0 +1,90 @@
+id: minecraft-paper
+name: Minecraft (Paper)
+category: minecraft
+icon: minecraft
+description:
+  pl: Najpopularniejszy serwer Minecraft Java Edition z obsługą pluginów. Java jest pobierana automatycznie.
+  en: The most popular Minecraft Java Edition server with plugin support. Java is downloaded automatically.
+
+variables:
+  - key: MC_VERSION
+    label: { pl: Wersja Minecrafta, en: Minecraft version }
+    help:
+      pl: Najnowsza stabilna wersja jest zwykle najlepszym wyborem. Wersje pre i rc to wersje testowe.
+      en: The latest stable version is usually the best choice. pre and rc versions are test builds.
+    type: select
+    source: paper-versions
+    default: latest
+  - key: RAM_MB
+    label: { pl: Pamięć RAM (MB), en: Memory (MB) }
+    help:
+      pl: Ile pamięci dostaje Java (Xmx). 2048 wystarcza na kilku graczy, 4096+ dla większych światów i pluginów.
+      en: How much memory Java gets (Xmx). 2048 is fine for a few players, 4096+ for bigger worlds and plugins.
+    type: number
+    default: 2048
+    min: 512
+    max: 262144
+  - key: PORT
+    label: { pl: Port gry, en: Game port }
+    help:
+      pl: Domyślnie 25565. Zmień, gdy masz kilka serwerów Minecraft na jednej maszynie.
+      en: Default 25565. Change it when you run several Minecraft servers on one machine.
+    type: number
+    default: 25565
+    min: 1024
+    max: 65535
+  - key: MOTD
+    label: { pl: Opis serwera (MOTD), en: Server description (MOTD) }
+    type: string
+    default: A Minecraft Server
+    maxLength: 59
+  - key: EULA
+    label:
+      pl: Akceptuję warunki Minecraft EULA (https://aka.ms/MinecraftEULA)
+      en: I accept the Minecraft EULA (https://aka.ms/MinecraftEULA)
+    help:
+      pl: Mojang wymaga akceptacji, żeby serwer wystartował. Panel nie akceptuje jej za Ciebie.
+      en: Mojang requires it before the server starts. The panel does not accept it on your behalf.
+    type: bool
+    default: false
+    consent: true
+
+runtime:
+  kind: java
+  version: auto
+
+install:
+  - download:
+      provider: paper
+      version: "{{MC_VERSION}}"
+      to: server.jar
+  - write:
+      path: eula.txt
+      content: "eula=true\n"
+      requireConsent: EULA
+  - properties:
+      path: server.properties
+      set:
+        server-port: "{{PORT}}"
+        query.port: "{{PORT}}"
+        motd: "{{MOTD}}"
+
+start:
+  command: "{{JAVA}}"
+  args:
+    - "-Xms{{RAM_MB}}M"
+    - "-Xmx{{RAM_MB}}M"
+    - "{{JVM_FLAGS...}}"
+    - "-jar"
+    - "server.jar"
+    - "nogui"
+stop:
+  command: stop
+  timeoutSec: 90
+readyRegex: 'Done \(\d+\.\d+s\)!'
+
+ports:
+  - { name: game, port: "{{PORT}}", protocol: tcp }
+
+warnCommand: "say {{message}}"
+query: { kind: minecraft-ping, port: "{{PORT}}" }

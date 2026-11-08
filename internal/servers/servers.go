@@ -44,6 +44,16 @@ type Port struct {
 	Protocol string `json:"protocol"` // tcp | udp | tcp+udp
 }
 
+// InstallState tracks template installation; a server can only start when ready.
+type InstallState string
+
+const (
+	InstallPending    InstallState = "pending"
+	InstallInstalling InstallState = "installing"
+	InstallReady      InstallState = "ready"
+	InstallFailed     InstallState = "failed"
+)
+
 // Server is a server definition.
 type Server struct {
 	ID         string            `json:"id"`
@@ -55,9 +65,13 @@ type Server struct {
 	Ports      []Port            `json:"ports"`
 	Autostart  bool              `json:"autostart"`
 	Limits     supervisor.Limits `json:"limits"`
-	CreatedBy  *int64            `json:"createdBy,omitempty"`
-	CreatedAt  string            `json:"createdAt"`
-	UpdatedAt  string            `json:"updatedAt"`
+	// InstallState is "ready" for custom servers from the start; template
+	// servers go pending -> installing -> ready|failed.
+	InstallState InstallState `json:"installState"`
+	InstallError string       `json:"installError,omitempty"`
+	CreatedBy    *int64       `json:"createdBy,omitempty"`
+	CreatedAt    string       `json:"createdAt"`
+	UpdatedAt    string       `json:"updatedAt"`
 }
 
 var (
@@ -126,8 +140,14 @@ func (s *Store) Create(ctx context.Context, srv *Server) (*Server, error) {
 	if !srv.Category.Valid() {
 		return nil, fmt.Errorf("invalid category %q", srv.Category)
 	}
-	if err := srv.Run.Validate(); err != nil {
-		return nil, fmt.Errorf("run config: %w", err)
+	if srv.InstallState == "" {
+		srv.InstallState = InstallReady
+	}
+	// The run config of a template server is only known once installed.
+	if srv.InstallState == InstallReady {
+		if err := srv.Run.Validate(); err != nil {
+			return nil, fmt.Errorf("run config: %w", err)
+		}
 	}
 	if srv.Variables == nil {
 		srv.Variables = map[string]string{}
@@ -147,18 +167,20 @@ func (s *Store) Create(ctx context.Context, srv *Server) (*Server, error) {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, fmt.Errorf("create server dir: %w", err)
 	}
-	if err := shim.SaveRunConfig(dir, &srv.Run); err != nil {
-		os.RemoveAll(dir)
-		return nil, err
+	if srv.InstallState == InstallReady {
+		if err := shim.SaveRunConfig(dir, &srv.Run); err != nil {
+			os.RemoveAll(dir)
+			return nil, err
+		}
 	}
 	runJSON, _ := json.Marshal(srv.Run)
 	varsJSON, _ := json.Marshal(srv.Variables)
 	portsJSON, _ := json.Marshal(srv.Ports)
 	_, err = s.db.ExecContext(ctx, `INSERT INTO servers
-		(id, name, template_id, category, run_config, variables, ports, autostart, memory_mb, cpu_percent, created_by, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		(id, name, template_id, category, run_config, variables, ports, autostart, memory_mb, cpu_percent, install_state, install_error, created_by, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		srv.ID, srv.Name, srv.TemplateID, string(srv.Category), string(runJSON), string(varsJSON), string(portsJSON),
-		boolInt(srv.Autostart), srv.Limits.MemoryMB, srv.Limits.CPUPercent, srv.CreatedBy, now, now)
+		boolInt(srv.Autostart), srv.Limits.MemoryMB, srv.Limits.CPUPercent, string(srv.InstallState), srv.InstallError, srv.CreatedBy, now, now)
 	if err != nil {
 		os.RemoveAll(dir)
 		return nil, fmt.Errorf("insert server: %w", err)
@@ -166,21 +188,22 @@ func (s *Store) Create(ctx context.Context, srv *Server) (*Server, error) {
 	return srv, nil
 }
 
-const columns = `id, name, template_id, category, run_config, variables, ports, autostart, memory_mb, cpu_percent, created_by, created_at, updated_at`
+const columns = `id, name, template_id, category, run_config, variables, ports, autostart, memory_mb, cpu_percent, install_state, install_error, created_by, created_at, updated_at`
 
 func scan(row interface{ Scan(...any) error }) (*Server, error) {
 	var srv Server
-	var cat, runJSON, varsJSON, portsJSON string
+	var cat, runJSON, varsJSON, portsJSON, installState string
 	var autostart int
 	var createdBy sql.NullInt64
 	if err := row.Scan(&srv.ID, &srv.Name, &srv.TemplateID, &cat, &runJSON, &varsJSON, &portsJSON,
-		&autostart, &srv.Limits.MemoryMB, &srv.Limits.CPUPercent, &createdBy, &srv.CreatedAt, &srv.UpdatedAt); err != nil {
+		&autostart, &srv.Limits.MemoryMB, &srv.Limits.CPUPercent, &installState, &srv.InstallError, &createdBy, &srv.CreatedAt, &srv.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, err
 	}
 	srv.Category = Category(cat)
+	srv.InstallState = InstallState(installState)
 	srv.Autostart = autostart == 1
 	if createdBy.Valid {
 		srv.CreatedBy = &createdBy.Int64
@@ -245,25 +268,37 @@ func (s *Store) Update(ctx context.Context, srv *Server) error {
 	if err := ValidateName(srv.Name); err != nil {
 		return err
 	}
-	if err := srv.Run.Validate(); err != nil {
-		return fmt.Errorf("run config: %w", err)
-	}
-	if err := shim.SaveRunConfig(s.Dir(srv.ID), &srv.Run); err != nil {
-		return err
+	if srv.InstallState == InstallReady {
+		if err := srv.Run.Validate(); err != nil {
+			return fmt.Errorf("run config: %w", err)
+		}
+		if err := shim.SaveRunConfig(s.Dir(srv.ID), &srv.Run); err != nil {
+			return err
+		}
 	}
 	runJSON, _ := json.Marshal(srv.Run)
 	varsJSON, _ := json.Marshal(srv.Variables)
 	portsJSON, _ := json.Marshal(srv.Ports)
 	srv.UpdatedAt = db.Now()
 	res, err := s.db.ExecContext(ctx, `UPDATE servers SET name = ?, run_config = ?, variables = ?, ports = ?, autostart = ?,
-		memory_mb = ?, cpu_percent = ?, updated_at = ? WHERE id = ?`,
+		memory_mb = ?, cpu_percent = ?, install_state = ?, install_error = ?, updated_at = ? WHERE id = ?`,
 		strings.TrimSpace(srv.Name), string(runJSON), string(varsJSON), string(portsJSON), boolInt(srv.Autostart),
-		srv.Limits.MemoryMB, srv.Limits.CPUPercent, srv.UpdatedAt, srv.ID)
+		srv.Limits.MemoryMB, srv.Limits.CPUPercent, string(srv.InstallState), srv.InstallError, srv.UpdatedAt, srv.ID)
 	if err != nil {
 		return fmt.Errorf("update server %s: %w", srv.ID, err)
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return ErrNotFound
+	}
+	return nil
+}
+
+// SetInstallState records installation progress without touching anything else.
+func (s *Store) SetInstallState(ctx context.Context, id string, state InstallState, errMsg string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE servers SET install_state = ?, install_error = ?, updated_at = ? WHERE id = ?`,
+		string(state), errMsg, db.Now(), id)
+	if err != nil {
+		return fmt.Errorf("set install state of %s: %w", id, err)
 	}
 	return nil
 }
