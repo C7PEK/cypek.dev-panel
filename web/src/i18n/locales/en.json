@@ -813,7 +813,7 @@
     "user": "User",
     "password": "Password",
     "fivemTitle": "FiveM (oxmysql)",
-    "fivemHint": "Paste this line into server.cfg before ensure oxmysql.",
+    "fivemHint": "Paste both lines into server.cfg before “ensure oxmysql”. The second raises oxmysql's warning threshold to 1.5 s: oxmysql times queries inside FXServer, so any server hitch looks like a slow query. The panel also adds it before start if it is missing.",
     "minecraftTitle": "Minecraft plugins",
     "minecraftHint": "Most plugins want host, port, database, user and password separately (above). Some accept a JDBC URL.",
     "phpMyAdminLoginHint": "In phpMyAdmin log in as {{user}} with the same password.",

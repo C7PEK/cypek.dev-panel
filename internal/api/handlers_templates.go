@@ -297,6 +297,32 @@ func (s *Server) warnCommandFor(ctx context.Context, serverID, message string) (
 	return cmd, true, nil
 }
 
+// applyConfigDefaults keeps the template's default config lines present
+// before a start; failures are logged, never block the start.
+func (s *Server) applyConfigDefaults(srv *servers.Server) {
+	if !isTemplateServer(srv) {
+		return
+	}
+	tpl, ok := s.templates.Get(srv.TemplateID)
+	if !ok {
+		return
+	}
+	changed, err := templates.ApplyConfigDefaults(s.servers.Dir(srv.ID), tpl)
+	if err != nil {
+		s.log.Warn("config defaults", "server", srv.ID, "err", err)
+	}
+	for _, f := range changed {
+		s.log.Info("config default added", "server", srv.ID, "file", f)
+	}
+}
+
+// BeforeStart is the scheduler hook with the same effect.
+func (s *Server) beforeStart(ctx context.Context, id string) {
+	if srv, err := s.servers.Get(ctx, id); err == nil {
+		s.applyConfigDefaults(srv)
+	}
+}
+
 func isTemplateServer(srv *servers.Server) bool {
 	return srv.TemplateID != "" && srv.TemplateID != customTemplateID
 }

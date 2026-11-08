@@ -261,6 +261,8 @@ func (s *Server) dbRecordFromRequest(w http.ResponseWriter, r *http.Request) (*d
 }
 
 type dbCredentials struct {
+	// FiveMConfig is ready to paste into server.cfg (connection + threshold).
+	FiveMConfig     string `json:"fivemConfig"`
 	Database        string `json:"database"`
 	User            string `json:"user"`
 	Password        string `json:"password"`
@@ -282,6 +284,7 @@ func (s *Server) credentials(rec *database.Record, password string, creds *datab
 		// oxmysql / mysql-async; 127.0.0.1 (TCP) avoids socket and DNS surprises.
 		FiveMConnString: fmt.Sprintf("set mysql_connection_string \"mysql://%s:%s@%s:%d/%s?charset=utf8mb4\"", rec.Name, password, host, port, rec.Name),
 		JDBCURL:         fmt.Sprintf("jdbc:mysql://%s:%d/%s?useSSL=false&characterEncoding=utf8", host, port, rec.Name),
+		FiveMConfig:     fmt.Sprintf("set mysql_connection_string \"mysql://%s:%s@%s:%d/%s?charset=utf8mb4\"\nset mysql_slow_query_warning 1500", rec.Name, password, host, port, rec.Name),
 	}
 }
 
@@ -447,4 +450,25 @@ func (s *Server) handleDisableRootLogin(w http.ResponseWriter, r *http.Request) 
 	}
 	s.audit.Log(r.Context(), audit.Entry{UserID: &user.ID, Username: user.Username, Action: "database.root_disabled", Target: "mariadb", IP: clientIP(r)})
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// repairDatabaseAccounts brings databases created by older versions up to
+// the current account set (e.g. the ::1 login added for "localhost").
+func (s *Server) repairDatabaseAccounts(ctx context.Context) {
+	if !s.databases.Status(ctx).Reachable {
+		return
+	}
+	recs, err := s.dbRecords.ListAll(ctx)
+	if err != nil {
+		return
+	}
+	for _, rec := range recs {
+		pw, err := s.secrets.Open(rec.SealedPassword())
+		if err != nil {
+			continue
+		}
+		if err := s.databases.EnsureAccounts(ctx, rec.Name, pw); err != nil {
+			s.log.Warn("repair database accounts", "database", rec.Name, "err", err)
+		}
+	}
 }

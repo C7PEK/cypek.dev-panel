@@ -112,6 +112,14 @@ ports:
 
 query: { kind: fivem-http, port: "{{PORT}}" }
 
+# Kept present before every start (never overrides your own value). oxmysql
+# measures query time inside FXServer, so any server hitch (slow disk, heavy
+# resource start) shows up as a "slow query" at its 200 ms default.
+configDefaults:
+  - files: ["server.cfg", "txData/*/server.cfg"]
+    key: mysql_slow_query_warning
+    line: "set mysql_slow_query_warning 1500"
+
 console:
   commands:
     - { name: status, help: { pl: Lista graczy z ID i pingiem, en: Player list with ids and ping } }

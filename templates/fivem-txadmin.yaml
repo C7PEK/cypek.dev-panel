@@ -3,8 +3,8 @@ name: FiveM z txAdmin
 category: fivem
 icon: fivem
 description:
-  pl: FXServer uruchamiany przez txAdmin, czyli własny panel FiveM na porcie 40120 (konfiguracja, zasoby, bany). UWAGA, txAdmin ma własny harmonogram restartów, który dubluje harmonogram tego panelu; włącz tylko jeden. Przy pierwszym starcie PIN logowania pojawi się w konsoli. Tylko hosty x86_64.
-  en: FXServer started through txAdmin, FiveM's own web panel on port 40120 (setup, resources, bans). NOTE, txAdmin has its own restart scheduler that duplicates this panel's; enable only one. The first-login PIN shows up in the console. x86_64 hosts only.
+  pl: FXServer uruchamiany przez txAdmin, czyli własny panel FiveM na porcie 40120 (konfiguracja, zasoby, bany). Do przepisów ESX/QBCore najpierw utwórz bazę w zakładce Bazy danych panelu i wpisz jej użytkownika, hasło i nazwę w kreatorze txAdmin (host 127.0.0.1). UWAGA, txAdmin ma własny harmonogram restartów, który dubluje harmonogram tego panelu; włącz tylko jeden. Przy pierwszym starcie PIN logowania pojawi się w konsoli. Tylko hosty x86_64.
+  en: FXServer started through txAdmin, FiveM's own web panel on port 40120 (setup, resources, bans). For ESX/QBCore recipes create a database in the panel's Databases tab first and enter its user, password and name in the txAdmin deployer (host 127.0.0.1). NOTE, txAdmin has its own restart scheduler that duplicates this panel's; enable only one. The first-login PIN shows up in the console. x86_64 hosts only.
 
 variables:
   - key: LICENSE_KEY
@@ -106,6 +106,14 @@ ports:
   - { name: txadmin, port: "{{TX_PORT}}", protocol: tcp }
 
 query: { kind: fivem-http, port: "{{PORT}}" }
+
+# Kept present before every start (never overrides your own value). oxmysql
+# measures query time inside FXServer, so any server hitch (slow disk, heavy
+# resource start) shows up as a "slow query" at its 200 ms default.
+configDefaults:
+  - files: ["server.cfg", "txData/*/server.cfg"]
+    key: mysql_slow_query_warning
+    line: "set mysql_slow_query_warning 1500"
 
 console:
   commands:

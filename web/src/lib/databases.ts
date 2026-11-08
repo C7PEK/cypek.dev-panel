@@ -47,6 +47,8 @@ export interface DatabaseCredentials {
   host: string
   port: number
   fivemConnectionString: string
+  /** Connection string plus the slow-query threshold, ready for server.cfg. */
+  fivemConfig?: string
   jdbcUrl: string
   phpMyAdminPort: number
 }

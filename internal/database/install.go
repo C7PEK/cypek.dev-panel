@@ -82,7 +82,8 @@ func Install(ctx context.Context, opts InstallOptions, out io.Writer) (err error
 	}
 
 	logf("Step 2/5: tuning and starting MariaDB")
-	tuning := TuningConfig(TotalRAM())
+	serverVersion := InstalledServerVersion()
+	tuning := TuningConfig(TotalRAM(), SupportsBindList(serverVersion))
 	if err := os.MkdirAll("/etc/mysql/mariadb.conf.d", 0o755); err != nil {
 		return err
 	}

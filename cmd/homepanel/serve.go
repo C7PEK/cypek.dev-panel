@@ -158,7 +158,7 @@ func runServe(args []string) error {
 	log.Info("panel started", "version", version, "listen", cfg.Listen, "dev", cfg.Dev, "data", cfg.DataDir, "supervisor", sup.Name())
 
 	go sessionJanitor(ctx, store, log)
-	go autostartServers(ctx, serverStore, sup, log)
+	go autostartServers(ctx, serverStore, registry, sup, log)
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -258,7 +258,7 @@ func printBanner(cfg *config.Config, setupToken string) {
 // autostartServers starts every server flagged autostart. The panel, not
 // systemd enablement, owns autostart: see Systemd.SetAutostart for why.
 // Servers already running (panel restart, not a reboot) are left alone.
-func autostartServers(ctx context.Context, store *servers.Store, sup supervisor.Supervisor, log *slog.Logger) {
+func autostartServers(ctx context.Context, store *servers.Store, registry *templates.Registry, sup supervisor.Supervisor, log *slog.Logger) {
 	list, err := store.List(ctx, nil)
 	if err != nil {
 		log.Error("autostart: list servers", "err", err)
@@ -271,6 +271,11 @@ func autostartServers(ctx context.Context, store *servers.Store, sup supervisor.
 		if srv.InstallState != servers.InstallReady {
 			log.Warn("autostart: server not installed, skipping", "server", srv.ID, "name", srv.Name)
 			continue
+		}
+		if tpl, ok := registry.Get(srv.TemplateID); ok && srv.TemplateID != "custom" {
+			if changed, err := templates.ApplyConfigDefaults(store.Dir(srv.ID), tpl); err == nil && len(changed) > 0 {
+				log.Info("autostart: config defaults added", "server", srv.ID, "files", changed)
+			}
 		}
 		if msg := servers.CommandProblem(srv.Run.Command, store.Dir(srv.ID)); msg != "" {
 			log.Warn("autostart: skipping server with a broken command", "server", srv.ID, "name", srv.Name, "problem", msg)

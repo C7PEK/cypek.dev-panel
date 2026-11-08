@@ -184,6 +184,16 @@ type Command struct {
 	Help Text   `yaml:"help,omitempty" json:"help,omitempty"`
 }
 
+// ConfigDefault is a line the panel keeps present in the server's config
+// files: before every start, each file matching Files that has no
+// uncommented line containing Key gets Line prepended. Existing settings are
+// never changed, so the user can always override the default.
+type ConfigDefault struct {
+	Files []string `yaml:"files" json:"files"` // globs relative to the server dir
+	Key   string   `yaml:"key" json:"key"`
+	Line  string   `yaml:"line" json:"line"`
+}
+
 // Console groups console-related hints.
 type Console struct {
 	Commands []Command `yaml:"commands,omitempty" json:"commands,omitempty"`
@@ -206,6 +216,8 @@ type Template struct {
 	WarnCommand string           `yaml:"warnCommand,omitempty" json:"warnCommand,omitempty"`
 	Query       *Query           `yaml:"query,omitempty" json:"query,omitempty"`
 	Console     Console          `yaml:"console,omitempty" json:"console"`
+	// ConfigDefaults are applied before every start (see ConfigDefault).
+	ConfigDefaults []ConfigDefault `yaml:"configDefaults,omitempty" json:"configDefaults,omitempty"`
 	// Builtin is true for templates embedded in the binary.
 	Builtin bool `yaml:"-" json:"builtin"`
 }
@@ -364,6 +376,16 @@ func (t *Template) Validate() error {
 	for _, p := range t.Ports {
 		if p.Protocol != "tcp" && p.Protocol != "udp" && p.Protocol != "tcp+udp" {
 			return fmt.Errorf("template %s: port %s: protocol must be tcp, udp or tcp+udp", t.ID, p.Name)
+		}
+	}
+	for i, d := range t.ConfigDefaults {
+		if d.Key == "" || d.Line == "" || strings.ContainsAny(d.Line, "\n\r") || len(d.Files) == 0 {
+			return fmt.Errorf("template %s: configDefaults %d needs files, key and a single-line line", t.ID, i+1)
+		}
+		for _, f := range d.Files {
+			if err := safeRelPath(f); err != nil {
+				return fmt.Errorf("template %s: configDefaults %d: %w", t.ID, i+1, err)
+			}
 		}
 	}
 	for _, c := range t.Console.Commands {

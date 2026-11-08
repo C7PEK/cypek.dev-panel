@@ -78,6 +78,24 @@ func (s *Store) List(ctx context.Context, serverID string) ([]*Record, error) {
 	return out, rows.Err()
 }
 
+// ListAll returns every database record.
+func (s *Store) ListAll(ctx context.Context) ([]*Record, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+recCols+` FROM server_databases ORDER BY id`)
+	if err != nil {
+		return nil, fmt.Errorf("list databases: %w", err)
+	}
+	defer rows.Close()
+	out := []*Record{}
+	for rows.Next() {
+		r, err := scanRecord(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) SetPassword(ctx context.Context, id int64, sealed string) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE server_databases SET password = ? WHERE id = ?`, sealed, id)
 	return err

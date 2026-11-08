@@ -22,7 +22,7 @@ export function CredentialsDialog({ creds, category, rotated, onClose }: Props) 
   const fivem = (
     <section>
       <h3 className="mb-1.5 text-sm font-medium">{t("database.fivemTitle")}</h3>
-      <CopyField label="server.cfg" value={creds?.fivemConnectionString ?? ""} secret multiline />
+      <CopyField label="server.cfg" value={creds?.fivemConfig || creds?.fivemConnectionString || ""} secret multiline />
       <p className="mt-1 text-xs text-muted-foreground">{t("database.fivemHint")}</p>
     </section>
   )

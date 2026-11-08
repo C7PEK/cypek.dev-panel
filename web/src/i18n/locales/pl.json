@@ -837,7 +837,7 @@
     "user": "Użytkownik",
     "password": "Hasło",
     "fivemTitle": "FiveM (oxmysql)",
-    "fivemHint": "Wklej tę linię do server.cfg przed ensure oxmysql.",
+    "fivemHint": "Wklej obie linie do server.cfg przed „ensure oxmysql”. Druga podnosi próg ostrzeżeń oxmysql do 1,5 s, bo oxmysql liczy czas po stronie serwera FiveM i każde jego chwilowe zacięcie wygląda jak wolne zapytanie. Panel i tak dopisuje ją przed startem, jeśli jej brakuje.",
     "minecraftTitle": "Pluginy Minecraft",
     "minecraftHint": "Większość pluginów potrzebuje osobno: host, port, bazy, użytkownika i hasła (powyżej). Niektóre przyjmują adres JDBC.",
     "phpMyAdminLoginHint": "W phpMyAdmin zaloguj się jako {{user}} tym samym hasłem.",

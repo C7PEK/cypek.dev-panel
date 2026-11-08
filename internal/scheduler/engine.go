@@ -24,6 +24,8 @@ type Target struct {
 	Players func(ctx context.Context, serverID string) int
 	// Backup creates a backup; may return ErrBackupsUnavailable.
 	Backup func(ctx context.Context, serverID string, logf func(string, ...any)) error
+	// BeforeStart runs before start/restart actions (config defaults).
+	BeforeStart func(ctx context.Context, serverID string)
 }
 
 // ErrBackupsUnavailable is returned by Target.Backup until backups exist.
@@ -265,6 +267,9 @@ func (e *Engine) runAction(ctx context.Context, serverID string, a Action, logf 
 		}
 		return err
 	case "start":
+		if e.target.BeforeStart != nil {
+			e.target.BeforeStart(ctx, serverID)
+		}
 		logf("Starting server")
 		err := e.sup.Start(ctx, serverID)
 		if errors.Is(err, supervisor.ErrAlreadyRunning) {
@@ -273,6 +278,9 @@ func (e *Engine) runAction(ctx context.Context, serverID string, a Action, logf 
 		}
 		return err
 	case "restart":
+		if e.target.BeforeStart != nil {
+			e.target.BeforeStart(ctx, serverID)
+		}
 		logf("Restarting server")
 		err := e.sup.Restart(ctx, serverID)
 		if errors.Is(err, supervisor.ErrNotRunning) {

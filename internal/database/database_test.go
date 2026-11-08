@@ -69,11 +69,11 @@ func TestTuningConfig(t *testing.T) {
 	gb := uint64(1024 * 1024 * 1024)
 	cases := map[uint64]string{256 * 1024 * 1024: "128M", 4 * gb: "1024M", 32 * gb: "2048M", 0: "128M"}
 	for ram, want := range cases {
-		c := TuningConfig(ram)
+		c := TuningConfig(ram, true)
 		if !strings.Contains(c, "innodb_buffer_pool_size        = "+want) {
 			t.Errorf("ram %d: pool not %s:\n%s", ram, want, c)
 		}
-		for _, must := range []string{"skip-name-resolve", "innodb_flush_log_at_trx_commit = 2", "bind-address                   = 127.0.0.1", "utf8mb4"} {
+		for _, must := range []string{"skip-name-resolve", "innodb_flush_log_at_trx_commit = 2", "bind-address                   = 127.0.0.1,::1", "utf8mb4"} {
 			if !strings.Contains(c, must) {
 				t.Errorf("missing %q", must)
 			}
@@ -100,5 +100,17 @@ func TestValidRootPassword(t *testing.T) {
 		if ValidRootPassword(bad) {
 			t.Errorf("%q accepted", bad)
 		}
+	}
+}
+
+func TestBindListSupport(t *testing.T) {
+	cases := map[string]bool{"11.8.6-MariaDB-0+deb13u1": true, "10.11.6-MariaDB": true, "10.6.18-MariaDB": false, "": false, "8.0.36": false}
+	for v, want := range cases {
+		if got := SupportsBindList(v); got != want {
+			t.Errorf("SupportsBindList(%q) = %v", v, got)
+		}
+	}
+	if !strings.Contains(TuningConfig(1<<30, false), "bind-address                   = 127.0.0.1\n") {
+		t.Error("ipv4-only bind not rendered")
 	}
 }

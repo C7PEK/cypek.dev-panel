@@ -36,12 +36,21 @@ Measured on a thin-provisioned VM disk: 200 single-row INSERTs took
 | `innodb_flush_log_at_trx_commit` | 2 | no fsync per commit; at most ~1 s of commits lost on a power cut (not on a MariaDB crash) |
 | `skip-name-resolve` | ON | no reverse DNS on every new connection |
 | `innodb_buffer_pool_size` | 25% of RAM (128 MB – 2 GB) | keeps game tables in memory |
-| `bind-address` | 127.0.0.1 | MariaDB is not reachable from the network |
+| `bind-address` | 127.0.0.1,::1 (127.0.0.1 before MariaDB 10.11) | loopback only; both families so FXServer's "localhost" (often ::1) connects instantly |
 | `performance_schema` | OFF | saves ~100 MB RAM |
 | `slow_query_log` / `long_query_time` | ON / 1 s | real slow queries still land in `/var/log/mysql/mariadb-slow.log` |
 
 Put your own overrides in `/etc/mysql/mariadb.conf.d/70-local.cnf`; the
 installer rewrites `60-homepanel.cnf` on every run.
+
+## FiveM defaults
+
+The FiveM templates keep `set mysql_slow_query_warning 1500` in `server.cfg`
+and `txData/*/server.cfg` (added before every start when missing, never
+overriding your own value). oxmysql times queries inside FXServer, so a
+server hitch looks like a slow query at its 200 ms default even when MariaDB
+answered in a millisecond. Database accounts exist for `localhost`,
+`127.0.0.1` and `::1`, so any of the three works as host.
 
 ## Per-server databases
 

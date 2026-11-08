@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 )
@@ -22,7 +23,16 @@ const TuningPath = "/etc/mysql/mariadb.conf.d/60-homepanel.cnf"
 //     (innodb_flush_log_at_trx_commit=2: at most ~1 s of commits can be lost
 //     on a power cut, never on a crash of MariaDB itself),
 //   - a buffer pool too small to keep the game's tables in memory.
-func TuningConfig(totalRAMBytes uint64) string {
+//
+// bind-address covers both loopbacks when MariaDB supports a list (10.11+):
+// FXServer's Node resolves "localhost" to ::1 first on Debian, and txAdmin's
+// deployer suggests "localhost", so IPv4-only listening means failed or
+// delayed connections.
+func TuningConfig(totalRAMBytes uint64, dualStackBind bool) string {
+	bind := "127.0.0.1"
+	if dualStackBind {
+		bind = "127.0.0.1,::1"
+	}
 	pool := totalRAMBytes / 4
 	const mb = 1024 * 1024
 	if pool < 128*mb {
@@ -35,7 +45,7 @@ func TuningConfig(totalRAMBytes uint64) string {
 	return fmt.Sprintf(`# Written by panel.cypek.dev (homepanel install-database). Re-running the
 # installer rewrites this file; put your own overrides in 70-local.cnf.
 [mysqld]
-bind-address                   = 127.0.0.1
+bind-address                   = %s
 skip-name-resolve              = ON
 character-set-server           = utf8mb4
 collation-server               = utf8mb4_unicode_ci
@@ -60,7 +70,7 @@ performance_schema             = OFF
 slow_query_log                 = ON
 slow_query_log_file            = /var/log/mysql/mariadb-slow.log
 long_query_time                = 1
-`, pool/mb)
+`, bind, pool/mb)
 }
 
 // TotalRAM reads MemTotal from /proc/meminfo (bytes); 0 when unknown.
@@ -79,4 +89,32 @@ func TotalRAM() uint64 {
 		}
 	}
 	return 0
+}
+
+// SupportsBindList reports whether a MariaDB version string ("11.8.6-MariaDB…")
+// accepts a comma-separated bind-address (MariaDB 10.11+).
+func SupportsBindList(version string) bool {
+	var major, minor int
+	if _, err := fmt.Sscanf(version, "%d.%d", &major, &minor); err != nil {
+		return false
+	}
+	return major > 10 || (major == 10 && minor >= 11)
+}
+
+// InstalledServerVersion asks the mariadbd binary for its version.
+func InstalledServerVersion() string {
+	for _, bin := range []string{"/usr/sbin/mariadbd", "/usr/sbin/mysqld"} {
+		out, err := exec.Command(bin, "--version").Output()
+		if err != nil {
+			continue
+		}
+		// "/usr/sbin/mariadbd  Ver 11.8.6-MariaDB-0+deb13u1 for debian-linux-gnu ..."
+		f := strings.Fields(string(out))
+		for i, w := range f {
+			if w == "Ver" && i+1 < len(f) {
+				return f[i+1]
+			}
+		}
+	}
+	return ""
 }

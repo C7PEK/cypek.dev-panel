@@ -85,8 +85,9 @@ func (m *Manager) Status(ctx context.Context) Status {
 }
 
 // hosts the per-server accounts may connect from: the socket (phpMyAdmin,
-// "localhost") and TCP loopback (game servers).
-var accountHosts = []string{"localhost", "127.0.0.1"}
+// "localhost") and TCP loopback over IPv4 and IPv6 (game servers; with
+// skip-name-resolve a TCP client is matched by its literal address).
+var accountHosts = []string{"localhost", "127.0.0.1", "::1"}
 
 // Create makes database name and a user of the same name with password,
 // granted all privileges on that database only.
@@ -128,6 +129,26 @@ func (m *Manager) Exists(ctx context.Context, name string) (bool, error) {
 // grantPattern escapes LIKE wildcards in a database name for GRANT.
 func grantPattern(name string) string {
 	return strings.NewReplacer("_", `\_`, "%", `\%`).Replace(name)
+}
+
+// EnsureAccounts (re)creates the per-host accounts and grants of an existing
+// database without touching its data. Used to upgrade databases created by
+// older panel versions (e.g. to add the ::1 account).
+func (m *Manager) EnsureAccounts(ctx context.Context, name, password string) error {
+	if !ValidIdent(name) || !strings.HasPrefix(name, NamePrefix) || !ValidPassword(password) {
+		return fmt.Errorf("refusing unsafe database name or password")
+	}
+	db, _, err := m.conn(ctx)
+	if err != nil {
+		return err
+	}
+	var stmts []string
+	for _, h := range accountHosts {
+		stmts = append(stmts,
+			fmt.Sprintf("CREATE USER IF NOT EXISTS '%s'@'%s' IDENTIFIED BY '%s'", name, h, password),
+			fmt.Sprintf("GRANT ALL PRIVILEGES ON `%s`.* TO '%s'@'%s'", grantPattern(name), name, h))
+	}
+	return execAll(ctx, db, stmts)
 }
 
 // SetPassword changes the password of the database's user.

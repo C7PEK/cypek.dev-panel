@@ -150,6 +150,9 @@ func New(d Deps) (http.Handler, error) {
 	if s.databases == nil {
 		s.databases = database.NewManager(database.CredsPath)
 	}
+	if s.dbRecords != nil {
+		go s.repairDatabaseAccounts(s.bgCtx)
+	}
 	if s.metrics == nil && s.servers != nil && s.sup != nil {
 		// 1200 samples at 3 s = one hour of history per server (~60 kB each).
 		s.metrics = metrics.New(storeSource{servers: s.servers, sup: s.sup, api: s}, 3*time.Second, 1200, d.Config.DataDir, d.Log)
@@ -172,6 +175,7 @@ func New(d Deps) (http.Handler, error) {
 		if s.backups != nil {
 			target.Backup = s.scheduledBackup
 		}
+		target.BeforeStart = s.beforeStart
 		s.scheduleEngine = scheduler.New(s.schedules, s.sup, target, d.Log)
 		if err := s.scheduleEngine.Start(s.bgCtx); err != nil {
 			return nil, fmt.Errorf("start scheduler: %w", err)

@@ -592,6 +592,7 @@ func (s *Server) handlePower(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusConflict, CodeNotInstalled, "The server is not installed yet. Check the installation status.")
 			return
 		}
+		s.applyConfigDefaults(srv)
 		if msg := servers.CommandProblem(srv.Run.Command, s.servers.Dir(srv.ID)); msg != "" {
 			writeFieldError(w, CodeCommandNotFound, "run.command", msg)
 			return
