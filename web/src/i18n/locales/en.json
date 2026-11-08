@@ -679,5 +679,58 @@
       "admins": "Administrators and the owner must enable 2FA before using the panel.",
       "all": "Every account must enable 2FA before using the panel."
     }
+  },
+  "history": {
+    "resourcesTitle": "Resources",
+    "range": "Time range",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "noData": "No data yet. Statistics are collected while the server runs.",
+    "now": "Now",
+    "avg": "Average",
+    "peak": "Peak",
+    "limit": "limit",
+    "cpuHint": "100% = 1 core, this machine has {{cores}}",
+    "players": "Players",
+    "eventsTitle": "Events",
+    "last24h": "Last 24 hours",
+    "countCrashes_one": "{{count}} crash",
+    "countCrashes_other": "{{count}} crashes",
+    "countErrors_one": "{{count}} error",
+    "countErrors_other": "{{count}} errors",
+    "countStarts_one": "{{count}} start",
+    "countStarts_other": "{{count}} starts",
+    "filter": {
+      "all": "All",
+      "problems": "Problems"
+    },
+    "noEvents": "No events yet. They appear after the server starts for the first time.",
+    "noProblems": "No crashes or errors. Keep it up.",
+    "showDetails_one": "Show details ({{count}} line)",
+    "showDetails_other": "Show details ({{count}} lines)",
+    "hideDetails": "Hide details",
+    "suppressed_one": "(+{{count}} similar skipped)",
+    "suppressed_other": "(+{{count}} similar skipped)",
+    "events": {
+      "start": "Server started",
+      "ready": "Server ready",
+      "readyAfter": "Server ready after {{duration}}",
+      "stop": "Server stopped",
+      "exit": "Process exited on its own",
+      "crash": "Crash (exit code {{code}})",
+      "cannotStart": "Could not start",
+      "error": "Error in the console"
+    },
+    "actions": {
+      "server_start": "Started from the panel",
+      "server_stop": "Stopped from the panel",
+      "server_restart": "Restarted from the panel",
+      "server_kill": "Force-stopped",
+      "server_reinstall": "Reinstalled",
+      "server_update": "Settings changed",
+      "backup_create": "Backup created",
+      "backup_restore": "Backup restored",
+      "schedule_run": "Schedule run manually"
+    }
   }
 }

@@ -227,6 +227,42 @@ export interface StatsSample {
   memoryBytes: number
   /** 100 = one full core. */
   cpuPercent: number
+  /** -1 when unknown. */
+  players?: number
+}
+
+export interface ServerStatsResponse {
+  history: StatsSample[]
+  summary: {
+    samples: number
+    avgCpuPercent: number
+    peakCpuPercent: number
+    avgMemoryBytes: number
+    peakMemoryBytes: number
+    peakPlayers: number
+  }
+  intervalSeconds: number
+  /** 0 = unlimited. */
+  memoryLimit: number
+  cpuCount: number
+}
+
+export type ServerEventKind = "start" | "ready" | "stop" | "exit" | "crash" | "error" | "action"
+
+export interface ServerEvent {
+  at: string
+  kind: ServerEventKind
+  message?: string
+  lines?: string[]
+  count?: number
+  exitCode?: number
+  source: "server" | "panel"
+  username?: string
+}
+
+export interface ServerEventsResponse {
+  items: ServerEvent[]
+  last24h: { crash: number; error: number; start: number }
 }
 
 export interface LiveServer {

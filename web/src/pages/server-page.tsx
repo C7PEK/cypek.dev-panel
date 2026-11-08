@@ -17,7 +17,8 @@ import { StateBadge } from "@/components/servers/state-badge"
 import { ScheduleTab } from "@/components/schedules/schedule-tab"
 import { ServerUsersTab } from "@/components/admin/server-users-tab"
 import { BackupsTab } from "@/components/backups/backups-tab"
-import { Sparkline } from "@/components/stats/sparkline"
+import { EventsPanel } from "@/components/servers/events-panel"
+import { ResourceCharts } from "@/components/stats/resource-charts"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -72,7 +73,6 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
   const s = mergeLive(raw, liveServer)
   const ready = s.installState === "ready"
   const running = s.status.state === "running" || s.status.state === "starting"
-  const history = liveServer?.history ?? []
   const ramMax = s.limits?.memoryMb > 0 ? s.limits.memoryMb * 1024 * 1024 : undefined
   // The Files tab keeps its folder while the page stays open.
   const [filesPath, setFilesPath] = useState("")
@@ -122,15 +122,6 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
           </div>
           <div className="flex flex-col items-end gap-2">
             <PowerButtons server={s} withKill />
-            {ready && history.length > 1 && (
-              <Sparkline
-                values={history.map((h) => h.memoryBytes)}
-                secondary={history.map((h) => h.cpuPercent)}
-                max={ramMax}
-                title={t("stats.sparklineTitle")}
-                className="h-10 w-56 rounded-md bg-muted/30"
-              />
-            )}
           </div>
         </header>
 
@@ -143,8 +134,10 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
             <TabsTrigger value="settings">{t("serverPage.tabs.settings")}</TabsTrigger>
             {user.role !== "user" && <TabsTrigger value="users">{t("serverPage.tabs.users")}</TabsTrigger>}
           </TabsList>
-          <TabsContent value="console" className="pt-3">
+          <TabsContent value="console" className="flex flex-col gap-5 pt-3">
             {ready ? <Console serverId={s.id} initialState={s.status.state} /> : <InstallPanel server={s} />}
+            {ready && <ResourceCharts serverId={s.id} />}
+            {ready && <EventsPanel serverId={s.id} />}
           </TabsContent>
           <TabsContent value="files" className="pt-3">
             <FileBrowser serverId={s.id} path={filesPath} onPathChange={setFilesPath} />
