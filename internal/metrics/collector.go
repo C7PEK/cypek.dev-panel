@@ -16,12 +16,16 @@ type Sample struct {
 	MemoryBytes uint64           `json:"memoryBytes"`
 	// CPUPercent is usage since the previous sample; 100 = one core.
 	CPUPercent float64 `json:"cpuPercent"`
+	// Players online; -1 when unknown (not running or no query support).
+	Players int `json:"players"`
 }
 
 // Source provides the servers to watch and their live status.
 type Source interface {
 	ServerIDs(ctx context.Context) ([]string, error)
 	Status(ctx context.Context, id string) (supervisor.Status, error)
+	// Players returns the online player count, -1 when unknown.
+	Players(ctx context.Context, id string) int
 }
 
 // Listener receives every tick (host + all server samples).
@@ -84,7 +88,10 @@ func (c *Collector) tick(ctx context.Context) {
 		if err != nil {
 			continue
 		}
-		s := Sample{At: now, State: st.State, MemoryBytes: st.MemoryBytes}
+		s := Sample{At: now, State: st.State, MemoryBytes: st.MemoryBytes, Players: -1}
+		if st.State == supervisor.StateRunning {
+			s.Players = c.src.Players(tctx, id)
+		}
 		c.mu.Lock()
 		if prev, ok := c.lastCPU[id]; ok && st.CPUNanos >= prev.nanos && now.After(prev.at) && st.Active() {
 			s.CPUPercent = float64(st.CPUNanos-prev.nanos) / float64(now.Sub(prev.at).Nanoseconds()) * 100
@@ -138,6 +145,21 @@ func (c *Collector) History(id string) []Sample {
 	defer c.mu.RUnlock()
 	return append([]Sample(nil), c.history[id]...)
 }
+
+// HistorySince returns samples newer than since (oldest first).
+func (c *Collector) HistorySince(id string, since time.Time) []Sample {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	h := c.history[id]
+	i := 0
+	for i < len(h) && h[i].At.Before(since) {
+		i++
+	}
+	return append([]Sample(nil), h[i:]...)
+}
+
+// Interval is the sampling period.
+func (c *Collector) Interval() time.Duration { return c.interval }
 
 // Subscribe registers a listener; the returned func removes it.
 func (c *Collector) Subscribe(l Listener) func() {

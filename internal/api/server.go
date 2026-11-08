@@ -140,7 +140,8 @@ func New(d Deps) (http.Handler, error) {
 		s.recoverInstalls(s.bgCtx)
 	}
 	if s.metrics == nil && s.servers != nil && s.sup != nil {
-		s.metrics = metrics.New(storeSource{servers: s.servers, sup: s.sup}, 3*time.Second, 60, d.Config.DataDir, d.Log)
+		// 1200 samples at 3 s = one hour of history per server (~60 kB each).
+		s.metrics = metrics.New(storeSource{servers: s.servers, sup: s.sup, api: s}, 3*time.Second, 1200, d.Config.DataDir, d.Log)
 		go s.metrics.Run(s.bgCtx)
 	}
 	if s.schedules != nil && s.sup != nil {
@@ -224,6 +225,7 @@ func New(d Deps) (http.Handler, error) {
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/console", s.handleConsole)
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/console/hints", s.handleConsoleHints)
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/stats", s.handleServerStats)
+				sr.With(s.withServer(auth.PermConsoleRead)).Get("/events", s.handleServerEvents)
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/install", s.handleInstallStatus)
 				sr.With(s.withServer(auth.PermSettings)).Post("/install", s.handleReinstall)
 

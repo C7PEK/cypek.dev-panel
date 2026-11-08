@@ -21,6 +21,9 @@ type RunConfig struct {
 	// ReadyRegex marks the switch from "starting" to "running". Empty means
 	// the server counts as running as soon as the process starts.
 	ReadyRegex string `json:"readyRegex,omitempty"`
+	// ErrorRegex marks console lines recorded as error events; empty uses
+	// DefaultErrorRegex.
+	ErrorRegex string `json:"errorRegex,omitempty"`
 	// Cols/Rows size the PTY; zero picks defaults.
 	Cols uint16 `json:"cols,omitempty"`
 	Rows uint16 `json:"rows,omitempty"`

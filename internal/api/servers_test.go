@@ -518,3 +518,48 @@ func TestSchedulesAPI(t *testing.T) {
 		t.Errorf("runs after delete: %d", resp.StatusCode)
 	}
 }
+
+func TestServerEventsAndStats(t *testing.T) {
+	e := newEnv(t)
+	e.completeSetup("owner", "password123")
+	_, body := e.do(http.MethodPost, "/api/v1/servers", fakeServerBody("Ev"))
+	id := body["id"].(string)
+	resp, _ := e.do(http.MethodPost, "/api/v1/servers/"+id+"/power", map[string]string{"action": "start"})
+	if resp.StatusCode != 200 {
+		t.Fatalf("start: %d", resp.StatusCode)
+	}
+	e.waitServerState(id, "running")
+	resp, _ = e.do(http.MethodPost, "/api/v1/servers/"+id+"/power", map[string]string{"action": "stop"})
+	if resp.StatusCode != 200 {
+		t.Fatalf("stop: %d", resp.StatusCode)
+	}
+	e.waitServerState(id, "stopped")
+	time.Sleep(200 * time.Millisecond)
+
+	resp, body = e.do(http.MethodGet, "/api/v1/servers/"+id+"/events", nil)
+	if resp.StatusCode != 200 {
+		t.Fatalf("events: %d %v", resp.StatusCode, body)
+	}
+	var kinds, sources []string
+	for _, it := range body["items"].([]any) {
+		m := it.(map[string]any)
+		kinds = append(kinds, m["kind"].(string))
+		sources = append(sources, m["source"].(string))
+	}
+	joined := strings.Join(kinds, ",")
+	for _, want := range []string{"start", "ready", "stop", "action"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("events missing %s: %v", want, kinds)
+		}
+	}
+	if !strings.Contains(strings.Join(sources, ","), "panel") {
+		t.Errorf("no panel actions merged: %v", sources)
+	}
+	if body["last24h"].(map[string]any)["start"].(float64) < 1 {
+		t.Errorf("last24h = %v", body["last24h"])
+	}
+	resp, body = e.do(http.MethodGet, "/api/v1/servers/"+id+"/stats?minutes=5", nil)
+	if resp.StatusCode != 200 || body["summary"] == nil || body["intervalSeconds"].(float64) != 3 {
+		t.Errorf("stats: %d %v", resp.StatusCode, body)
+	}
+}

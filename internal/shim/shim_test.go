@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -358,5 +359,80 @@ func TestRunConfigValidation(t *testing.T) {
 	}
 	if _, err := New(&RunConfig{Command: "x", ReadyRegex: "("}, Options{}); err == nil {
 		t.Error("bad regex accepted")
+	}
+}
+
+func TestEventLogErrorsAndLifecycle(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(dir, MetaDir), 0o750)
+	l := newEventLog(dir, "")
+	l.record(Event{Kind: "start", Message: "Process started"})
+	l.output([]byte("[12:00:00 INFO]: Loading\n\x1b[31m[12:00:01 ERROR]: Could not load plugin\x1b[0m\n"))
+	l.output([]byte("java.lang.NullPointerException: x\n\tat a.b.C(C.java:1)\n"))
+	time.Sleep(errorBurstWindow + 700*time.Millisecond)
+	l.output([]byte("[12:00:05 INFO]: fine\nTraceback (most recent call last):\n  File \"bot.py\", line 1\n"))
+	code := 3
+	l.record(Event{Kind: "crash", Message: "Crashed", ExitCode: &code})
+	l.close()
+
+	evs, err := ReadEvents(dir, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kinds := []string{}
+	for _, e := range evs {
+		kinds = append(kinds, e.Kind)
+	}
+	if strings.Join(kinds, ",") != "crash,error,error,start" {
+		t.Fatalf("kinds = %v", kinds)
+	}
+	first := evs[2] // oldest error
+	if first.Message != "[12:00:01 ERROR]: Could not load plugin" || len(first.Lines) != 3 {
+		t.Errorf("error event = %+v", first)
+	}
+	if !strings.HasPrefix(evs[1].Message, "Traceback") {
+		t.Errorf("python error = %+v", evs[1])
+	}
+	if evs[0].ExitCode == nil || *evs[0].ExitCode != 3 {
+		t.Errorf("crash = %+v", evs[0])
+	}
+	if got, _ := ReadEvents(dir, 2); len(got) != 2 || got[0].Kind != "crash" {
+		t.Errorf("limit = %+v", got)
+	}
+}
+
+func TestEventLogRateLimit(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(dir, MetaDir), 0o750)
+	l := newEventLog(dir, `ERR`)
+	for i := 0; i < errorEventsPerMin+15; i++ {
+		l.mu.Lock()
+		l.line("ERR " + strconv.Itoa(i))
+		l.flushLocked() // simulate quiet gaps between errors
+		l.mu.Unlock()
+	}
+	l.close()
+	evs, _ := ReadEvents(dir, 1000)
+	if len(evs) != errorEventsPerMin {
+		t.Errorf("events = %d, want %d", len(evs), errorEventsPerMin)
+	}
+}
+
+func TestShimRecordsLifecycleEvents(t *testing.T) {
+	h := start(t, RunConfig{Stop: StopConfig{Command: "stop", TimeoutSec: 5}, ReadyRegex: `Done`}, "")
+	c := h.dial()
+	defer c.Close()
+	waitFor(t, c, "ready", func(f Frame, out string) bool { return strings.Contains(out, "Done") })
+	_ = c.Send(Frame{Type: TypeStop})
+	waitFor(t, c, "stopped", func(f Frame, _ string) bool { return f.Type == TypeState && f.State == StateStopped })
+	h.exitCode()
+	time.Sleep(100 * time.Millisecond)
+	evs, _ := ReadEvents(h.dir, 10)
+	var kinds []string
+	for _, e := range evs {
+		kinds = append(kinds, e.Kind)
+	}
+	if strings.Join(kinds, ",") != "stop,ready,start" {
+		t.Errorf("kinds = %v", kinds)
 	}
 }

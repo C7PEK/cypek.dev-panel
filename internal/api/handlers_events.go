@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"sort"
+	"strconv"
 	"time"
 
 	"github.com/coder/websocket"
@@ -11,6 +13,7 @@ import (
 	"github.com/cypek019/cypek.dev---panel/internal/metrics"
 	"github.com/cypek019/cypek.dev---panel/internal/query"
 	"github.com/cypek019/cypek.dev---panel/internal/servers"
+	"github.com/cypek019/cypek.dev---panel/internal/shim"
 	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
 )
 
@@ -18,6 +21,21 @@ import (
 type storeSource struct {
 	servers *servers.Store
 	sup     supervisor.Supervisor
+	api     *Server
+}
+
+func (s storeSource) Players(ctx context.Context, id string) int {
+	if s.api == nil {
+		return -1
+	}
+	srv, err := s.servers.Get(ctx, id)
+	if err != nil {
+		return -1
+	}
+	if p := s.api.playersOf(ctx, srv); p != nil {
+		return p.Online
+	}
+	return -1
 }
 
 func (s storeSource) ServerIDs(ctx context.Context) ([]string, error) {
@@ -66,13 +84,113 @@ func (s *Server) handleSystemStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.metrics.Host())
 }
 
+// handleServerStats returns the sample history for ?minutes=N (default 15,
+// max 60) plus a summary of the window.
 func (s *Server) handleServerStats(w http.ResponseWriter, r *http.Request) {
 	srv := serverFromContext(r.Context())
-	hist := s.metrics.History(srv.ID)
+	minutes, _ := strconv.Atoi(r.URL.Query().Get("minutes"))
+	if minutes <= 0 {
+		minutes = 15
+	}
+	if minutes > 60 {
+		minutes = 60
+	}
+	hist := s.metrics.HistorySince(srv.ID, time.Now().Add(-time.Duration(minutes)*time.Minute))
 	if hist == nil {
 		hist = []metrics.Sample{}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"history": hist})
+	var sum statsSummary
+	for _, h := range hist {
+		if h.State != supervisor.StateRunning && h.State != supervisor.StateStarting {
+			continue
+		}
+		sum.Samples++
+		sum.AvgCPU += h.CPUPercent
+		sum.AvgMemory += float64(h.MemoryBytes)
+		if h.CPUPercent > sum.PeakCPU {
+			sum.PeakCPU = h.CPUPercent
+		}
+		if h.MemoryBytes > sum.PeakMemory {
+			sum.PeakMemory = h.MemoryBytes
+		}
+		if h.Players > sum.PeakPlayers {
+			sum.PeakPlayers = h.Players
+		}
+	}
+	if sum.Samples > 0 {
+		sum.AvgCPU /= float64(sum.Samples)
+		sum.AvgMemory /= float64(sum.Samples)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"history":         hist,
+		"summary":         sum,
+		"intervalSeconds": int(s.metrics.Interval().Seconds()),
+		"memoryLimit":     uint64(srv.Limits.MemoryMB) << 20,
+		"cpuCount":        s.metrics.Host().CPUCount,
+	})
+}
+
+type statsSummary struct {
+	Samples     int     `json:"samples"`
+	AvgCPU      float64 `json:"avgCpuPercent"`
+	PeakCPU     float64 `json:"peakCpuPercent"`
+	AvgMemory   float64 `json:"avgMemoryBytes"`
+	PeakMemory  uint64  `json:"peakMemoryBytes"`
+	PeakPlayers int     `json:"peakPlayers"`
+}
+
+// serverEvent is a merged history entry: shim lifecycle/error events plus
+// panel actions (who pressed stop, which schedule restarted it).
+type serverEvent struct {
+	shim.Event
+	Source   string `json:"source"` // server | panel
+	Username string `json:"username,omitempty"`
+}
+
+// handleServerEvents returns the newest events (?limit, default 100, max 500)
+// and 24h counters for the summary chips.
+func (s *Server) handleServerEvents(w http.ResponseWriter, r *http.Request) {
+	srv := serverFromContext(r.Context())
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	evs, err := shim.ReadEvents(s.servers.Dir(srv.ID), limit)
+	if err != nil {
+		s.internalError(w, r, err)
+		return
+	}
+	out := make([]serverEvent, 0, len(evs)+20)
+	for _, e := range evs {
+		out = append(out, serverEvent{Event: e, Source: "server"})
+	}
+	actions, err := s.audit.ForTarget(r.Context(), srv.ID, limit)
+	if err == nil {
+		for _, a := range actions {
+			kind := ""
+			switch a.Action {
+			case "server.start", "server.stop", "server.restart", "server.kill", "server.reinstall", "backup.create", "backup.restore", "schedule.run", "server.update":
+				kind = "action"
+			default:
+				continue
+			}
+			out = append(out, serverEvent{Event: shim.Event{At: a.CreatedAt, Kind: kind, Message: a.Action}, Source: "panel", Username: a.Username})
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].At > out[j].At })
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	since := time.Now().Add(-24 * time.Hour).UTC().Format(time.RFC3339Nano)
+	counts := map[string]int{"crash": 0, "error": 0, "start": 0}
+	for _, e := range evs {
+		if e.At >= since {
+			if _, ok := counts[e.Kind]; ok {
+				counts[e.Kind]++
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": out, "last24h": counts})
 }
 
 // handleEvents streams live status, resource samples and player counts for
@@ -129,7 +247,8 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 				es.Players = s.playersOf(ctx, srv)
 			}
 			if typ == "snapshot" {
-				es.History = s.metrics.History(srv.ID)
+				// Dashboard sparklines need the last 3 minutes only.
+				es.History = s.metrics.HistorySince(srv.ID, time.Now().Add(-3*time.Minute))
 			}
 			msg.Servers = append(msg.Servers, es)
 		}

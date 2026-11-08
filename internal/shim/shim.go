@@ -40,6 +40,7 @@ type Shim struct {
 
 	ring   *lineRing
 	logs   *logWriter
+	events *eventLog
 	ready  *regexp.Regexp
 	readyB []byte // tail kept for matching readyRegex across chunks
 
@@ -114,6 +115,8 @@ func (s *Shim) Run(ctx context.Context) (int, error) {
 	}
 	s.logs = logs
 	defer logs.Close()
+	s.events = newEventLog(s.opts.ServerDir, s.cfg.ErrorRegex)
+	defer s.events.close()
 
 	ln, err := s.listen()
 	if err != nil {
@@ -123,6 +126,8 @@ func (s *Shim) Run(ctx context.Context) (int, error) {
 	defer os.Remove(s.opts.SocketPath)
 
 	if err := s.startProcess(); err != nil {
+		code := ExitConfigError
+		s.events.record(Event{Kind: "crash", Message: "Could not start: " + err.Error(), ExitCode: &code})
 		_ = writeExitInfo(s.opts.ServerDir, ExitInfo{
 			ExitCode: ExitConfigError,
 			ExitedAt: time.Now().UTC().Format(time.RFC3339Nano),
@@ -199,6 +204,9 @@ func (s *Shim) startProcess() error {
 	s.mu.Unlock()
 	_ = os.WriteFile(filepath.Join(s.opts.ServerDir, MetaDir, PIDFile), []byte(strconv.Itoa(os.Getpid())), 0o600)
 	s.log.Info("process started", "pid", cmd.Process.Pid, "command", s.cfg.Command)
+	if s.events != nil {
+		s.events.record(Event{Kind: "start", Message: fmt.Sprintf("Process started (PID %d)", cmd.Process.Pid)})
+	}
 	return nil
 }
 
@@ -237,6 +245,7 @@ func (s *Shim) readLoop() {
 			chunk := buf[:n]
 			_, _ = s.logs.Write(chunk)
 			s.ring.Write(chunk)
+			s.events.output(chunk)
 			s.checkReady(chunk)
 			s.broadcast(Frame{Type: TypeOutput, Data: string(chunk)})
 		}
@@ -271,6 +280,7 @@ func (s *Shim) checkReady(chunk []byte) {
 	s.mu.Unlock()
 	if matched {
 		s.log.Info("server ready")
+		s.events.record(Event{Kind: "ready", Message: fmt.Sprintf("Ready after %s", time.Since(s.startedAt).Round(time.Second))})
 		s.broadcast(Frame{Type: TypeState, State: StateRunning})
 	}
 }
@@ -431,6 +441,14 @@ func (s *Shim) finish(code int) bool {
 		Requested: requested,
 	})
 	s.log.Info("process exited", "exitCode", code, "requested", requested)
+	switch {
+	case requested:
+		s.events.record(Event{Kind: "stop", Message: "Stopped", ExitCode: &code})
+	case code == 0:
+		s.events.record(Event{Kind: "exit", Message: "The process exited on its own", ExitCode: &code})
+	default:
+		s.events.record(Event{Kind: "crash", Message: fmt.Sprintf("Crashed with exit code %d", code), ExitCode: &code})
+	}
 	s.broadcast(Frame{Type: TypeState, State: StateStopped, ExitCode: &code})
 	s.mu.Lock()
 	for c := range s.clients {

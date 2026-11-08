@@ -64,8 +64,16 @@ func (l *Logger) Log(ctx context.Context, e Entry) {
 
 // Recent returns the newest limit records.
 func (l *Logger) Recent(ctx context.Context, limit int) ([]Record, error) {
-	rows, err := l.db.QueryContext(ctx,
-		`SELECT id, created_at, user_id, username, action, target, ip, details FROM audit_log ORDER BY id DESC LIMIT ?`, limit)
+	return l.query(ctx, `SELECT id, created_at, user_id, username, action, target, ip, details FROM audit_log ORDER BY id DESC LIMIT ?`, limit)
+}
+
+// ForTarget returns the newest records about one target (e.g. a server id).
+func (l *Logger) ForTarget(ctx context.Context, target string, limit int) ([]Record, error) {
+	return l.query(ctx, `SELECT id, created_at, user_id, username, action, target, ip, details FROM audit_log WHERE target = ? ORDER BY id DESC LIMIT ?`, target, limit)
+}
+
+func (l *Logger) query(ctx context.Context, q string, args ...any) ([]Record, error) {
+	rows, err := l.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query audit log: %w", err)
 	}
