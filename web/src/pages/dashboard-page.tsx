@@ -1,10 +1,9 @@
 import { useQuery } from "@tanstack/react-query"
 import { PlusIcon, ServerIcon } from "lucide-react"
-import { useState } from "react"
 import { useTranslation } from "react-i18next"
+import { Link } from "react-router"
 
 import { AppShell } from "@/components/layout/app-shell"
-import { CreateServerDialog } from "@/components/servers/create-server-dialog"
 import { ServerTile } from "@/components/servers/server-tile"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -18,14 +17,15 @@ export function DashboardPage({ user }: { user: User }) {
   const { t } = useTranslation()
   const info = useQuery({ queryKey: ["system", "info"], queryFn: () => api<SystemInfo>("GET", "/system/info") })
   const servers = useServers()
-  const [createOpen, setCreateOpen] = useState(false)
   const canCreate = user.role !== "user"
 
   const createButton = (className?: string) =>
     canCreate ? (
-      <Button className={className} onClick={() => setCreateOpen(true)}>
-        <PlusIcon />
-        {t("dashboard.createServer")}
+      <Button className={className} asChild>
+        <Link to="/servers/new">
+          <PlusIcon />
+          {t("dashboard.createServer")}
+        </Link>
       </Button>
     ) : null
 
@@ -111,8 +111,6 @@ export function DashboardPage({ user }: { user: User }) {
           </Card>
         )}
       </div>
-
-      {canCreate && <CreateServerDialog open={createOpen} onOpenChange={setCreateOpen} />}
     </AppShell>
   )
 }

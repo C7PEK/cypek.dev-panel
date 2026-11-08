@@ -1,7 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { api } from "@/lib/api"
-import type { CreateServerInput, PowerAction, Server, ServerState, ServerStatus, UpdateServerInput } from "@/lib/types"
+import type {
+  CreateServerInput,
+  InstallJob,
+  InstallState,
+  PowerAction,
+  Server,
+  ServerState,
+  ServerStatus,
+  UpdateServerInput,
+} from "@/lib/types"
 
 export const serversKey = ["servers"] as const
 export const serverKey = (id: string) => ["servers", id] as const
@@ -73,10 +82,13 @@ export function usePower(id: string) {
   })
 }
 
-/** Which actions make sense for a state. */
-export function canDo(state: ServerState) {
+/** Which actions make sense for a state. A server that is not installed yet can only be deleted. */
+export function canDo(state: ServerState, installState: InstallState = "ready") {
   const off = state === "stopped" || state === "crashed"
   const on = state === "running" || state === "starting"
+  if (installState !== "ready") {
+    return { start: false, stop: false, restart: false, kill: false, delete: installState === "failed" || installState === "pending" }
+  }
   return {
     start: off || state === "unknown",
     stop: on,
@@ -84,4 +96,30 @@ export function canDo(state: ServerState) {
     kill: on || state === "stopping" || state === "unknown",
     delete: off,
   }
+}
+
+export const isInstalling = (s: Pick<Server, "installState">) => s.installState === "pending" || s.installState === "installing"
+
+export const installJobKey = (id: string) => ["servers", id, "install"] as const
+
+/** Polls the installation job every second while enabled. */
+export function useInstallJob(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: installJobKey(id),
+    queryFn: () => api<InstallJob>("GET", `${serverPath(id)}/install`),
+    enabled,
+    refetchInterval: enabled ? 1000 : false,
+    retry: false,
+  })
+}
+
+export function useReinstall(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api<void>("POST", `${serverPath(id)}/install`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: serverKey(id) })
+      void qc.invalidateQueries({ queryKey: installJobKey(id) })
+    },
+  })
 }

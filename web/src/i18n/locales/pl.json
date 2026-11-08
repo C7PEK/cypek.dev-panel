@@ -97,12 +97,16 @@
     "not_running": "Serwer nie działa.",
     "invalid_action": "Nieznana akcja.",
     "supervisor_error": "Nie udało się sterować serwerem. Sprawdź logi panelu.",
-    "console_unavailable": "Konsola jest teraz niedostępna."
+    "console_unavailable": "Konsola jest teraz niedostępna.",
+    "not_installed": "Serwer nie jest jeszcze zainstalowany. Najpierw dokończ instalację.",
+    "installing": "Trwa instalacja. Poczekaj, aż się zakończy.",
+    "upstream_error": "Nie udało się połączyć z serwerem pobierania. Sprawdź internet i spróbuj ponownie.",
+    "template_error": "Nie udało się zastosować szablonu serwera."
   },
   "servers": {
     "create": "Utwórz serwer",
     "createTitle": "Nowy serwer (własna komenda)",
-    "createDescription": "Szablony gier pojawią się w następnej aktualizacji. Na razie wskaż dowolny program, a panel będzie go pilnował jak serwera gry.",
+    "createDescription": "Wskaż dowolny program, a panel będzie go pilnował jak serwera gry. Bez powłoki: jeden argument na linię.",
     "name": "Nazwa",
     "namePlaceholder": "np. Mój serwer FiveM",
     "command": "Komenda",
@@ -229,6 +233,67 @@
       "reconnecting": "Ponowne łączenie…",
       "noPermission": "Tylko podgląd",
       "notRunning": "Serwer zatrzymany"
+    }
+  },
+  "templates": {
+    "title": "Nowy serwer",
+    "step1": "Wybierz grę",
+    "step2": "Ustawienia",
+    "step3": "Podsumowanie",
+    "pickHelp": "Wybierz, co chcesz uruchomić. Panel pobierze wszystko, czego serwer potrzebuje.",
+    "loadError": "Nie udało się wczytać listy gier.",
+    "customTitle": "Własna komenda",
+    "customDescription": "Wskaż dowolny program, a panel będzie go pilnował jak serwera gry. Dla zaawansowanych.",
+    "settingsHelp": "Wszystko możesz później zmienić w ustawieniach serwera.",
+    "advanced": "Zaawansowane: limity i autostart",
+    "memoryLimitHelp": "0 = bez limitu. To twardy limit dla całego procesu serwera, niezależny od pamięci przydzielonej Javie.",
+    "back": "Wstecz",
+    "next": "Dalej",
+    "create": "Utwórz i zainstaluj",
+    "summaryTitle": "Prawie gotowe",
+    "summaryHelp": "Sprawdź ustawienia. Instalacja zacznie się zaraz po potwierdzeniu.",
+    "template": "Gra",
+    "portsTitle": "Porty do otwarcia na routerze",
+    "noPorts": "Ten serwer nie potrzebuje otwartych portów.",
+    "portsHelp": "Przekieruj te porty na tę maszynę, żeby znajomi spoza Twojej sieci mogli dołączyć. W sieci lokalnej działa bez przekierowania.",
+    "installNote": "Instalacja pobiera pliki serwera (i Javę, jeśli trzeba). Może potrwać kilka minut, zależnie od łącza.",
+    "creating": "Serwer utworzony, instalacja ruszyła.",
+    "consentRequired": "Musisz to zaakceptować, żeby kontynuować.",
+    "consentAccepted": "Zaakceptowane przy tworzeniu serwera.",
+    "loadingOptions": "Wczytywanie wersji…",
+    "optionsError": "Nie udało się pobrać listy wersji.",
+    "choose": "Wybierz…",
+    "showPrereleases": "Pokaż wersje testowe (pre, rc)",
+    "range": "Od {{min}} do {{max}}.",
+    "min": "Minimum to {{min}}.",
+    "max": "Maksimum to {{max}}.",
+    "yes": "Tak",
+    "no": "Nie",
+    "settingsTitle": "Ustawienia serwera",
+    "settingsDescription": "Zmiany wersji i ustawień Javy zadziałają po następnym uruchomieniu. Zmiana portu od razu aktualizuje konfigurację serwera.",
+    "reinstallTitle": "Zainstaluj ponownie",
+    "reinstallDescription": "Pobiera pliki serwera jeszcze raz (i aktualizuje do najnowszego builda wybranej wersji). Świat, pluginy i konfiguracja zostają. Serwer musi być zatrzymany.",
+    "reinstall": "Uruchom instalację ponownie",
+    "reinstallStarted": "Instalacja ruszyła."
+  },
+  "install": {
+    "title": "Instalowanie",
+    "failedTitle": "Instalacja nie powiodła się",
+    "failedGeneric": "Coś poszło nie tak podczas instalacji. Sprawdź log poniżej i spróbuj ponownie.",
+    "step": "Krok {{step}}/{{steps}}: {{title}}",
+    "starting": "Rozpoczynanie instalacji…",
+    "retry": "Uruchom instalację ponownie",
+    "waitingLog": "Czekam na pierwszą linię logu…",
+    "noLog": "Brak logu instalacji (panel został zrestartowany).",
+    "badge": {
+      "pending": "Oczekuje",
+      "installing": "Instalowanie",
+      "failed": "Błąd instalacji"
+    },
+    "tile": {
+      "pending": "Czeka na instalację…",
+      "installing": "Instalowanie…",
+      "failed": "Instalacja nie powiodła się"
     }
   }
 }

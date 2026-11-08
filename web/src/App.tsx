@@ -5,6 +5,7 @@ import { useMe, useSetupStatus } from "@/lib/auth"
 import type { User } from "@/lib/types"
 import { DashboardPage } from "@/pages/dashboard-page"
 import { LoginPage } from "@/pages/login-page"
+import { NewServerPage } from "@/pages/new-server-page"
 import { ServerPage } from "@/pages/server-page"
 import { SetupPage } from "@/pages/setup-page"
 
@@ -37,6 +38,7 @@ function AuthedRoutes({ user }: { user: User }) {
   return (
     <Routes>
       <Route path="/" element={<DashboardPage user={user} />} />
+      <Route path="/servers/new" element={user.role === "user" ? <Navigate to="/" replace /> : <NewServerPage user={user} />} />
       <Route path="/servers/:id" element={<ServerPage user={user} />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

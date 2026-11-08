@@ -67,16 +67,22 @@ export interface Limits {
   cpuPercent: number
 }
 
+export type InstallState = "pending" | "installing" | "ready" | "failed"
+
 export interface Server {
   id: string
   name: string
+  /** "custom" for command servers, otherwise a template id. */
   templateId: string
   category: ServerCategory
   run: RunConfig
+  /** User variables only; secrets are masked as "••••••••". */
   variables: Record<string, string>
   ports: Port[]
   autostart: boolean
   limits: Limits
+  installState: InstallState
+  installError?: string
   createdBy?: number
   createdAt: string
   updatedAt: string
@@ -85,13 +91,80 @@ export interface Server {
 
 export interface CreateServerInput {
   name: string
-  run: RunConfig
+  /** Custom servers. */
+  run?: RunConfig
+  /** Template servers: all values as strings ("true"/"false", "2048"). */
+  templateId?: string
+  variables?: Record<string, string>
   limits?: Limits
   autostart?: boolean
   ports?: Port[]
 }
 
-export type UpdateServerInput = Partial<Pick<Server, "name" | "run" | "limits" | "autostart" | "ports">>
+export type UpdateServerInput = Partial<Pick<Server, "name" | "run" | "limits" | "autostart" | "ports" | "variables">>
+
+// --- Templates -----------------------------------------------------------------
+
+export type LocalizedText = Record<string, string>
+
+export type VariableType = "string" | "number" | "bool" | "select" | "secret"
+
+export interface TemplateVariable {
+  key: string
+  label: LocalizedText
+  help?: LocalizedText
+  type: VariableType
+  default?: string
+  options?: string[]
+  source?: string
+  min?: number
+  max?: number
+  maxLength?: number
+  required?: boolean
+  /** A bool the user must switch on (EULA, license terms). */
+  consent?: boolean
+}
+
+export interface TemplatePort {
+  name: string
+  /** May contain a placeholder such as "{{PORT}}". */
+  port: string
+  protocol: string
+}
+
+export interface Template {
+  id: string
+  name: string
+  category: ServerCategory
+  icon?: string
+  description?: LocalizedText
+  variables: TemplateVariable[]
+  runtime: { kind: string; version?: string }
+  ports?: TemplatePort[]
+  builtin: boolean
+}
+
+export interface SourceOption {
+  value: string
+  label: string
+  prerelease?: boolean
+}
+
+export type InstallJobState = "running" | "done" | "failed"
+
+export interface InstallJob {
+  serverId: string
+  state: InstallJobState
+  step: number
+  steps: number
+  stepTitle: string
+  /** 0-100, -1 when unknown. */
+  percent: number
+  lines: string[]
+  error?: string
+  startedAt: string
+  finishedAt?: string
+}
 
 export type PowerAction = "start" | "stop" | "restart" | "kill"
 

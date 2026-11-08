@@ -95,12 +95,16 @@
     "not_running": "The server is not running.",
     "invalid_action": "Unknown action.",
     "supervisor_error": "Could not control the server. Check the panel logs.",
-    "console_unavailable": "The console is not available right now."
+    "console_unavailable": "The console is not available right now.",
+    "not_installed": "The server is not installed yet. Finish the installation first.",
+    "installing": "Installation is running. Wait until it finishes.",
+    "upstream_error": "Could not reach the download server. Check the internet connection and try again.",
+    "template_error": "The server template could not be applied."
   },
   "servers": {
     "create": "Create a server",
     "createTitle": "New server (custom command)",
-    "createDescription": "Game templates arrive in the next update. For now, point the panel at any program and it will supervise it like a game server.",
+    "createDescription": "Point the panel at any program and it will supervise it like a game server. No shell: one argument per line.",
     "name": "Name",
     "namePlaceholder": "e.g. My FiveM server",
     "command": "Command",
@@ -227,6 +231,67 @@
       "reconnecting": "Reconnecting…",
       "noPermission": "View only",
       "notRunning": "Server stopped"
+    }
+  },
+  "templates": {
+    "title": "New server",
+    "step1": "Choose a game",
+    "step2": "Settings",
+    "step3": "Summary",
+    "pickHelp": "Pick what you want to run. The panel downloads everything the server needs.",
+    "loadError": "Could not load the list of games.",
+    "customTitle": "Custom command",
+    "customDescription": "Point the panel at any program and it will supervise it like a game server. For advanced users.",
+    "settingsHelp": "You can change all of this later in the server settings.",
+    "advanced": "Advanced: limits and autostart",
+    "memoryLimitHelp": "0 = no limit. This is a hard cap for the whole server process, separate from the memory given to Java.",
+    "back": "Back",
+    "next": "Next",
+    "create": "Create and install",
+    "summaryTitle": "Almost done",
+    "summaryHelp": "Check the settings. Installation starts right after you confirm.",
+    "template": "Game",
+    "portsTitle": "Ports to open on your router",
+    "noPorts": "This server needs no open ports.",
+    "portsHelp": "Forward these ports to this machine so friends outside your network can join. On the LAN it works without forwarding.",
+    "installNote": "Installation downloads the server files (and Java if needed). It can take a few minutes depending on your connection.",
+    "creating": "Server created, installation started.",
+    "consentRequired": "You have to accept this to continue.",
+    "consentAccepted": "Accepted when the server was created.",
+    "loadingOptions": "Loading versions…",
+    "optionsError": "Could not fetch the version list.",
+    "choose": "Choose…",
+    "showPrereleases": "Show test versions (pre, rc)",
+    "range": "Between {{min}} and {{max}}.",
+    "min": "Must be at least {{min}}.",
+    "max": "Must be at most {{max}}.",
+    "yes": "Yes",
+    "no": "No",
+    "settingsTitle": "Server settings",
+    "settingsDescription": "Changes to version or Java settings apply after the next start. Changing the port updates the server config right away.",
+    "reinstallTitle": "Reinstall",
+    "reinstallDescription": "Downloads the server files again (and updates to the newest build of the chosen version). Your world, plugins and configuration stay in place. The server must be stopped.",
+    "reinstall": "Run installation again",
+    "reinstallStarted": "Installation started."
+  },
+  "install": {
+    "title": "Installing",
+    "failedTitle": "Installation failed",
+    "failedGeneric": "Something went wrong during installation. Check the log below and try again.",
+    "step": "Step {{step}}/{{steps}}: {{title}}",
+    "starting": "Starting the installation…",
+    "retry": "Run installation again",
+    "waitingLog": "Waiting for the first log line…",
+    "noLog": "No installation log available (the panel was restarted).",
+    "badge": {
+      "pending": "Waiting",
+      "installing": "Installing",
+      "failed": "Install failed"
+    },
+    "tile": {
+      "pending": "Waiting to install…",
+      "installing": "Installing…",
+      "failed": "Installation failed"
     }
   }
 }

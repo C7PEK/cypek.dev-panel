@@ -4,6 +4,7 @@ import { Link } from "react-router"
 
 import { CategoryIcon } from "@/components/servers/category-icon"
 import { PowerButtons } from "@/components/servers/power-buttons"
+import { InstallBadge } from "@/components/servers/install-badge"
 import { StateBadge } from "@/components/servers/state-badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { formatBytes } from "@/lib/format"
@@ -35,7 +36,11 @@ export function ServerTile({ server }: { server: Server }) {
               {t(`servers.category.${server.category}`)}
             </div>
           </div>
-          <StateBadge state={status.state} className="shrink-0" />
+          {server.installState === "ready" ? (
+            <StateBadge state={status.state} className="shrink-0" />
+          ) : (
+            <InstallBadge state={server.installState} className="shrink-0" />
+          )}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -51,7 +56,11 @@ export function ServerTile({ server }: { server: Server }) {
               <span className="text-muted-foreground/50">—</span>
             )}
           </div>
-          <PowerButtons server={server} compact className="relative z-10" />
+          {server.installState === "ready" ? (
+            <PowerButtons server={server} compact className="relative z-10" />
+          ) : (
+            <span className="text-xs text-muted-foreground">{t(`install.tile.${server.installState}`)}</span>
+          )}
         </div>
       </CardContent>
     </Card>

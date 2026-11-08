@@ -22,7 +22,7 @@ export function PowerButtons({ server, compact = false, withKill = false, classN
   const { t } = useTranslation()
   const power = usePower(server.id)
   const [confirmKill, setConfirmKill] = useState(false)
-  const allowed = canDo(server.status.state)
+  const allowed = canDo(server.status.state, server.installState)
   const pending = power.isPending ? power.variables : null
 
   function run(action: PowerAction) {

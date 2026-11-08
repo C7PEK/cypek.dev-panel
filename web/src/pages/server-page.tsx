@@ -7,6 +7,9 @@ import { toast } from "sonner"
 import { AppShell } from "@/components/layout/app-shell"
 import { CategoryIcon } from "@/components/servers/category-icon"
 import { Console } from "@/components/console/console"
+import { InstallBadge } from "@/components/servers/install-badge"
+import { InstallPanel } from "@/components/servers/install-panel"
+import { TemplateSettings } from "@/components/servers/template-settings"
 import { PowerButtons } from "@/components/servers/power-buttons"
 import { ServerForm, valuesFromServer } from "@/components/servers/server-form"
 import { StateBadge } from "@/components/servers/state-badge"
@@ -27,6 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { isApiError } from "@/lib/api"
 import { describeError } from "@/lib/errors"
 import { canDo, useDeleteServer, useServer, useUpdateServer } from "@/lib/servers"
+import { useTemplates } from "@/lib/templates"
 import type { Server, User } from "@/lib/types"
 
 export function ServerPage({ user }: { user: User }) {
@@ -52,6 +56,7 @@ export function ServerPage({ user }: { user: User }) {
     )
   }
   const s = server.data
+  const ready = s.installState === "ready"
   return (
     <AppShell user={user}>
       <div className="flex flex-col gap-5">
@@ -68,7 +73,8 @@ export function ServerPage({ user }: { user: User }) {
               <h1 className="truncate font-heading text-2xl font-semibold tracking-[0.04em] uppercase sm:text-3xl">{s.name}</h1>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <StateBadge state={s.status.state} />
-                <span>{t(`servers.category.${s.category}`)}</span>
+                {!ready && <InstallBadge state={s.installState} />}
+                <TemplateLabel server={s} />
                 {s.status.pid ? <span className="font-mono">PID {s.status.pid}</span> : null}
               </div>
               {s.status.state === "crashed" && s.status.message && (
@@ -97,7 +103,7 @@ export function ServerPage({ user }: { user: User }) {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="console" className="pt-3">
-            <Console serverId={s.id} initialState={s.status.state} />
+            {ready ? <Console serverId={s.id} initialState={s.status.state} /> : <InstallPanel server={s} />}
           </TabsContent>
           <TabsContent value="settings" className="pt-3">
             <SettingsTab server={s} />
@@ -108,9 +114,31 @@ export function ServerPage({ user }: { user: User }) {
   )
 }
 
+/** "Minecraft (Paper) · Minecraft" for template servers, just the category for custom ones. */
+function TemplateLabel({ server }: { server: Server }) {
+  const { t } = useTranslation()
+  const templates = useTemplates()
+  const tpl = templates.data?.find((x) => x.id === server.templateId)
+  const category = t(`servers.category.${server.category}`)
+  if (server.templateId === "custom" || !tpl) return <span>{category}</span>
+  return (
+    <span>
+      {tpl.name} · {category}
+    </span>
+  )
+}
+
 function SettingsTab({ server }: { server: Server }) {
   const { t } = useTranslation()
   const update = useUpdateServer(server.id)
+  if (server.templateId !== "custom") {
+    return (
+      <div className="flex flex-col gap-6">
+        <TemplateSettings server={server} />
+        <DangerZone server={server} />
+      </div>
+    )
+  }
   return (
     <div className="flex flex-col gap-6">
       <Card>
@@ -149,7 +177,7 @@ function DangerZone({ server }: { server: Server }) {
   const del = useDeleteServer()
   const [open, setOpen] = useState(false)
   const [files, setFiles] = useState(true)
-  const stopped = canDo(server.status.state).delete
+  const stopped = canDo(server.status.state, server.installState).delete
 
   return (
     <Card className="border-destructive/40">
