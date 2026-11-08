@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // RunConfig is .homepanel/run.json: everything the shim needs to run one
@@ -23,6 +24,8 @@ type RunConfig struct {
 	// Cols/Rows size the PTY; zero picks defaults.
 	Cols uint16 `json:"cols,omitempty"`
 	Rows uint16 `json:"rows,omitempty"`
+	// Dir is the working directory relative to the server dir ("" = server dir).
+	Dir string `json:"dir,omitempty"`
 }
 
 // StopConfig describes graceful shutdown.
@@ -98,6 +101,13 @@ func (c *RunConfig) Validate() error {
 	}
 	if c.Rows == 0 {
 		c.Rows = DefaultRows
+	}
+	if filepath.IsAbs(c.Dir) || strings.Contains(c.Dir, "..") || strings.ContainsAny(c.Dir, "\x00\n") {
+		return errors.New("dir must be a relative path inside the server directory")
+	}
+	c.Dir = strings.Trim(filepath.ToSlash(filepath.Clean("/"+c.Dir)), "/")
+	if c.Dir == "." {
+		c.Dir = ""
 	}
 	return nil
 }

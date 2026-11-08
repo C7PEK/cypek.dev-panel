@@ -33,8 +33,10 @@ variables:                     # shown in the wizard, validated by the panel
     consent: true              # must be switched on by the user
 
 runtime:
-  kind: java                   # java | none  (node and python are coming)
-  version: auto                # auto = what the downloaded server needs; or a number like 21
+  kind: java                   # java | node | python | none
+  version: auto                # java: auto = what the downloaded server needs, or 21;
+                               # node: lts or a major like 26 (NODE_VERSION variable overrides);
+                               # python: a minor like 3.12 (PY_VERSION variable overrides)
 
 install:                       # run once, in order, inside the server directory
   - download: { provider: paper, version: "{{MC_VERSION}}", to: server.jar }
@@ -44,6 +46,8 @@ install:                       # run once, in order, inside the server directory
 start:
   command: "{{JAVA}}"
   args: ["-Xmx{{RAM_MB}}M", "{{JVM_FLAGS...}}", "-jar", "server.jar", "nogui"]
+  dir: app                                 # optional working dir inside the server folder
+  env: { DISCORD_TOKEN: "{{DISCORD_TOKEN}}" }   # optional environment
 stop: { command: stop, timeoutSec: 90 }   # empty command = SIGTERM
 readyRegex: 'Done \(\d+\.\d+s\)!'          # when the server counts as "running"
 
@@ -65,8 +69,9 @@ query: { kind: minecraft-ping, port: "{{PORT}}" }
 
 Builtins you can use but must not declare: `JAVA` (path to the java binary
 prepared by the runtime step), `JVM_FLAGS...` (the flag list PaperMC
-recommends; spread into separate arguments), `message` (only in
-`warnCommand`).
+recommends; spread into separate arguments), `NODE`, `NPM`, `NPX` (Node.js
+runtime), `PYTHON`, `PIP` (the server's own `.venv`, created by the python
+runtime step), `message` (only in `warnCommand`).
 
 ## Install steps
 
@@ -86,6 +91,15 @@ recommends; spread into separate arguments), `message` (only in
   fails unless the user switched that bool on.
 - `properties`: sets keys in a `key=value` file, keeping other lines and
   comments. Creates the file if missing.
+
+- `git`: clones `url` (https only) at `branch` into `to`; when the folder
+  already holds a repository it fetches and hard-resets to the branch
+  instead, which is what "Reinstall" / "Update from git" does. `token` names
+  a secret variable used as a GitHub-style access token for private repos.
+- `exec`: runs `command` with `args` in `dir` without a shell (no pipes or
+  variable expansion), streaming output into the install log. `ifExists`
+  skips the step when that file is missing (e.g. `requirements.txt`);
+  `timeoutSec` defaults to 900. The runtime bin folders are on PATH.
 
 Paths are relative to the server directory; `..` and absolute paths are
 rejected.

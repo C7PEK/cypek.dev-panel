@@ -81,6 +81,31 @@ type Step struct {
 	Extract    *ExtractStep    `yaml:"extract,omitempty" json:"extract,omitempty"`
 	Write      *WriteStep      `yaml:"write,omitempty" json:"write,omitempty"`
 	Properties *PropertiesStep `yaml:"properties,omitempty" json:"properties,omitempty"`
+	Git        *GitStep        `yaml:"git,omitempty" json:"git,omitempty"`
+	Exec       *ExecStep       `yaml:"exec,omitempty" json:"exec,omitempty"`
+}
+
+// GitStep clones a repository (or updates it when already present).
+type GitStep struct {
+	URL    string `yaml:"url" json:"url"`
+	Branch string `yaml:"branch,omitempty" json:"branch,omitempty"`
+	// Token is an optional secret variable reference for private repos.
+	Token string `yaml:"token,omitempty" json:"token,omitempty"`
+	To    string `yaml:"to" json:"to"`
+}
+
+// ExecStep runs a program (never a shell) inside the server directory,
+// e.g. npm install or pip install. The command is rendered, so it can be a
+// runtime builtin like {{NPM}}.
+type ExecStep struct {
+	Command string            `yaml:"command" json:"command"`
+	Args    []string          `yaml:"args,omitempty" json:"args,omitempty"`
+	Dir     string            `yaml:"dir,omitempty" json:"dir,omitempty"`
+	Env     map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
+	// IfExists skips the step unless this file (relative to Dir) exists.
+	IfExists string `yaml:"ifExists,omitempty" json:"ifExists,omitempty"`
+	// TimeoutSec bounds the run (default 900).
+	TimeoutSec int `yaml:"timeoutSec,omitempty" json:"timeoutSec,omitempty"`
 }
 
 // DownloadStep fetches an artifact through a named provider:
@@ -126,6 +151,8 @@ type Start struct {
 	Command string            `yaml:"command" json:"command"`
 	Args    []string          `yaml:"args" json:"args"`
 	Env     map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
+	// Dir is the working directory relative to the server dir.
+	Dir string `yaml:"dir,omitempty" json:"dir,omitempty"`
 }
 
 // Stop describes graceful shutdown.
@@ -289,12 +316,45 @@ func (t *Template) Validate() error {
 				return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
 			}
 		}
+		if s.Git != nil {
+			n++
+			if s.Git.URL == "" || s.Git.To == "" {
+				return fmt.Errorf("template %s: install step %d: git needs url and to", t.ID, i+1)
+			}
+			if err := safeRelPath(s.Git.To); err != nil {
+				return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
+			}
+			if s.Git.Token != "" && !seen[s.Git.Token] {
+				return fmt.Errorf("template %s: install step %d: token names unknown variable %s", t.ID, i+1, s.Git.Token)
+			}
+		}
+		if s.Exec != nil {
+			n++
+			if s.Exec.Command == "" {
+				return fmt.Errorf("template %s: install step %d: exec needs a command", t.ID, i+1)
+			}
+			if s.Exec.Dir != "" {
+				if err := safeRelPath(s.Exec.Dir); err != nil {
+					return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
+				}
+			}
+			if s.Exec.IfExists != "" {
+				if err := safeRelPath(s.Exec.IfExists); err != nil {
+					return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
+				}
+			}
+		}
 		if n != 1 {
-			return fmt.Errorf("template %s: install step %d must have exactly one of download, extract, write, properties", t.ID, i+1)
+			return fmt.Errorf("template %s: install step %d must have exactly one of download, extract, write, properties, git, exec", t.ID, i+1)
 		}
 	}
 	if t.Start.Command == "" {
 		return fmt.Errorf("template %s: start.command is required", t.ID)
+	}
+	if t.Start.Dir != "" {
+		if err := safeRelPath(t.Start.Dir); err != nil {
+			return fmt.Errorf("template %s: start.dir: %w", t.ID, err)
+		}
 	}
 	if t.ReadyRegex != "" {
 		if _, err := regexp.Compile(t.ReadyRegex); err != nil {
@@ -346,6 +406,16 @@ func (t *Template) allTemplatedStrings() []string {
 		if s.Extract != nil {
 			out = append(out, s.Extract.From, s.Extract.To)
 		}
+		if s.Git != nil {
+			out = append(out, s.Git.URL, s.Git.Branch, s.Git.To)
+		}
+		if s.Exec != nil {
+			out = append(out, s.Exec.Command, s.Exec.Dir, s.Exec.IfExists)
+			out = append(out, s.Exec.Args...)
+			for _, v := range s.Exec.Env {
+				out = append(out, v)
+			}
+		}
 		if s.Write != nil {
 			out = append(out, s.Write.Path, s.Write.Content)
 		}
@@ -370,13 +440,16 @@ const (
 	KeyJava     = "JAVA"      // path to the java binary
 	KeyJVMFlags = "JVM_FLAGS" // list (JSON array) of recommended JVM flags
 	KeyNode     = "NODE"
-	KeyPython   = "PYTHON"
+	KeyNPM      = "NPM"
+	KeyNPX      = "NPX"
+	KeyPython   = "PYTHON" // the venv interpreter once created
+	KeyPip      = "PIP"
 	KeyMessage  = "message" // warnCommand only
 )
 
 func isBuiltinKey(k string) bool {
 	switch k {
-	case KeyJava, KeyJVMFlags, KeyNode, KeyPython, KeyMessage, KeyQueryKind, KeyQueryPort:
+	case KeyJava, KeyJVMFlags, KeyNode, KeyNPM, KeyNPX, KeyPython, KeyPip, KeyMessage, KeyQueryKind, KeyQueryPort:
 		return true
 	}
 	return false

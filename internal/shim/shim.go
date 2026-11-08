@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -176,8 +177,13 @@ func (s *Shim) listen() (net.Listener, error) {
 
 func (s *Shim) startProcess() error {
 	cmd := exec.Command(s.cfg.Command, s.cfg.Args...)
-	cmd.Dir = s.opts.ServerDir
+	cmd.Dir = filepath.Join(s.opts.ServerDir, filepath.FromSlash(s.cfg.Dir))
 	cmd.Env = s.environment()
+	// A relative command is relative to the server dir, not the working dir,
+	// so templates can say "artifact/run.sh" or ".venv/bin/python" regardless of dir.
+	if strings.Contains(cmd.Path, "/") && !filepath.IsAbs(cmd.Path) {
+		cmd.Path = filepath.Join(s.opts.ServerDir, cmd.Path)
+	}
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: s.cfg.Cols, Rows: s.cfg.Rows})
 	if err != nil {
 		return fmt.Errorf("start %s: %w", s.cfg.Command, err)

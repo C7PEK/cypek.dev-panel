@@ -1,0 +1,74 @@
+id: discord-python
+name: Discord bot (Python)
+category: discord-bot
+icon: discord
+description:
+  pl: Bot w Pythonie z repozytorium git (np. discord.py). Panel pobiera Pythona, tworzy venv w katalogu serwera i instaluje requirements.txt. Token bota trafia do zmiennej środowiskowej DISCORD_TOKEN.
+  en: A Python bot from a git repository (e.g. discord.py). The panel downloads Python, creates a venv in the server folder and installs requirements.txt. The bot token is passed as the DISCORD_TOKEN environment variable.
+
+variables:
+  - key: REPO_URL
+    label: { pl: Adres repozytorium git (https), en: Git repository URL (https) }
+    type: string
+    required: true
+    maxLength: 300
+    pattern: '^https://[^\s]+$'
+  - key: BRANCH
+    label: { pl: Gałąź, en: Branch }
+    type: string
+    default: main
+    maxLength: 100
+    pattern: '^[A-Za-z0-9._/-]+$'
+  - key: GIT_TOKEN
+    label: { pl: Token do prywatnego repo (opcjonalnie), en: Token for a private repo (optional) }
+    type: secret
+    maxLength: 200
+  - key: DISCORD_TOKEN
+    label: { pl: Token bota Discord, en: Discord bot token }
+    help:
+      pl: Bot odczyta go przez os.environ["DISCORD_TOKEN"].
+      en: Read it in the bot via os.environ["DISCORD_TOKEN"].
+    type: secret
+    required: true
+    maxLength: 200
+  - key: START_FILE
+    label: { pl: Plik startowy, en: Entry file }
+    help: { pl: "Względem katalogu repo, np. bot.py lub main.py.", en: "Relative to the repo folder, e.g. bot.py or main.py." }
+    type: string
+    default: bot.py
+    maxLength: 200
+    pattern: '^[^\s/][^\s]*\.py$'
+  - key: PY_VERSION
+    label: { pl: Wersja Pythona, en: Python version }
+    type: select
+    options: ["3.12", "3.13"]
+    default: "3.12"
+
+runtime:
+  kind: python
+  version: auto
+
+install:
+  - git:
+      url: "{{REPO_URL}}"
+      branch: "{{BRANCH}}"
+      token: GIT_TOKEN
+      to: app
+  - exec:
+      command: "{{PIP}}"
+      args: ["install", "--upgrade", "pip"]
+  - exec:
+      command: "{{PIP}}"
+      args: ["install", "-r", "requirements.txt"]
+      dir: app
+      ifExists: requirements.txt
+
+start:
+  command: "{{PYTHON}}"
+  args: ["-u", "{{START_FILE}}"]
+  dir: app
+  env:
+    DISCORD_TOKEN: "{{DISCORD_TOKEN}}"
+    PYTHONUNBUFFERED: "1"
+stop:
+  timeoutSec: 20

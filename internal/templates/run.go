@@ -64,6 +64,7 @@ func BuildRun(t *Template, vars map[string]string) (shim.RunConfig, []servers.Po
 	}
 	run.Stop = shim.StopConfig{Command: t.Stop.Command, TimeoutSec: t.Stop.TimeoutSec}
 	run.ReadyRegex = t.ReadyRegex
+	run.Dir = t.Start.Dir
 	if err := run.Validate(); err != nil {
 		return run, nil, err
 	}

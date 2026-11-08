@@ -10,14 +10,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
+	osexec "os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	gogit "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 
 	"github.com/cypek019/cypek.dev---panel/internal/archive"
 	"github.com/cypek019/cypek.dev---panel/internal/providers"
@@ -29,10 +36,12 @@ import (
 
 // Deps are the collaborators steps need.
 type Deps struct {
-	Paper *providers.Paper
-	FiveM *providers.FiveM
-	Java  *runtimes.Java
-	Log   *slog.Logger
+	Paper  *providers.Paper
+	FiveM  *providers.FiveM
+	Java   *runtimes.Java
+	Node   *runtimes.Node
+	Python *runtimes.Python
+	Log    *slog.Logger
 }
 
 // JobState is the lifecycle of one installation.
@@ -194,6 +203,13 @@ func (m *Manager) run(ctx context.Context, job *Job, dir string, tpl *templates.
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, err
 	}
+	// Node and Python are needed by install steps (npm/pip), so they are
+	// prepared first; Java comes after the download step tells us the minimum.
+	if tpl.Runtime.Kind == "node" || tpl.Runtime.Kind == "python" {
+		if err := c.runtime(ctx, 0, tpl.Runtime); err != nil {
+			return nil, err
+		}
+	}
 	for i, st := range tpl.Install {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
@@ -204,6 +220,10 @@ func (m *Manager) run(ctx context.Context, job *Job, dir string, tpl *templates.
 			err = c.download(ctx, i+1, st.Download)
 		case st.Extract != nil:
 			err = c.extract(i+1, st.Extract)
+		case st.Git != nil:
+			err = c.git(ctx, i+1, st.Git)
+		case st.Exec != nil:
+			err = c.exec(ctx, i+1, st.Exec)
 		case st.Write != nil:
 			err = c.write(i+1, st.Write)
 		case st.Properties != nil:
@@ -213,8 +233,12 @@ func (m *Manager) run(ctx context.Context, job *Job, dir string, tpl *templates.
 			return nil, err
 		}
 	}
-	if err := c.runtime(ctx, len(tpl.Install)+1, tpl.Runtime); err != nil {
-		return nil, err
+	if tpl.Runtime.Kind != "node" && tpl.Runtime.Kind != "python" {
+		if err := c.runtime(ctx, len(tpl.Install)+1, tpl.Runtime); err != nil {
+			return nil, err
+		}
+	} else {
+		c.begin(len(tpl.Install)+1, "Runtime ready")
 	}
 	c.begin(job.Steps, "Preparing start configuration")
 	run, ports, err := templates.BuildRun(tpl, vars)
@@ -473,9 +497,241 @@ func (c *stepCtx) runtime(ctx context.Context, n int, rt templates.Runtime) erro
 			c.vars[templates.KeyJVMFlags] = "[]"
 		}
 		return nil
+	case "node":
+		c.begin(n, "Preparing Node.js")
+		if c.m.deps.Node == nil {
+			return errors.New("node runtime provider not configured")
+		}
+		sel := rt.Version
+		if sel == "" || sel == "auto" {
+			sel = "lts"
+		}
+		if v, ok := c.vars["NODE_VERSION"]; ok && v != "" {
+			sel = v
+		}
+		node, err := c.m.deps.Node.Ensure(ctx, sel, c.logf, c.progress)
+		if err != nil {
+			return err
+		}
+		bin := filepath.Dir(node)
+		c.vars[templates.KeyNode] = node
+		c.vars[templates.KeyNPM] = filepath.Join(bin, "npm")
+		c.vars[templates.KeyNPX] = filepath.Join(bin, "npx")
+		return nil
+	case "python":
+		c.begin(n, "Preparing Python")
+		if c.m.deps.Python == nil {
+			return errors.New("python runtime provider not configured")
+		}
+		minor := rt.Version
+		if minor == "" || minor == "auto" {
+			minor = "3.12"
+		}
+		if v, ok := c.vars["PY_VERSION"]; ok && v != "" {
+			minor = v
+		}
+		py, err := c.m.deps.Python.Ensure(ctx, minor, c.logf, c.progress)
+		if err != nil {
+			return err
+		}
+		venv := filepath.Join(c.dir, ".venv")
+		if _, err := os.Stat(filepath.Join(venv, "bin", "python")); err != nil {
+			c.logf("Creating virtual environment .venv")
+			if err := c.runProgram(ctx, py, []string{"-m", "venv", venv}, c.dir, nil, 300); err != nil {
+				return fmt.Errorf("create venv: %w", err)
+			}
+		}
+		c.vars[templates.KeyPython] = ".venv/bin/python"
+		c.vars[templates.KeyPip] = ".venv/bin/pip"
+		return nil
 	default:
 		return fmt.Errorf("runtime %q is not supported yet", rt.Kind)
 	}
+}
+
+// git clones the repository into To, or fetches and resets to the branch
+// when it already exists (that is what "Update from git" does).
+func (c *stepCtx) git(ctx context.Context, n int, st *templates.GitStep) error {
+	rawURL, err := templates.Render(st.URL, c.vars)
+	if err != nil {
+		return err
+	}
+	rawURL = strings.TrimSpace(rawURL)
+	if !strings.HasPrefix(rawURL, "https://") && !(allowLocalGit && strings.HasPrefix(rawURL, "file://")) {
+		return fmt.Errorf("git url must start with https://")
+	}
+	branch, err := templates.Render(st.Branch, c.vars)
+	if err != nil {
+		return err
+	}
+	branch = strings.TrimSpace(branch)
+	to, err := templates.Render(st.To, c.vars)
+	if err != nil {
+		return err
+	}
+	dest, err := insideDir(c.dir, to)
+	if err != nil {
+		return err
+	}
+	var auth transport.AuthMethod
+	if st.Token != "" {
+		if tok := c.vars[st.Token]; tok != "" {
+			auth = &githttp.BasicAuth{Username: "x-access-token", Password: tok}
+		}
+	}
+	c.begin(n, "Fetching code from git")
+	c.logf("Repository %s (branch %s)", rawURL, orDefault(branch, "default"))
+	var ref plumbing.ReferenceName
+	if branch != "" {
+		ref = plumbing.NewBranchReferenceName(branch)
+	}
+	if _, err := os.Stat(filepath.Join(dest, ".git")); err == nil {
+		repo, err := gogit.PlainOpen(dest)
+		if err != nil {
+			return fmt.Errorf("open repository: %w", err)
+		}
+		c.logf("Repository exists, pulling latest changes")
+		if err := repo.FetchContext(ctx, &gogit.FetchOptions{Auth: auth, Force: true, Depth: 0}); err != nil && !errors.Is(err, gogit.NoErrAlreadyUpToDate) {
+			return fmt.Errorf("git fetch: %w", err)
+		}
+		wt, err := repo.Worktree()
+		if err != nil {
+			return err
+		}
+		remoteRef := plumbing.NewRemoteReferenceName("origin", branch)
+		if branch == "" {
+			head, err := repo.Head()
+			if err != nil {
+				return err
+			}
+			remoteRef = plumbing.NewRemoteReferenceName("origin", head.Name().Short())
+		}
+		target, err := repo.Reference(remoteRef, true)
+		if err != nil {
+			return fmt.Errorf("branch %s not found on origin: %w", branch, err)
+		}
+		if err := wt.Reset(&gogit.ResetOptions{Commit: target.Hash(), Mode: gogit.HardReset}); err != nil {
+			return fmt.Errorf("git reset: %w", err)
+		}
+		c.logf("Now at %s", target.Hash().String()[:10])
+		return nil
+	}
+	if err := os.MkdirAll(dest, 0o750); err != nil {
+		return err
+	}
+	repo, err := gogit.PlainCloneContext(ctx, dest, false, &gogit.CloneOptions{URL: rawURL, Auth: auth, ReferenceName: ref, SingleBranch: branch != "", Depth: 1})
+	if err != nil {
+		os.RemoveAll(filepath.Join(dest, ".git"))
+		return fmt.Errorf("git clone: %w", err)
+	}
+	if head, err := repo.Head(); err == nil {
+		c.logf("Cloned at %s", head.Hash().String()[:10])
+	}
+	return nil
+}
+
+// allowLocalGit lets tests clone from file:// repositories.
+var allowLocalGit = false
+
+func orDefault(s, d string) string {
+	if s == "" {
+		return d
+	}
+	return s
+}
+
+// exec runs a program without a shell, streaming its output to the log.
+func (c *stepCtx) exec(ctx context.Context, n int, st *templates.ExecStep) error {
+	cmd, err := templates.Render(st.Command, c.vars)
+	if err != nil {
+		return err
+	}
+	args, err := templates.RenderArgs(st.Args, c.vars)
+	if err != nil {
+		return err
+	}
+	dir := c.dir
+	if st.Dir != "" {
+		rel, err := templates.Render(st.Dir, c.vars)
+		if err != nil {
+			return err
+		}
+		if dir, err = insideDir(c.dir, rel); err != nil {
+			return err
+		}
+	}
+	if st.IfExists != "" {
+		probe, err := templates.Render(st.IfExists, c.vars)
+		if err != nil {
+			return err
+		}
+		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(probe))); err != nil {
+			c.begin(n, "Skipping "+filepath.Base(cmd)+" ("+probe+" not found)")
+			return nil
+		}
+	}
+	env := map[string]string{}
+	for k, v := range st.Env {
+		if env[k], err = templates.Render(v, c.vars); err != nil {
+			return err
+		}
+	}
+	// Relative commands (.venv/bin/pip) are relative to the server dir.
+	if strings.Contains(cmd, "/") && !filepath.IsAbs(cmd) {
+		cmd = filepath.Join(c.dir, cmd)
+	}
+	timeout := st.TimeoutSec
+	if timeout <= 0 {
+		timeout = 900
+	}
+	c.begin(n, "Running "+filepath.Base(cmd)+" "+strings.Join(args, " "))
+	return c.runProgram(ctx, cmd, args, dir, env, timeout)
+}
+
+// runProgram executes cmd with a minimal environment plus the runtime bin
+// dirs on PATH, piping output lines into the install log.
+func (c *stepCtx) runProgram(ctx context.Context, cmd string, args []string, dir string, env map[string]string, timeoutSec int) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSec)*time.Second)
+	defer cancel()
+	p := osexec.CommandContext(ctx, cmd, args...)
+	p.Dir = dir
+	path := "/usr/local/bin:/usr/bin:/bin"
+	for _, k := range []string{templates.KeyNode, templates.KeyJava} {
+		if v := c.vars[k]; v != "" {
+			path = filepath.Dir(v) + ":" + path
+		}
+	}
+	if v := c.vars[templates.KeyPython]; v != "" {
+		path = filepath.Join(c.dir, filepath.Dir(v)) + ":" + path
+	}
+	full := map[string]string{"PATH": path, "HOME": c.dir, "LANG": "C.UTF-8", "CI": "true", "npm_config_update_notifier": "false", "npm_config_fund": "false", "npm_config_audit": "false", "PIP_DISABLE_PIP_VERSION_CHECK": "1"}
+	for k, v := range env {
+		full[k] = v
+	}
+	for k, v := range full {
+		p.Env = append(p.Env, k+"="+v)
+	}
+	pr, pw := io.Pipe()
+	p.Stdout = pw
+	p.Stderr = pw
+	done := make(chan struct{})
+	go func() {
+		sc := bufio.NewScanner(pr)
+		sc.Buffer(make([]byte, 64*1024), 1<<20)
+		for sc.Scan() {
+			if line := strings.TrimSpace(sc.Text()); line != "" {
+				c.logf("  %s", line)
+			}
+		}
+		close(done)
+	}()
+	err := p.Run()
+	pw.Close()
+	<-done
+	if err != nil {
+		return fmt.Errorf("%s failed: %w", filepath.Base(cmd), err)
+	}
+	return nil
 }
 
 // insideDir resolves rel under dir and refuses anything that escapes it.

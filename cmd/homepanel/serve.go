@@ -103,10 +103,12 @@ func runServe(args []string) error {
 	paper := providers.NewPaper()
 	fivem := providers.NewFiveM()
 	inst := installer.New(installer.Deps{
-		Paper: paper,
-		FiveM: fivem,
-		Java:  &runtimes.Java{Dir: cfg.RuntimesDir(), Adoptium: providers.NewAdoptium()},
-		Log:   log,
+		Paper:  paper,
+		FiveM:  fivem,
+		Java:   &runtimes.Java{Dir: cfg.RuntimesDir(), Adoptium: providers.NewAdoptium()},
+		Node:   &runtimes.Node{Dir: cfg.RuntimesDir(), Provider: providers.NewNode()},
+		Python: &runtimes.Python{Dir: cfg.RuntimesDir(), Provider: providers.NewPython()},
+		Log:    log,
 	})
 
 	deps := api.Deps{
