@@ -1,0 +1,24 @@
+[Unit]
+Description=HomePanel web panel
+Documentation=https://github.com/cypek019/cypek.dev---panel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=homepanel
+Group=homepanel
+ExecStart=/usr/local/bin/homepanel serve --config /etc/homepanel/config.toml
+Restart=on-failure
+RestartSec=3
+# Hardening. Server units are controlled over D-Bus, so the panel itself
+# only needs its own directories.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/homepanel /var/log/homepanel
+ReadOnlyPaths=/etc/homepanel
+
+[Install]
+WantedBy=multi-user.target
