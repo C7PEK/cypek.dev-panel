@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cypek019/cypek.dev---panel/internal/audit"
-	"github.com/cypek019/cypek.dev---panel/internal/files"
+	"github.com/C7PEK/cypek.dev-panel/internal/audit"
+	"github.com/C7PEK/cypek.dev-panel/internal/files"
 )
 
 const (

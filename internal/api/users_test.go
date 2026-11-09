@@ -11,7 +11,7 @@ import (
 
 	"github.com/pquerna/otp/totp"
 
-	"github.com/cypek019/cypek.dev---panel/internal/auth"
+	"github.com/C7PEK/cypek.dev-panel/internal/auth"
 )
 
 func TestUsersAndGrantsAPI(t *testing.T) {

@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/providers"
-	"github.com/cypek019/cypek.dev---panel/internal/shim"
-	"github.com/cypek019/cypek.dev---panel/internal/templates"
-	builtin "github.com/cypek019/cypek.dev---panel/templates"
+	"github.com/C7PEK/cypek.dev-panel/internal/providers"
+	"github.com/C7PEK/cypek.dev-panel/internal/shim"
+	"github.com/C7PEK/cypek.dev-panel/internal/templates"
+	builtin "github.com/C7PEK/cypek.dev-panel/templates"
 )
 
 // TestRealFiveMInstall downloads the real FXServer artifact (~70 MB) and

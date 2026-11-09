@@ -12,9 +12,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/cypek019/cypek.dev---panel/internal/audit"
-	"github.com/cypek019/cypek.dev---panel/internal/mods"
-	"github.com/cypek019/cypek.dev---panel/internal/servers"
+	"github.com/C7PEK/cypek.dev-panel/internal/audit"
+	"github.com/C7PEK/cypek.dev-panel/internal/mods"
+	"github.com/C7PEK/cypek.dev-panel/internal/servers"
 )
 
 const (

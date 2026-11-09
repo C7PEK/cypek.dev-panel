@@ -11,9 +11,9 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/cypek019/cypek.dev---panel/internal/auth"
-	"github.com/cypek019/cypek.dev---panel/internal/config"
-	"github.com/cypek019/cypek.dev---panel/internal/db"
+	"github.com/C7PEK/cypek.dev-panel/internal/auth"
+	"github.com/C7PEK/cypek.dev-panel/internal/config"
+	"github.com/C7PEK/cypek.dev-panel/internal/db"
 )
 
 // runResetPassword sets a new password for a user and revokes their sessions.

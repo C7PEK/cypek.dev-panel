@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
+	"github.com/C7PEK/cypek.dev-panel/internal/supervisor"
 )
 
 // Sample is one per-server reading.

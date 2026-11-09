@@ -10,11 +10,11 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/cypek019/cypek.dev---panel/internal/metrics"
-	"github.com/cypek019/cypek.dev---panel/internal/query"
-	"github.com/cypek019/cypek.dev---panel/internal/servers"
-	"github.com/cypek019/cypek.dev---panel/internal/shim"
-	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
+	"github.com/C7PEK/cypek.dev-panel/internal/metrics"
+	"github.com/C7PEK/cypek.dev-panel/internal/query"
+	"github.com/C7PEK/cypek.dev-panel/internal/servers"
+	"github.com/C7PEK/cypek.dev-panel/internal/shim"
+	"github.com/C7PEK/cypek.dev-panel/internal/supervisor"
 )
 
 // storeSource adapts the server store + supervisor to metrics.Source.

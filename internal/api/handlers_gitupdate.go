@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/audit"
-	"github.com/cypek019/cypek.dev---panel/internal/installer"
-	"github.com/cypek019/cypek.dev---panel/internal/servers"
+	"github.com/C7PEK/cypek.dev-panel/internal/audit"
+	"github.com/C7PEK/cypek.dev-panel/internal/installer"
+	"github.com/C7PEK/cypek.dev-panel/internal/servers"
 )
 
 const CodeNoGit = "no_git_source"

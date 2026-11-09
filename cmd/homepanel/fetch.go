@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/files"
-	"github.com/cypek019/cypek.dev---panel/internal/providers"
+	"github.com/C7PEK/cypek.dev-panel/internal/files"
+	"github.com/C7PEK/cypek.dev-panel/internal/providers"
 )
 
 // runFetch is a helper for install scripts of imported templates (it runs

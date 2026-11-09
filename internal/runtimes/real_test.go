@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cypek019/cypek.dev---panel/internal/providers"
+	"github.com/C7PEK/cypek.dev-panel/internal/providers"
 )
 
 // TestRealNodeAndPython downloads real Node.js and CPython builds and runs

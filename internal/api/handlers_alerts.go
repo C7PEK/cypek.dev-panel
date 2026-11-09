@@ -7,11 +7,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/alerts"
-	"github.com/cypek019/cypek.dev---panel/internal/audit"
-	"github.com/cypek019/cypek.dev---panel/internal/metrics"
-	"github.com/cypek019/cypek.dev---panel/internal/servers"
-	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
+	"github.com/C7PEK/cypek.dev-panel/internal/alerts"
+	"github.com/C7PEK/cypek.dev-panel/internal/audit"
+	"github.com/C7PEK/cypek.dev-panel/internal/metrics"
+	"github.com/C7PEK/cypek.dev-panel/internal/servers"
+	"github.com/C7PEK/cypek.dev-panel/internal/supervisor"
 )
 
 const (

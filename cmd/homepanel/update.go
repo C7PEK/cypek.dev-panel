@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/selfupdate"
+	"github.com/C7PEK/cypek.dev-panel/internal/selfupdate"
 )
 
 // runUpdate replaces this binary with the newest GitHub release and restarts

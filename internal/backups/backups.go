@@ -19,7 +19,7 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 
-	"github.com/cypek019/cypek.dev---panel/internal/archive"
+	"github.com/C7PEK/cypek.dev-panel/internal/archive"
 )
 
 // Settings are per-server backup preferences.

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/cypek019/cypek.dev---panel/internal/servers"
-	"github.com/cypek019/cypek.dev---panel/internal/shim"
+	"github.com/C7PEK/cypek.dev-panel/internal/servers"
+	"github.com/C7PEK/cypek.dev-panel/internal/shim"
 )
 
 // Builtins written by BuildRun so the panel knows how to query players

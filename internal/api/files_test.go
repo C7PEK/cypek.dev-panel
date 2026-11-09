@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/auth"
+	"github.com/C7PEK/cypek.dev-panel/internal/auth"
 )
 
 func (e *testEnv) raw(method, path, contentType string, body io.Reader) *http.Response {

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cypek019/cypek.dev---panel/internal/db"
+	"github.com/C7PEK/cypek.dev-panel/internal/db"
 )
 
 // Record is a database the panel created for a server.

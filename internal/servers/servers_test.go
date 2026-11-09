@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/cypek019/cypek.dev---panel/internal/db"
-	"github.com/cypek019/cypek.dev---panel/internal/shim"
+	"github.com/C7PEK/cypek.dev-panel/internal/db"
+	"github.com/C7PEK/cypek.dev-panel/internal/shim"
 )
 
 func newStore(t *testing.T) *Store {

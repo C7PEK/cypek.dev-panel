@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/shim"
+	"github.com/C7PEK/cypek.dev-panel/internal/shim"
 )
 
 // TestSystemdReal drives the real homepanel-server@ template unit over D-Bus.

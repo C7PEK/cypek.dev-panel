@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cypek019/cypek.dev---panel/internal/servers"
-	"github.com/cypek019/cypek.dev---panel/internal/templates"
+	"github.com/C7PEK/cypek.dev-panel/internal/servers"
+	"github.com/C7PEK/cypek.dev-panel/internal/templates"
 )
 
 // fromPuffer converts a PufferPanel (v2/v3) server template. Install

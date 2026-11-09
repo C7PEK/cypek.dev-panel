@@ -10,10 +10,10 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/cypek019/cypek.dev---panel/internal/audit"
-	"github.com/cypek019/cypek.dev---panel/internal/auth"
-	"github.com/cypek019/cypek.dev---panel/internal/shim"
-	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
+	"github.com/C7PEK/cypek.dev-panel/internal/audit"
+	"github.com/C7PEK/cypek.dev-panel/internal/auth"
+	"github.com/C7PEK/cypek.dev-panel/internal/shim"
+	"github.com/C7PEK/cypek.dev-panel/internal/supervisor"
 )
 
 // consoleMsg is the browser-facing console protocol, a thin view of shim frames.

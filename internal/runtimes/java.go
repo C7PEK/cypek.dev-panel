@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	archivepkg "github.com/cypek019/cypek.dev---panel/internal/archive"
-	"github.com/cypek019/cypek.dev---panel/internal/providers"
+	archivepkg "github.com/C7PEK/cypek.dev-panel/internal/archive"
+	"github.com/C7PEK/cypek.dev-panel/internal/providers"
 )
 
 // Java manages Temurin JREs under Dir (e.g. /var/lib/homepanel/runtimes).

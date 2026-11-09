@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/cypek019/cypek.dev---panel/internal/db"
+	"github.com/C7PEK/cypek.dev-panel/internal/db"
 )
 
 // Role is a global role.

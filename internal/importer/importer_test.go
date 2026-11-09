@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cypek019/cypek.dev---panel/internal/installer"
-	"github.com/cypek019/cypek.dev---panel/internal/templates"
+	"github.com/C7PEK/cypek.dev-panel/internal/installer"
+	"github.com/C7PEK/cypek.dev-panel/internal/templates"
 )
 
 func TestBashCondition(t *testing.T) {

@@ -18,10 +18,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/providers"
-	"github.com/cypek019/cypek.dev---panel/internal/runtimes"
-	"github.com/cypek019/cypek.dev---panel/internal/templates"
-	builtin "github.com/cypek019/cypek.dev---panel/templates"
+	"github.com/C7PEK/cypek.dev-panel/internal/providers"
+	"github.com/C7PEK/cypek.dev-panel/internal/runtimes"
+	"github.com/C7PEK/cypek.dev-panel/internal/templates"
+	builtin "github.com/C7PEK/cypek.dev-panel/templates"
 )
 
 // fakeUpstream serves Paper and Adoptium lookalikes plus the files they point at.

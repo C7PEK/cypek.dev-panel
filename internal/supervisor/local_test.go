@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/shim"
+	"github.com/C7PEK/cypek.dev-panel/internal/shim"
 )
 
 // The test binary plays two extra roles: `<bin> shim ...` runs a real shim

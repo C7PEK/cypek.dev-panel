@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/cypek019/cypek.dev---panel/internal/audit"
-	"github.com/cypek019/cypek.dev---panel/internal/auth"
+	"github.com/C7PEK/cypek.dev-panel/internal/audit"
+	"github.com/C7PEK/cypek.dev-panel/internal/auth"
 )
 
 const (

@@ -13,7 +13,7 @@ import (
 
 	"github.com/robfig/cron/v3"
 
-	"github.com/cypek019/cypek.dev---panel/internal/db"
+	"github.com/C7PEK/cypek.dev-panel/internal/db"
 )
 
 // Action is one step of a chain. Fields depend on Type:

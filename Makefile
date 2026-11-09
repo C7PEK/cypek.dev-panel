@@ -1,7 +1,7 @@
 # HomePanel build tooling. Requires Go and Node (npm).
 
 BINARY   := homepanel
-MODULE   := github.com/cypek019/cypek.dev---panel
+MODULE   := github.com/C7PEK/cypek.dev-panel
 VERSION  ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS  := -s -w -X main.version=$(VERSION)
 GOFLAGS  := -trimpath

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/shim"
-	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
+	"github.com/C7PEK/cypek.dev-panel/internal/shim"
+	"github.com/C7PEK/cypek.dev-panel/internal/supervisor"
 )
 
 // scriptRunner runs install scripts through the server's own supervisor unit

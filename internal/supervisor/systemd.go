@@ -13,7 +13,7 @@ import (
 	sd "github.com/coreos/go-systemd/v22/dbus"
 	"github.com/godbus/dbus/v5"
 
-	"github.com/cypek019/cypek.dev---panel/internal/shim"
+	"github.com/C7PEK/cypek.dev-panel/internal/shim"
 )
 
 // Systemd drives homepanel-server@<id>.service instances over the system

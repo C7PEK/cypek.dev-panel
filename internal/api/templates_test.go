@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/providers"
+	"github.com/C7PEK/cypek.dev-panel/internal/providers"
 )
 
 // withFakeUpstream points the env's paper/adoptium clients at local fakes.

@@ -12,7 +12,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/shim"
+	"github.com/C7PEK/cypek.dev-panel/internal/shim"
 )
 
 // State is the panel-level server state.

@@ -16,10 +16,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/db"
-	"github.com/cypek019/cypek.dev---panel/internal/secrets"
-	"github.com/cypek019/cypek.dev---panel/internal/shim"
-	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
+	"github.com/C7PEK/cypek.dev-panel/internal/db"
+	"github.com/C7PEK/cypek.dev-panel/internal/secrets"
+	"github.com/C7PEK/cypek.dev-panel/internal/shim"
+	"github.com/C7PEK/cypek.dev-panel/internal/supervisor"
 )
 
 const hook = "https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyz_ABCDEF-1234"

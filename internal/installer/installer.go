@@ -28,12 +28,12 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 
-	"github.com/cypek019/cypek.dev---panel/internal/archive"
-	"github.com/cypek019/cypek.dev---panel/internal/providers"
-	"github.com/cypek019/cypek.dev---panel/internal/runtimes"
-	"github.com/cypek019/cypek.dev---panel/internal/servers"
-	"github.com/cypek019/cypek.dev---panel/internal/shim"
-	"github.com/cypek019/cypek.dev---panel/internal/templates"
+	"github.com/C7PEK/cypek.dev-panel/internal/archive"
+	"github.com/C7PEK/cypek.dev-panel/internal/providers"
+	"github.com/C7PEK/cypek.dev-panel/internal/runtimes"
+	"github.com/C7PEK/cypek.dev-panel/internal/servers"
+	"github.com/C7PEK/cypek.dev-panel/internal/shim"
+	"github.com/C7PEK/cypek.dev-panel/internal/templates"
 )
 
 // Deps are the collaborators steps need.

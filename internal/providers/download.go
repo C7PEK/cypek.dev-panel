@@ -20,7 +20,7 @@ import (
 )
 
 // UserAgent identifies the panel to upstream APIs, as PaperMC asks.
-const UserAgent = "homepanel/0.1 (+https://github.com/cypek019/cypek.dev---panel)"
+const UserAgent = "homepanel/0.1 (+https://github.com/C7PEK/cypek.dev-panel)"
 
 // Client is a shared HTTP client with sane timeouts for API calls.
 var Client = &http.Client{Timeout: 30 * time.Second}

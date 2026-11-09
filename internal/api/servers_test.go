@@ -18,8 +18,8 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/cypek019/cypek.dev---panel/internal/auth"
-	"github.com/cypek019/cypek.dev---panel/internal/shim"
+	"github.com/C7PEK/cypek.dev-panel/internal/auth"
+	"github.com/C7PEK/cypek.dev-panel/internal/shim"
 )
 
 // The test binary is reused as the shim (`<bin> shim ...`) and, with

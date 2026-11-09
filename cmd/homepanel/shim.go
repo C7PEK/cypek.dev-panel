@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cypek019/cypek.dev---panel/internal/config"
-	"github.com/cypek019/cypek.dev---panel/internal/shim"
+	"github.com/C7PEK/cypek.dev-panel/internal/config"
+	"github.com/C7PEK/cypek.dev-panel/internal/shim"
 )
 
 // runShim is the systemd ExecStart of homepanel-server@<id>.service. It never

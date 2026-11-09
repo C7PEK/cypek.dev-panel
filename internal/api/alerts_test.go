@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/cypek019/cypek.dev---panel/internal/alerts"
-	"github.com/cypek019/cypek.dev---panel/internal/auth"
+	"github.com/C7PEK/cypek.dev-panel/internal/alerts"
+	"github.com/C7PEK/cypek.dev-panel/internal/auth"
 )
 
 type captureSender struct {

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/db"
+	"github.com/C7PEK/cypek.dev-panel/internal/db"
 )
 
 // APIKey is a long-lived credential for automation. It acts as its user,

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/db"
+	"github.com/C7PEK/cypek.dev-panel/internal/db"
 )
 
 // Record is a stored backup.

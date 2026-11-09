@@ -1,6 +1,6 @@
 [Unit]
 Description=panel.cypek.dev web panel
-Documentation=https://github.com/cypek019/cypek.dev---panel
+Documentation=https://github.com/C7PEK/cypek.dev-panel
 After=network-online.target
 Wants=network-online.target
 

@@ -186,7 +186,7 @@ func (d *Discord) Send(ctx context.Context, webhook string, msg Message) error {
 			return err
 		}
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("User-Agent", "panel.cypek.dev alerts (+https://github.com/cypek019/cypek.dev---panel)")
+		req.Header.Set("User-Agent", "panel.cypek.dev alerts (+https://github.com/C7PEK/cypek.dev-panel)")
 		resp, err := d.Client.Do(req)
 		if err != nil {
 			lastErr = err

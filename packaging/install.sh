@@ -5,7 +5,7 @@
 # Idempotent: run it again to repair an installation or to upgrade.
 set -euo pipefail
 
-REPO="${HOMEPANEL_REPO:-cypek019/cypek.dev---panel}"
+REPO="${HOMEPANEL_REPO:-C7PEK/cypek.dev-panel}"
 BIN=/usr/local/bin/homepanel
 CONFIG=/etc/homepanel/config.toml
 DATA=/var/lib/homepanel

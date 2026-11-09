@@ -13,7 +13,7 @@ import (
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 
-	"github.com/cypek019/cypek.dev---panel/internal/templates"
+	"github.com/C7PEK/cypek.dev-panel/internal/templates"
 )
 
 // makeRepo creates a local repository with one commit on branch main.

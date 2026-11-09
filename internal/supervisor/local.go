@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/shim"
+	"github.com/C7PEK/cypek.dev-panel/internal/shim"
 )
 
 // Local runs shims as detached child processes (own session, output to

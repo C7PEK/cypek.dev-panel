@@ -19,7 +19,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/cypek019/cypek.dev---panel/internal/servers"
+	"github.com/C7PEK/cypek.dev-panel/internal/servers"
 )
 
 // Text is a translated string; the UI picks the user's language with English as fallback.

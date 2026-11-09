@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/cypek019/cypek.dev---panel/internal/auth"
+	"github.com/C7PEK/cypek.dev-panel/internal/auth"
 )
 
 const (

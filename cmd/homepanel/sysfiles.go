@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cypek019/cypek.dev---panel/internal/config"
+	"github.com/C7PEK/cypek.dev-panel/internal/config"
 )
 
 //go:embed systemfiles/*

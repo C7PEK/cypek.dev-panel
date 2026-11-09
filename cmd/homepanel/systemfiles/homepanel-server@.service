@@ -1,6 +1,6 @@
 [Unit]
 Description=HomePanel server %i
-Documentation=https://github.com/cypek019/cypek.dev---panel
+Documentation=https://github.com/C7PEK/cypek.dev-panel
 After=network-online.target
 Wants=network-online.target
 # A server that keeps dying is left alone after 5 failures in 2 minutes.

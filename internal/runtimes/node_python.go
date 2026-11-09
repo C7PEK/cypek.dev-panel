@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	archivepkg "github.com/cypek019/cypek.dev---panel/internal/archive"
-	"github.com/cypek019/cypek.dev---panel/internal/providers"
+	archivepkg "github.com/C7PEK/cypek.dev-panel/internal/archive"
+	"github.com/C7PEK/cypek.dev-panel/internal/providers"
 )
 
 // Node manages Node.js installs under <Dir>/node-<major>/bin/{node,npm}.

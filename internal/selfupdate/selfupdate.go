@@ -20,11 +20,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/providers"
+	"github.com/C7PEK/cypek.dev-panel/internal/providers"
 )
 
 // Repo is the GitHub repository releases are published to.
-const Repo = "cypek019/cypek.dev---panel"
+const Repo = "C7PEK/cypek.dev-panel"
 
 // Release describes the newest published version.
 type Release struct {

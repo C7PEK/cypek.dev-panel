@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/cypek019/cypek.dev---panel/internal/secrets"
+	"github.com/C7PEK/cypek.dev-panel/internal/secrets"
 )
 
 const settingsKey = "alerts"

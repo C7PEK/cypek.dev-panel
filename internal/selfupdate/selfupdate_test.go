@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/cypek019/cypek.dev---panel/internal/providers"
+	"github.com/C7PEK/cypek.dev-panel/internal/providers"
 )
 
 func TestNewer(t *testing.T) {

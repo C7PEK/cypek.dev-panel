@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/cypek019/cypek.dev---panel/internal/database"
+	"github.com/C7PEK/cypek.dev-panel/internal/database"
 )
 
 func runInstallDatabase(args []string) error {

@@ -11,8 +11,8 @@ import (
 
 	"github.com/robfig/cron/v3"
 
-	"github.com/cypek019/cypek.dev---panel/internal/db"
-	"github.com/cypek019/cypek.dev---panel/internal/supervisor"
+	"github.com/C7PEK/cypek.dev-panel/internal/db"
+	"github.com/C7PEK/cypek.dev-panel/internal/supervisor"
 )
 
 // Target is what the engine needs from the rest of the panel for one server.

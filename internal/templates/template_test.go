@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	builtin "github.com/cypek019/cypek.dev---panel/templates"
+	builtin "github.com/C7PEK/cypek.dev-panel/templates"
 )
 
 func TestBuiltinTemplatesLoad(t *testing.T) {
