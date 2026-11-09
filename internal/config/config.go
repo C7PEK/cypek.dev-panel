@@ -53,11 +53,15 @@ type Config struct {
 	Path string `toml:"-"`
 }
 
-// TLSConfig enables optional HTTPS with a user-provided certificate.
+// TLSConfig enables optional HTTPS with a user-provided certificate
+// (e.g. from `tailscale cert`) or a generated self-signed one.
 type TLSConfig struct {
 	Enabled  bool   `toml:"enabled"`
 	CertFile string `toml:"cert_file"`
 	KeyFile  string `toml:"key_file"`
+	// SelfSigned generates <data_dir>/tls/self-signed.{crt,key} when no
+	// cert_file/key_file are given.
+	SelfSigned bool `toml:"self_signed"`
 }
 
 // Default returns the production defaults without secrets.
@@ -157,8 +161,8 @@ func (c *Config) Validate() error {
 	if c.Supervisor != "systemd" && c.Supervisor != "local" {
 		return fmt.Errorf("supervisor must be \"systemd\" or \"local\", got %q", c.Supervisor)
 	}
-	if c.TLS.Enabled && (c.TLS.CertFile == "" || c.TLS.KeyFile == "") {
-		return errors.New("tls.cert_file and tls.key_file are required when tls.enabled = true")
+	if c.TLS.Enabled && !c.TLS.SelfSigned && (c.TLS.CertFile == "" || c.TLS.KeyFile == "") {
+		return errors.New("tls.cert_file and tls.key_file are required when tls.enabled = true (or set tls.self_signed = true)")
 	}
 	return nil
 }

@@ -32,6 +32,7 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/servers"
 	"github.com/C7PEK/cypek.dev-panel/internal/supervisor"
 	"github.com/C7PEK/cypek.dev-panel/internal/templates"
+	"github.com/C7PEK/cypek.dev-panel/internal/tlsutil"
 	builtinTemplates "github.com/C7PEK/cypek.dev-panel/templates"
 	"github.com/C7PEK/cypek.dev-panel/web"
 )
@@ -156,6 +157,24 @@ func runServe(args []string) error {
 		return fmt.Errorf("listen on %s: %w", cfg.Listen, err)
 	}
 
+	if cfg.TLS.Enabled && cfg.TLS.SelfSigned && (cfg.TLS.CertFile == "" || cfg.TLS.KeyFile == "") {
+		hosts := []string{}
+		if h, err := os.Hostname(); err == nil {
+			hosts = append(hosts, h)
+		}
+		if addrs, err := netinfo.LocalAddresses(); err == nil {
+			for _, a := range addrs {
+				hosts = append(hosts, a.IP)
+			}
+		}
+		certFile, keyFile, fp, err := tlsutil.EnsureSelfSigned(filepath.Join(cfg.DataDir, "tls"), hosts)
+		if err != nil {
+			return fmt.Errorf("self-signed certificate: %w", err)
+		}
+		cfg.TLS.CertFile, cfg.TLS.KeyFile = certFile, keyFile
+		log.Info("HTTPS with a self-signed certificate; the browser will warn once, compare this fingerprint", "sha256", fp)
+		fmt.Printf("\n  HTTPS certificate (self-signed) SHA-256:\n    %s\n", fp)
+	}
 	printBanner(cfg, setupToken)
 	log.Info("panel started", "version", version, "listen", cfg.Listen, "dev", cfg.Dev, "data", cfg.DataDir, "supervisor", sup.Name())
 
