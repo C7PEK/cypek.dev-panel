@@ -43,6 +43,7 @@ type testEnv struct {
 	paper    *providers.Paper
 	adoptium *providers.Adoptium
 	sender   *captureSender
+	server   *Server
 }
 
 func newEnv(t *testing.T) *testEnv {
@@ -83,15 +84,16 @@ func newEnv(t *testing.T) *testEnv {
 	inst := installer.New(installer.Deps{Paper: paper, Java: &runtimes.Java{Dir: filepath.Join(dir, "runtimes"), Adoptium: adoptium}, Log: log})
 	box, _ := secrets.New(bytes.Repeat([]byte{1}, 32))
 	sender := &captureSender{}
+	var captured *Server
 	h, err := New(Deps{Config: cfg, Store: store, Audit: audit.New(sqlDB, log), Log: log, Version: "test", Dist: dist, Servers: serverStore, Sup: sup,
-		Templates: registry, Installer: inst, Paper: paper, Secrets: box, Schedules: scheduler.NewStore(sqlDB), Backups: backups.NewStore(sqlDB), DBRecords: database.NewStore(sqlDB), Alerts: alerts.NewStore(sqlDB, box), AlertSender: sender, Databases: database.NewManager(filepath.Join(dir, "database.json"))})
+		Templates: registry, Installer: inst, Paper: paper, Secrets: box, Schedules: scheduler.NewStore(sqlDB), Backups: backups.NewStore(sqlDB), DBRecords: database.NewStore(sqlDB), Alerts: alerts.NewStore(sqlDB, box), AlertSender: sender, onServer: func(x *Server) { captured = x }, Databases: database.NewManager(filepath.Join(dir, "database.json"))})
 	if err != nil {
 		t.Fatal(err)
 	}
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
 	jar, _ := cookiejar.New(nil)
-	return &testEnv{t: t, srv: srv, client: &http.Client{Jar: jar}, store: store, cfg: cfg, paper: paper, adoptium: adoptium, sender: sender}
+	return &testEnv{t: t, srv: srv, client: &http.Client{Jar: jar}, store: store, cfg: cfg, paper: paper, adoptium: adoptium, sender: sender, server: captured}
 }
 
 // do sends a JSON request, attaching the CSRF header when known.
@@ -416,3 +418,5 @@ func TestFrontendMissing(t *testing.T) {
 		t.Errorf("missing frontend: %d %s", rec.Code, rec.Body.String())
 	}
 }
+
+func (e *testEnv) api() *Server { return e.server }

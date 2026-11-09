@@ -1,6 +1,7 @@
 package alerts
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -205,4 +206,46 @@ func humanDuration(d time.Duration) string {
 func escapeMarkdown(s string) string {
 	r := strings.NewReplacer(`\`, `\\`, `*`, `\*`, `_`, `\_`, "`", "\\`", `~`, `\~`, `|`, `\|`, `>`, `\>`, `@`, "@​")
 	return r.Replace(s)
+}
+
+// Notice kinds that are not about crashes.
+const (
+	KindExpired  = "expired"
+	KindExpiring = "expiring"
+)
+
+// Notify sends a quiet (no ping) notice about a server to the panel-wide
+// webhook, e.g. "expired, decide what to do". It is skipped when no webhook
+// is configured.
+func (m *Monitor) Notify(ctx context.Context, srv ServerInfo, kind string, when time.Time) {
+	m.start()
+	st, err := m.Store.Settings(ctx)
+	if err != nil || st.Webhook == "" {
+		return
+	}
+	pl := st.Language != "en"
+	var title, desc string
+	color := colorOrange
+	switch kind {
+	case KindExpired:
+		if pl {
+			title, desc = srv.Name+" wygasł", fmt.Sprintf("Termin minął <t:%d:f>. Serwer został zatrzymany i zablokowany, ale nic nie zostało usunięte. Zdecyduj w panelu: przedłuż albo usuń.", when.Unix())
+		} else {
+			title, desc = srv.Name+" has expired", fmt.Sprintf("Its end date passed <t:%d:f>. The server was stopped and locked; nothing was deleted. Decide in the panel: extend or delete.", when.Unix())
+		}
+	case KindExpiring:
+		color = colorYellow
+		if pl {
+			title, desc = srv.Name+" wkrótce wygaśnie", fmt.Sprintf("Wygasa <t:%d:R> (<t:%d:f>). Przedłuż w panelu, jeśli ma dalej działać.", when.Unix(), when.Unix())
+		} else {
+			title, desc = srv.Name+" expires soon", fmt.Sprintf("It expires <t:%d:R> (<t:%d:f>). Extend it in the panel if it should keep running.", when.Unix(), when.Unix())
+		}
+	default:
+		return
+	}
+	e := m.baseEmbed(srv, st, title, color)
+	e.Description = desc
+	msg := Message{Embeds: []Embed{e}}
+	msg.withMention(Mention{})
+	m.enqueue(st.Webhook, msg, srv, kind)
 }

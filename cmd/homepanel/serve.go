@@ -316,6 +316,10 @@ func autostartServers(ctx context.Context, store *servers.Store, registry *templ
 			log.Warn("autostart: server not installed, skipping", "server", srv.ID, "name", srv.Name)
 			continue
 		}
+		if err := store.CheckStartable(ctx, srv.ID); err != nil {
+			log.Info("autostart: server expired, not starting", "server", srv.ID, "name", srv.Name)
+			continue
+		}
 		if tpl, ok := registry.Get(srv.TemplateID); ok && srv.TemplateID != "custom" {
 			if changed, err := templates.ApplyConfigDefaults(store.Dir(srv.ID), tpl); err == nil && len(changed) > 0 {
 				log.Info("autostart: config defaults added", "server", srv.ID, "files", changed)

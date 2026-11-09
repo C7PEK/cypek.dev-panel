@@ -26,6 +26,8 @@ type Target struct {
 	Backup func(ctx context.Context, serverID string, logf func(string, ...any)) error
 	// BeforeStart runs before start/restart actions (config defaults).
 	BeforeStart func(ctx context.Context, serverID string)
+	// CanStart refuses start/restart (e.g. an expired server).
+	CanStart func(ctx context.Context, serverID string) error
 }
 
 // ErrBackupsUnavailable is returned by Target.Backup until backups exist.
@@ -267,6 +269,11 @@ func (e *Engine) runAction(ctx context.Context, serverID string, a Action, logf 
 		}
 		return err
 	case "start":
+		if e.target.CanStart != nil {
+			if err := e.target.CanStart(ctx, serverID); err != nil {
+				return err
+			}
+		}
 		if e.target.BeforeStart != nil {
 			e.target.BeforeStart(ctx, serverID)
 		}
@@ -278,6 +285,11 @@ func (e *Engine) runAction(ctx context.Context, serverID string, a Action, logf 
 		}
 		return err
 	case "restart":
+		if e.target.CanStart != nil {
+			if err := e.target.CanStart(ctx, serverID); err != nil {
+				return err
+			}
+		}
 		if e.target.BeforeStart != nil {
 			e.target.BeforeStart(ctx, serverID)
 		}

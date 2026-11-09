@@ -73,6 +73,9 @@ func (s *Server) handleGitUpdate(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
+		if s.servers.CheckStartable(ctx, srv.ID) != nil {
+			return // expired meanwhile: stays stopped
+		}
 		s.applyConfigDefaults(cur)
 		if err := s.sup.Start(ctx, srv.ID); err != nil {
 			s.log.Warn("start after git update", "server", srv.ID, "err", err)
