@@ -22,7 +22,9 @@ export function PowerButtons({ server, compact = false, withKill = false, classN
   const { t } = useTranslation()
   const power = usePower(server.id)
   const [confirmKill, setConfirmKill] = useState(false)
-  const allowed = canDo(server.status.state, server.installState)
+  const can = canDo(server.status.state, server.installState)
+  // An expired server is locked until an admin extends it.
+  const allowed = server.expired ? { ...can, start: false, restart: false } : can
   const pending = power.isPending ? power.variables : null
 
   function run(action: PowerAction) {
@@ -45,7 +47,7 @@ export function PowerButtons({ server, compact = false, withKill = false, classN
         run(action)
       }}
       aria-label={t(`power.${action}`)}
-      title={t(`power.${action}`)}
+      title={server.expired && (action === "start" || action === "restart") ? t("expiry.expiredTitle") : t(`power.${action}`)}
     >
       {pending === action ? <Loader2Icon className="animate-spin" /> : <Icon />}
       {!compact && t(`power.${action}`)}

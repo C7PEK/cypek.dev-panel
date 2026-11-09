@@ -113,6 +113,20 @@ export interface Server {
   players?: Players
   /** The code comes from git: "Update from git" is available. */
   gitUpdate?: boolean
+  /** End date (RFC 3339); absent = never expires. */
+  expiresAt?: string
+  /** The end date passed: stopped and locked until an admin extends it. */
+  expired?: boolean
+  expiredAt?: string
+}
+
+/** PUT /servers/{id}/expiry: exactly one of the fields. */
+export type ExpiryInput = { extendDays: number } | { expiresAt: string | null }
+
+export interface ExpiryInfo {
+  expiresAt?: string
+  expired: boolean
+  expiredAt?: string
 }
 
 export interface CreateServerInput {
@@ -127,6 +141,8 @@ export interface CreateServerInput {
   ports?: Port[]
   /** Save even though another server declares the same port. */
   forcePorts?: boolean
+  /** Stop and lock the server after this many days (never deleted). */
+  expiresInDays?: number
 }
 
 export type UpdateServerInput = Partial<Pick<Server, "name" | "run" | "limits" | "autostart" | "ports" | "variables">> & { forcePorts?: boolean }
@@ -514,7 +530,7 @@ export interface ModInstallResult {
   restartNeeded: boolean
 }
 
-export type AlertKind = "down" | "recovered" | "restarted" | "error" | "test"
+export type AlertKind = "down" | "recovered" | "restarted" | "error" | "test" | "expired" | "expiring"
 
 export interface AlertSettings {
   webhookSet: boolean

@@ -1,18 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { api } from "@/lib/api"
-import type {
-  ConsoleHints,
-  CreateServerInput,
-  InstallJob,
-  InstallState,
-  LiveServer,
-  PowerAction,
-  Server,
-  ServerState,
-  ServerStatus,
-  UpdateServerInput,
-} from "@/lib/types"
+import type { ConsoleHints, CreateServerInput, ExpiryInfo, ExpiryInput, InstallJob, InstallState, LiveServer, PowerAction, Server, ServerState, ServerStatus, UpdateServerInput } from "@/lib/types"
 
 /** Prefer the events socket's fresher status/players over the 3 s REST snapshot. */
 export function mergeLive(server: Server, live?: LiveServer): Server {
@@ -77,6 +66,49 @@ export function useDeleteServer() {
       void qc.invalidateQueries({ queryKey: serversKey })
     },
   })
+}
+
+/** Sets, extends or removes a server's end date (admin). */
+export function useSetExpiry(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: ExpiryInput) => api<ExpiryInfo>("PUT", `${serverPath(id)}/expiry`, input),
+    onSuccess: (info) => {
+      qc.setQueryData<Server>(serverKey(id), (old) =>
+        old ? { ...old, expiresAt: info.expiresAt, expired: info.expired, expiredAt: info.expiredAt } : old,
+      )
+      void qc.invalidateQueries({ queryKey: serversKey })
+    },
+  })
+}
+
+export type ExpiryChoice = "none" | "7" | "14" | "30" | "60" | "90" | "custom"
+
+export const EXPIRY_PRESETS = ["7", "14", "30", "60", "90"] as const
+
+/** Days to send (undefined = no limit, null = invalid custom value). */
+export function expiryDays(choice: ExpiryChoice, custom: string): number | undefined | null {
+  if (choice === "none") return undefined
+  if (choice !== "custom") return Number(choice)
+  const n = Number(custom.trim())
+  return Number.isInteger(n) && n >= 1 && n <= 3650 ? n : null
+}
+
+export type ExpiryStatus =
+  | { kind: "none" }
+  | { kind: "expired" }
+  | { kind: "today" }
+  | { kind: "soon" | "later"; days: number }
+
+/** Where a server stands relative to its end date ("soon" = 3 days or less). */
+export function expiryStatus(s: Pick<Server, "expiresAt" | "expired">): ExpiryStatus {
+  if (s.expired) return { kind: "expired" }
+  if (!s.expiresAt) return { kind: "none" }
+  const ms = new Date(s.expiresAt).getTime() - Date.now()
+  if (Number.isNaN(ms)) return { kind: "none" }
+  if (ms <= 24 * 3600 * 1000) return { kind: "today" }
+  const days = Math.ceil(ms / (24 * 3600 * 1000))
+  return { kind: days <= 3 ? "soon" : "later", days }
 }
 
 export function usePower(id: string) {

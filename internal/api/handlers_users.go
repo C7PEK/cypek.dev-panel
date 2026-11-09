@@ -111,6 +111,10 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, CodeOwnerImmutable, "The owner account cannot be changed here.")
 		return
 	}
+	if target.ID == actor.ID && req.Password != nil {
+		writeError(w, http.StatusForbidden, CodeSelfAction, "Change your own password in your account settings (it asks for the current one).")
+		return
+	}
 	if target.ID == actor.ID && (req.Role != nil || req.Disabled != nil) {
 		writeError(w, http.StatusForbidden, CodeSelfAction, "You cannot change your own role or disable yourself.")
 		return

@@ -52,6 +52,8 @@ type Deps struct {
 	// receives the backend the SFTP server authenticates against.
 	SFTPInfo   SFTPInfo
 	ExposeSFTP func(sftpd.Backend)
+	// onServer hands tests the built server (package-internal).
+	onServer func(*Server)
 	// AlertSender overrides the Discord client (tests).
 	AlertSender alerts.Sender
 	// Modrinth backs the Minecraft plugin/mod manager (nil = public API).
@@ -188,6 +190,9 @@ func New(d Deps) (http.Handler, error) {
 		go s.metrics.Run(s.bgCtx)
 	}
 	s.startAlerts()
+	if s.servers != nil && s.sup != nil {
+		go s.runExpiryLoop(s.bgCtx)
+	}
 	if s.schedules != nil && s.sup != nil {
 		target := scheduler.Target{
 			WarnCommand: s.warnCommandFor,
@@ -206,6 +211,7 @@ func New(d Deps) (http.Handler, error) {
 			target.Backup = s.scheduledBackup
 		}
 		target.BeforeStart = s.beforeStart
+		target.CanStart = s.servers.CheckStartable
 		s.scheduleEngine = scheduler.New(s.schedules, s.sup, target, d.Log)
 		if err := s.scheduleEngine.Start(s.bgCtx); err != nil {
 			return nil, fmt.Errorf("start scheduler: %w", err)
@@ -308,6 +314,7 @@ func New(d Deps) (http.Handler, error) {
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/install", s.handleInstallStatus)
 				sr.With(s.withServer(auth.PermSettings)).Post("/install", s.handleReinstall)
 				sr.With(s.withServer(auth.PermSettings)).Post("/git-update", s.handleGitUpdate)
+				sr.With(s.requireRole(auth.RoleAdmin), s.withServer(auth.PermSettings)).Put("/expiry", s.handleSetExpiry)
 
 				sr.Route("/users", func(sur chi.Router) {
 					sur.Use(s.requireRole(auth.RoleAdmin), s.withServer(auth.PermSettings))
@@ -396,6 +403,9 @@ func New(d Deps) (http.Handler, error) {
 		}
 	}
 	r.Handle("/*", static)
+	if d.onServer != nil {
+		d.onServer(s)
+	}
 	return r, nil
 }
 

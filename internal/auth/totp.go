@@ -167,8 +167,14 @@ func (s *Store) consumeBackupCode(ctx context.Context, userID int64, code string
 		if h == want {
 			hashes = append(hashes[:i], hashes[i+1:]...)
 			hb, _ := json.Marshal(hashes)
-			_, err := s.db.ExecContext(ctx, `UPDATE users SET totp_backup_codes = ? WHERE id = ?`, string(hb), userID)
-			return err == nil, err
+			// Compare-and-swap: of two concurrent requests with the same
+			// code only one sees the old list and wins.
+			res, err := s.db.ExecContext(ctx, `UPDATE users SET totp_backup_codes = ? WHERE id = ? AND totp_backup_codes = ?`, string(hb), userID, raw)
+			if err != nil {
+				return false, err
+			}
+			n, _ := res.RowsAffected()
+			return n == 1, nil
 		}
 	}
 	return false, nil

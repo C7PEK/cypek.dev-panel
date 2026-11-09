@@ -152,7 +152,8 @@
     "port_in_use_host": "Port {{port}} jest już zajęty przez inny program na tym komputerze.",
     "port_suggestion": "Wolny port: {{suggestion}}.",
     "no_git_source": "Ten serwer nie pobiera kodu z gita.",
-    "self_update_unavailable": "Tego panelu nie da się zaktualizować z przeglądarki. Użyj w terminalu: sudo homepanel update"
+    "self_update_unavailable": "Tego panelu nie da się zaktualizować z przeglądarki. Użyj w terminalu: sudo homepanel update",
+    "server_expired": "Ten serwer wygasł. Admin musi go przedłużyć, zanim znów się uruchomi."
   },
   "servers": {
     "create": "Utwórz serwer",
@@ -1163,7 +1164,9 @@
       "recovered": "Znowu działa",
       "restarted": "Sam wstał",
       "error": "Błąd",
-      "test": "Test"
+      "test": "Test",
+      "expired": "Wygasł",
+      "expiring": "Wkrótce wygasa"
     },
     "server": {
       "title": "Powiadomienia Discord",
@@ -1267,5 +1270,67 @@
     "save": "Zapisz",
     "reset": "Przywróć domyślne",
     "saved": "Wygląd zapisany"
+  },
+  "expiry": {
+    "expiredTitle": "Serwer wygasł",
+    "hint": "Po tym czasie serwer zostanie zatrzymany i zablokowany. Nic nie zostanie usunięte — o przedłużeniu albo usunięciu decyduje admin.",
+    "saved": "Termin ustawiony: {{date}}",
+    "cleared": "Limit czasu usunięty",
+    "extend_one": "Przedłuż o {{count}} dzień",
+    "extend_few": "Przedłuż o {{count}} dni",
+    "extend_many": "Przedłuż o {{count}} dni",
+    "extend_other": "Przedłuż o {{count}} dni",
+    "setDate": "Ustaw datę…",
+    "badge": {
+      "expired": "Wygasł",
+      "today": "Wygasa dziś",
+      "days_one": "Wygasa za {{count}} dzień",
+      "days_few": "Wygasa za {{count}} dni",
+      "days_many": "Wygasa za {{count}} dni",
+      "days_other": "Wygasa za {{count}} dni"
+    },
+    "banner": {
+      "expired": "Serwer wygasł {{date}}. Został zatrzymany i zablokowany, pliki są nietknięte.",
+      "contactAdmin": "Skontaktuj się z administratorem, żeby go przedłużyć.",
+      "soon": "Serwer wygaśnie {{relative}} ({{date}})."
+    },
+    "dialog": {
+      "title": "Data końca",
+      "description": "Do końca wybranego dnia serwer działa normalnie, potem zostanie zatrzymany i zablokowany."
+    },
+    "card": {
+      "title": "Czas działania",
+      "none": "Bez limitu — serwer nie wygasa.",
+      "expires": "Wygasa {{date}} ({{relative}}).",
+      "expiredAt": "Wygasł {{date}} — zatrzymany i zablokowany.",
+      "extendBy_one": "+{{count}} dzień",
+      "extendBy_few": "+{{count}} dni",
+      "extendBy_many": "+{{count}} dni",
+      "extendBy_other": "+{{count}} dni",
+      "dateLabel": "Data końca",
+      "set": "Ustaw",
+      "clear": "Usuń limit"
+    },
+    "dashboard": {
+      "title": "Wygasłe serwery czekają na decyzję",
+      "description": "Są zatrzymane i zablokowane, nic nie zostało usunięte. Przedłuż je albo usuń w ustawieniach serwera.",
+      "since": "wygasł {{relative}}",
+      "open": "Otwórz"
+    },
+    "wizard": {
+      "label": "Czas działania",
+      "none": "Bez limitu",
+      "custom": "Własna liczba dni",
+      "customLabel": "Liczba dni",
+      "days_one": "{{count}} dzień",
+      "days_few": "{{count}} dni",
+      "days_many": "{{count}} dni",
+      "days_other": "{{count}} dni",
+      "summary_one": "Wygasa po {{count}} dniu",
+      "summary_few": "Wygasa po {{count}} dniach",
+      "summary_many": "Wygasa po {{count}} dniach",
+      "summary_other": "Wygasa po {{count}} dniach",
+      "invalid": "Podaj od 1 do 3650 dni."
+    }
   }
 }

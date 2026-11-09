@@ -24,7 +24,7 @@ func (b sftpBackend) Authenticate(ctx context.Context, username, password, ip st
 	if ok, _ := s.loginLimitIP.Allow(ip); !ok {
 		return 0, "", errRateLimited
 	}
-	key := strings.ToLower(strings.TrimSpace(username))
+	key := ip + "|" + strings.ToLower(strings.TrimSpace(username))
 	if ok, _ := s.loginLimitUser.Allow(key); !ok {
 		return 0, "", errRateLimited
 	}

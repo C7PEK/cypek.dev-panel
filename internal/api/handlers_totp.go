@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -167,6 +168,11 @@ func (s *Server) handleLoginTOTP(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, CodeUnauthorized, "This login attempt has expired. Start again.")
 		return
 	}
+	totpKey := fmt.Sprintf("totp|%d", userID)
+	if ok, retry := s.loginLimitUser.Allow(totpKey); !ok {
+		rateLimited(w, retry)
+		return
+	}
 	valid, err := s.store.VerifyTOTP(r.Context(), userID, s.secrets, req.Code)
 	if err != nil && !errors.Is(err, auth.ErrTOTPDisabled) {
 		s.internalError(w, r, err)
@@ -180,6 +186,8 @@ func (s *Server) handleLoginTOTP(w http.ResponseWriter, r *http.Request) {
 	s.pendingMu.Lock()
 	s.pending.Take(req.Token, true)
 	s.pendingMu.Unlock()
+	s.loginLimitIP.Reset(clientIP(r))
+	s.loginLimitUser.Reset(totpKey)
 	user, err := s.store.GetUserByID(r.Context(), userID)
 	if err != nil || user.Disabled {
 		writeError(w, http.StatusUnauthorized, CodeUnauthorized, "Login failed.")

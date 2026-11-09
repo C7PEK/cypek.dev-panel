@@ -188,6 +188,10 @@ func (s *Store) SetPassword(ctx context.Context, userID int64, password string) 
 	if _, err := tx.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, userID); err != nil {
 		return fmt.Errorf("revoke sessions for user %d: %w", userID, err)
 	}
+	// A key minted with a stolen session must not outlive the new password.
+	if _, err := tx.ExecContext(ctx, `DELETE FROM api_keys WHERE user_id = ?`, userID); err != nil {
+		return fmt.Errorf("revoke API keys for user %d: %w", userID, err)
+	}
 	return tx.Commit()
 }
 

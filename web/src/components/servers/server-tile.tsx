@@ -4,6 +4,7 @@ import { Link } from "react-router"
 
 import { CategoryIcon } from "@/components/servers/category-icon"
 import { PowerButtons } from "@/components/servers/power-buttons"
+import { ExpiryBadge } from "@/components/servers/expiry"
 import { InstallBadge } from "@/components/servers/install-badge"
 import { StateBadge } from "@/components/servers/state-badge"
 import { Sparkline } from "@/components/stats/sparkline"
@@ -41,8 +42,9 @@ export function ServerTile({ server: raw, live }: { server: Server; live?: LiveS
             >
               {server.name}
             </Link>
-            <div className="label-caps mt-0.5 text-[0.62rem] text-muted-foreground">
+            <div className="label-caps mt-0.5 flex flex-wrap items-center gap-2 text-[0.62rem] text-muted-foreground">
               {t(`servers.category.${server.category}`)}
+              <ExpiryBadge server={server} className="relative z-10" />
             </div>
           </div>
           {server.installState === "ready" ? (

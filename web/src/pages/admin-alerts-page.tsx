@@ -239,6 +239,8 @@ const kindClass: Record<AlertKind, string> = {
   restarted: "border-amber-500/40 bg-amber-500/10 text-amber-300",
   error: "border-orange-500/40 bg-orange-500/10 text-orange-300",
   test: "border-border bg-muted/40 text-muted-foreground",
+  expired: "border-red-500/40 bg-red-500/10 text-red-400",
+  expiring: "border-amber-500/40 bg-amber-500/10 text-amber-300",
 }
 
 function HistoryCard({ items }: { items: AlertHistoryItem[] }) {

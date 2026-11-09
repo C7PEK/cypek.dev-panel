@@ -49,6 +49,9 @@ func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, err)
 		return
 	}
+	if key := apiKeyFromContext(r); key != nil && !key.AllowsPermission(auth.PermConsoleWrite) {
+		canWrite = false
+	}
 
 	// coder/websocket rejects cross-origin upgrades by default (Origin must
 	// match Host): that is the CSRF protection for this endpoint.

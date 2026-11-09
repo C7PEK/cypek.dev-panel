@@ -2,9 +2,11 @@ package api
 
 import (
 	"context"
+	"crypto/subtle"
 	"log/slog"
 	"net"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -90,8 +92,14 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 			writeError(w, http.StatusUnauthorized, CodeUnauthorized, "You must be logged in.")
 			return
 		}
-		if !sess.APIKey && !isSafeMethod(r.Method) && r.Header.Get(csrfHeader) != sess.CSRFToken {
+		if !sess.APIKey && !isSafeMethod(r.Method) && subtle.ConstantTimeCompare([]byte(r.Header.Get(csrfHeader)), []byte(sess.CSRFToken)) != 1 {
 			writeError(w, http.StatusForbidden, CodeCSRF, "CSRF token missing or invalid. Reload the page and try again.")
+			return
+		}
+		// API keys automate servers; they never manage the account itself
+		// (password, 2FA, more keys).
+		if sess.APIKey && strings.HasPrefix(r.URL.Path, "/api/v1/auth/") && r.URL.Path != "/api/v1/auth/me" {
+			writeError(w, http.StatusForbidden, CodeForbidden, "API keys cannot manage the account.")
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -105,6 +113,12 @@ func (s *Server) requireRole(min auth.Role) func(http.Handler) http.Handler {
 			_, user := sessionFromContext(r.Context())
 			if user == nil || !user.Role.AtLeast(min) {
 				writeError(w, http.StatusForbidden, CodeForbidden, "You do not have permission to do this.")
+				return
+			}
+			// A scoped key (e.g. console.read for a status script) must not
+			// act with its owner's full admin role.
+			if key := apiKeyFromContext(r); key != nil && !key.AllowsPermission("*") {
+				writeError(w, http.StatusForbidden, CodeForbidden, "This API key is limited to server permissions.")
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -124,7 +138,7 @@ func rejectCrossSite(next http.Handler) http.Handler {
 			}
 			// File routes take text and multipart bodies; they are protected by
 			// the CSRF token requireAuth checks on every unsafe request.
-			if ct := r.Header.Get("Content-Type"); r.ContentLength != 0 && !strings.HasPrefix(ct, "application/json") && !strings.Contains(r.URL.Path, "/files") {
+			if ct := r.Header.Get("Content-Type"); r.ContentLength != 0 && !strings.HasPrefix(ct, "application/json") && !isFilesRoute(r) {
 				writeError(w, http.StatusUnsupportedMediaType, CodeBadRequest, "Content-Type must be application/json.")
 				return
 			}
@@ -133,11 +147,17 @@ func rejectCrossSite(next http.Handler) http.Handler {
 	})
 }
 
+// filesRoute matches the file manager routes on the escaped path, so an
+// encoded "%2Ffiles" inside another route's parameter does not count.
+var filesRoute = regexp.MustCompile(`^/api/v1/servers/[a-z0-9]+/files(/|$)`)
+
+func isFilesRoute(r *http.Request) bool { return filesRoute.MatchString(r.URL.EscapedPath()) }
+
 func limitBody(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// File manager routes carry uploads and editor content; they set
 		// their own, larger limits.
-		if !strings.Contains(r.URL.Path, "/files") {
+		if !isFilesRoute(r) {
 			r.Body = http.MaxBytesReader(w, r.Body, maxJSONBody)
 		}
 		next.ServeHTTP(w, r)

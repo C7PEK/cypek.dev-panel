@@ -35,7 +35,9 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, CodeValidation, "Username and password are required.")
 		return
 	}
-	userKey := strings.ToLower(req.Username)
+	// Keyed by address and account: someone else on the LAN cannot lock
+	// the owner out by failing logins for "owner" from their own machine.
+	userKey := ip + "|" + strings.ToLower(req.Username)
 	if ok, retry := s.loginLimitUser.Allow(userKey); !ok {
 		rateLimited(w, retry)
 		return
@@ -48,8 +50,12 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	s.loginLimitIP.Reset(ip)
-	s.loginLimitUser.Reset(userKey)
+	if !user.TOTPEnabled {
+		s.loginLimitIP.Reset(ip)
+		s.loginLimitUser.Reset(userKey)
+	}
+	// With 2FA the limits are reset only after the code is right, so the
+	// password step cannot be used to keep guessing codes.
 	if user.TOTPEnabled {
 		s.pendingMu.Lock()
 		token, err := s.pending.Add(user.ID)

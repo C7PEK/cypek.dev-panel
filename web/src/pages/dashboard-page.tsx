@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 
 import { AppShell } from "@/components/layout/app-shell"
+import { ExpiredServersCard } from "@/components/servers/expiry"
 import { ServerTile } from "@/components/servers/server-tile"
 import { HostBar } from "@/components/stats/host-bar"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -38,6 +39,8 @@ export function DashboardPage({ user }: { user: User }) {
         </div>
 
         <HostBar host={live.host} connected={live.connected} />
+
+        {canCreate && servers.data && <ExpiredServersCard servers={servers.data} />}
 
         {servers.error ? (
           <Alert variant="destructive">

@@ -1,7 +1,7 @@
-import { ArrowLeftIcon, CpuIcon, MemoryStickIcon, Trash2Icon, UsersIcon } from "lucide-react"
+import { ArrowLeftIcon, CpuIcon, MemoryStickIcon, UsersIcon } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Link, Navigate, useNavigate, useParams } from "react-router"
+import { Link, Navigate, useParams } from "react-router"
 import { toast } from "sonner"
 
 import { AppShell } from "@/components/layout/app-shell"
@@ -9,6 +9,8 @@ import { CategoryIcon } from "@/components/servers/category-icon"
 import { Console } from "@/components/console/console"
 import { SftpCard } from "@/components/files/sftp-card"
 import { FileBrowser } from "@/components/files/file-browser"
+import { DeleteServerDialog } from "@/components/servers/delete-server-dialog"
+import { ExpiryBadge, ExpiryBanner, ExpiryCard } from "@/components/servers/expiry"
 import { InstallBadge } from "@/components/servers/install-badge"
 import { InstallPanel } from "@/components/servers/install-panel"
 import { TemplateSettings } from "@/components/servers/template-settings"
@@ -28,23 +30,13 @@ import { ResourceCharts } from "@/components/stats/resource-charts"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { isApiError } from "@/lib/api"
 import { describeError } from "@/lib/errors"
 import { useLiveStats } from "@/lib/events"
 import { useMods } from "@/lib/mods"
 import { formatBytes, formatPercent } from "@/lib/format"
-import { canDo, mergeLive, useDeleteServer, useServer, useUpdateServer } from "@/lib/servers"
+import { canDo, mergeLive, useServer, useUpdateServer } from "@/lib/servers"
 import { useTemplates } from "@/lib/templates"
 import type { Server, User } from "@/lib/types"
 
@@ -106,6 +98,7 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <StateBadge state={s.status.state} />
                 {!ready && <InstallBadge state={s.installState} />}
+                <ExpiryBadge server={s} />
                 <TemplateLabel server={s} />
                 {s.status.pid ? <span className="font-mono">PID {s.status.pid}</span> : null}
                 {s.players && (
@@ -138,6 +131,8 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
             {s.gitUpdate && <GitUpdateButton server={s} size="sm" className="hidden sm:inline-flex" />}
           </div>
         </header>
+
+        <ExpiryBanner server={s} admin={user.role !== "user"} />
 
         <Tabs defaultValue="console">
           <TabsList className="w-full justify-start overflow-x-auto">
@@ -208,6 +203,7 @@ function SettingsTab({ server, admin }: { server: Server; admin: boolean }) {
     return (
       <div className="flex flex-col gap-6">
         <TemplateSettings server={server} />
+        {admin && <ExpiryCard server={server} />}
         <PortHelpCard ports={server.ports ?? []} />
         <ServerAlertsCard serverId={server.id} admin={admin} />
         <DangerZone server={server} />
@@ -241,6 +237,7 @@ function SettingsTab({ server, admin }: { server: Server; admin: boolean }) {
           />
         </CardContent>
       </Card>
+      {admin && <ExpiryCard server={server} />}
       <PortHelpCard ports={server.ports ?? []} />
       <ServerAlertsCard serverId={server.id} admin={admin} />
       <DangerZone server={server} />
@@ -250,10 +247,6 @@ function SettingsTab({ server, admin }: { server: Server; admin: boolean }) {
 
 function DangerZone({ server }: { server: Server }) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
-  const del = useDeleteServer()
-  const [open, setOpen] = useState(false)
-  const [files, setFiles] = useState(true)
   const stopped = canDo(server.status.state, server.installState).delete
 
   return (
@@ -264,59 +257,7 @@ function DangerZone({ server }: { server: Server }) {
       </CardHeader>
       <CardContent className="flex flex-wrap items-center justify-between gap-3">
         {!stopped && <p className="text-sm text-muted-foreground">{t("servers.deleteRequiresStopped")}</p>}
-        <Dialog
-          open={open}
-          onOpenChange={(o) => {
-            setOpen(o)
-            if (!o) del.reset()
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button variant="destructive" disabled={!stopped} className="ml-auto">
-              <Trash2Icon />
-              {t("power.delete")}
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="font-heading text-xl font-semibold tracking-[0.04em] uppercase">{t("servers.deleteTitle")}</DialogTitle>
-              <DialogDescription>{t("servers.deleteDescription", { name: server.name })}</DialogDescription>
-            </DialogHeader>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" className="size-4 accent-primary" checked={files} onChange={(e) => setFiles(e.target.checked)} />
-              <Label asChild>
-                <span>{t("servers.deleteFiles")}</span>
-              </Label>
-            </label>
-            {del.error && (
-              <Alert variant="destructive">
-                <AlertDescription>{describeError(t, del.error)}</AlertDescription>
-              </Alert>
-            )}
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setOpen(false)}>
-                {t("power.cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={del.isPending}
-                onClick={() =>
-                  del.mutate(
-                    { id: server.id, files },
-                    {
-                      onSuccess: () => {
-                        toast.success(t("servers.deleted"))
-                        void navigate("/", { replace: true })
-                      },
-                    },
-                  )
-                }
-              >
-                {del.isPending ? t("servers.deleting") : t("power.confirm")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <DeleteServerDialog server={server} className="ml-auto" />
       </CardContent>
     </Card>
   )

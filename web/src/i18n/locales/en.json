@@ -150,7 +150,8 @@
     "port_in_use_host": "Port {{port}} is already used by another program on this machine.",
     "port_suggestion": "Free port: {{suggestion}}.",
     "no_git_source": "This server does not get its code from git.",
-    "self_update_unavailable": "This panel cannot be updated from the browser. In a terminal run: sudo homepanel update"
+    "self_update_unavailable": "This panel cannot be updated from the browser. In a terminal run: sudo homepanel update",
+    "server_expired": "This server has expired. An admin has to extend it before it can start again."
   },
   "servers": {
     "create": "Create a server",
@@ -1127,7 +1128,9 @@
       "recovered": "Back up",
       "restarted": "Restarted",
       "error": "Error",
-      "test": "Test"
+      "test": "Test",
+      "expired": "Expired",
+      "expiring": "Expires soon"
     },
     "server": {
       "title": "Discord alerts",
@@ -1231,5 +1234,57 @@
     "save": "Save",
     "reset": "Reset to default",
     "saved": "Appearance saved"
+  },
+  "expiry": {
+    "expiredTitle": "Server expired",
+    "hint": "After this time the server is stopped and locked. Nothing is deleted: an admin decides to extend or delete it.",
+    "saved": "End date set: {{date}}",
+    "cleared": "Time limit removed",
+    "extend_one": "Extend by {{count}} day",
+    "extend_other": "Extend by {{count}} days",
+    "setDate": "Set date…",
+    "badge": {
+      "expired": "Expired",
+      "today": "Expires today",
+      "days_one": "Expires in {{count}} day",
+      "days_other": "Expires in {{count}} days"
+    },
+    "banner": {
+      "expired": "This server expired {{date}}. It was stopped and locked; its files are untouched.",
+      "contactAdmin": "Ask an administrator to extend it.",
+      "soon": "This server expires {{relative}} ({{date}})."
+    },
+    "dialog": {
+      "title": "End date",
+      "description": "The server keeps running until the end of the chosen day, then it is stopped and locked."
+    },
+    "card": {
+      "title": "Running time",
+      "none": "No limit — the server never expires.",
+      "expires": "Expires {{date}} ({{relative}}).",
+      "expiredAt": "Expired {{date}} — stopped and locked.",
+      "extendBy_one": "+{{count}} day",
+      "extendBy_other": "+{{count}} days",
+      "dateLabel": "End date",
+      "set": "Set",
+      "clear": "Remove limit"
+    },
+    "dashboard": {
+      "title": "Expired servers need a decision",
+      "description": "They are stopped and locked; nothing was deleted. Extend them, or delete them in the server settings.",
+      "since": "expired {{relative}}",
+      "open": "Open"
+    },
+    "wizard": {
+      "label": "Running time",
+      "none": "No limit",
+      "custom": "Custom number of days",
+      "customLabel": "Days",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "summary_one": "Expires after {{count}} day",
+      "summary_other": "Expires after {{count}} days",
+      "invalid": "Enter 1 to 3650 days."
+    }
   }
 }

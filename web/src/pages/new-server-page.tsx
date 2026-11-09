@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router"
 import { toast } from "sonner"
 
 import { AppShell } from "@/components/layout/app-shell"
+import { ExpiryField } from "@/components/servers/expiry"
 import { CategoryIcon } from "@/components/servers/category-icon"
 import { CreateServerDialog } from "@/components/servers/create-server-dialog"
 import { PortConflictNotice } from "@/components/servers/port-conflict-notice"
@@ -20,7 +21,7 @@ import { isApiError } from "@/lib/api"
 import { describeError, describePortConflict, portConflictOf } from "@/lib/errors"
 import { PortHelp } from "@/components/servers/port-help"
 import { describeLiveConflict, portVariable, resolvePorts, usePortCheck } from "@/lib/ports"
-import { useCreateServer } from "@/lib/servers"
+import { type ExpiryChoice, expiryDays, useCreateServer } from "@/lib/servers"
 import { isImported, localized, renderPort, sourceKind, useTemplates } from "@/lib/templates"
 import type { CreateServerInput, Template, User } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -55,6 +56,8 @@ export function NewServerPage({ user }: { user: User }) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [localErrors, setLocalErrors] = useState<Record<string, string | undefined>>({})
   const [customOpen, setCustomOpen] = useState(false)
+  const [expiryChoice, setExpiryChoice] = useState<ExpiryChoice>("none")
+  const [expiryCustom, setExpiryCustom] = useState("")
 
   const apiErr = create.error
   const apiField = isApiError(apiErr) ? apiErr.field : undefined
@@ -65,7 +68,9 @@ export function NewServerPage({ user }: { user: User }) {
     return out
   }, [localErrors, apiField, apiMessage])
   const nameError = localErrors.__name ?? (apiField === "name" ? apiMessage : undefined)
-  const generalError = apiErr && !(apiField && (apiField === "name" || apiField.startsWith("variables."))) ? apiMessage : undefined
+  const generalError =
+    apiErr && !(apiField && (apiField === "name" || apiField === "expiresInDays" || apiField.startsWith("variables."))) ? apiMessage : undefined
+  const expiryError = localErrors.__expiry ?? (apiField === "expiresInDays" ? apiMessage : undefined)
 
   // Ports: live warning while typing, plus actions when the create was refused.
   const livePorts = useMemo(() => (template ? resolvePorts(template, values) : []), [template, values])
@@ -114,6 +119,7 @@ export function NewServerPage({ user }: { user: User }) {
       if ((v.type === "string" || v.type === "secret") && v.required && raw === "") errors[v.key] = t("servers.validation.required")
       if (v.type === "select" && raw === "") errors[v.key] = t("templates.choose")
     }
+    if (expiryDays(expiryChoice, expiryCustom) === null) errors.__expiry = t("expiry.wizard.invalid")
     for (const k of ["memoryMb", "cpuPercent"] as const) {
       if (!/^\d+$/.test(advanced[k].trim())) errors[`__${k}`] = t("servers.validation.integer")
     }
@@ -135,6 +141,7 @@ export function NewServerPage({ user }: { user: User }) {
       variables: Object.fromEntries(template.variables.map((v) => [v.key, (values[v.key] ?? "").trim()])),
       limits: { memoryMb: Number(advanced.memoryMb) || 0, cpuPercent: Number(advanced.cpuPercent) || 0 },
       autostart: advanced.autostart,
+      expiresInDays: expiryDays(expiryChoice, expiryCustom) ?? undefined,
     }
     create.mutate(input, {
       onSuccess: (server) => {
@@ -143,7 +150,7 @@ export function NewServerPage({ user }: { user: User }) {
       },
       onError: (err) => {
         // Field errors belong to step 2; jump back so the user sees them.
-        if (isApiError(err) && err.field && (err.field === "name" || err.field.startsWith("variables."))) setStep(2)
+        if (isApiError(err) && err.field && (err.field === "name" || err.field === "expiresInDays" || err.field.startsWith("variables."))) setStep(2)
       },
     })
   }
@@ -323,6 +330,20 @@ export function NewServerPage({ user }: { user: User }) {
                       />
                     ))
                   )}
+                  <ExpiryField
+                    idPrefix="new"
+                    choice={expiryChoice}
+                    custom={expiryCustom}
+                    onChoice={(c) => {
+                      setExpiryChoice(c)
+                      setLocalErrors((e) => ({ ...e, __expiry: undefined }))
+                    }}
+                    onCustom={(v) => {
+                      setExpiryCustom(v)
+                      setLocalErrors((e) => ({ ...e, __expiry: undefined }))
+                    }}
+                    error={expiryError}
+                  />
                   <button
                     type="button"
                     onClick={() => setShowAdvanced((v) => !v)}
@@ -409,6 +430,12 @@ export function NewServerPage({ user }: { user: User }) {
                 {template.variables.filter((v) => !v.hidden).map((v) => (
                   <SummaryRow key={v.key} label={localized(v.label, i18n.resolvedLanguage) || v.key} value={displayValue(v.type, values[v.key] ?? "", t)} />
                 ))}
+                <dt className="text-muted-foreground">{t("expiry.wizard.label")}</dt>
+                <dd>
+                  {expiryDays(expiryChoice, expiryCustom)
+                    ? t("expiry.wizard.summary", { count: expiryDays(expiryChoice, expiryCustom) ?? 0 })
+                    : t("expiry.wizard.none")}
+                </dd>
                 {(advanced.memoryMb !== "0" || advanced.cpuPercent !== "0" || advanced.autostart) && (
                   <>
                     <dt className="text-muted-foreground">{t("templates.advanced")}</dt>

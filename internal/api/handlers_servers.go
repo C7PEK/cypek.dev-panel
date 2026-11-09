@@ -36,6 +36,7 @@ type serverResponse struct {
 	Players   *query.Players    `json:"players,omitempty"`
 	// GitUpdate: the server's code comes from git ("Update from git").
 	GitUpdate bool `json:"gitUpdate"`
+	expiryView
 }
 
 func (s *Server) toResponse(ctx context.Context, srv *servers.Server) serverResponse {
@@ -45,6 +46,9 @@ func (s *Server) toResponse(ctx context.Context, srv *servers.Server) serverResp
 	}
 	st := s.statusOf(ctx, srv.ID)
 	resp := serverResponse{Server: srv, Status: st, Variables: maskedVariables(tpl, srv.Variables), GitUpdate: tpl != nil && tpl.UsesGit()}
+	if e, err := s.servers.Expiry(ctx, srv.ID); err == nil {
+		resp.expiryView = viewExpiry(e)
+	}
 	if st.State == supervisor.StateRunning {
 		resp.Players = s.playersOf(ctx, srv)
 	}
@@ -93,6 +97,9 @@ type serverInput struct {
 	// ForcePorts saves even though another server uses the same port (they
 	// then must not run at the same time).
 	ForcePorts bool `json:"forcePorts"`
+	// ExpiresInDays (create only) stops and locks the server after that
+	// many days; it is never deleted automatically.
+	ExpiresInDays *int `json:"expiresInDays"`
 }
 
 type runInput struct {
@@ -401,6 +408,10 @@ func (s *Server) handleCreateServer(w http.ResponseWriter, r *http.Request) {
 			srv.Variables[k] = v
 		}
 	}
+	if in.ExpiresInDays != nil && (*in.ExpiresInDays < 1 || *in.ExpiresInDays > 3650) {
+		writeFieldError(w, CodeValidation, "expiresInDays", "Choose 1 to 3650 days.")
+		return
+	}
 	if tpl == nil && !in.ForcePorts {
 		if cs := s.portConflicts(r.Context(), "", srv.Ports, false); len(cs) > 0 {
 			s.writePortConflict(w, r, cs[0], "ports", true)
@@ -411,6 +422,12 @@ func (s *Server) handleCreateServer(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.internalError(w, r, err)
 		return
+	}
+	if in.ExpiresInDays != nil {
+		at := time.Now().Add(time.Duration(*in.ExpiresInDays) * 24 * time.Hour)
+		if err := s.servers.SetExpiry(r.Context(), created.ID, &at); err != nil {
+			s.log.Warn("set expiry on create", "server", created.ID, "err", err)
+		}
 	}
 	if tpl != nil {
 		if err := s.startInstall(created, tpl, userVars); err != nil {
@@ -623,6 +640,10 @@ func (s *Server) handlePower(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Action == "start" || req.Action == "restart" {
+		if err := s.servers.CheckStartable(r.Context(), srv.ID); errors.Is(err, servers.ErrExpired) {
+			writeExpired(w)
+			return
+		}
 		if srv.InstallState != servers.InstallReady {
 			writeError(w, http.StatusConflict, CodeNotInstalled, "The server is not installed yet. Check the installation status.")
 			return
