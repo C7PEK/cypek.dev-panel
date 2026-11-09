@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/C7PEK/cypek.dev-panel/internal/safefs"
 	"hash"
 	"io"
 	"os"
@@ -57,12 +58,11 @@ type state struct {
 	Files       map[string]*fileMeta `json:"files,omitempty"`
 }
 
-func statePath(dir string) string { return filepath.Join(dir, ".homepanel", stateFile) }
 
 // loadState never fails: the file is a cache plus the admin's override.
 func loadState(dir string) *state {
 	st := &state{}
-	if b, err := os.ReadFile(statePath(dir)); err == nil {
+	if b, err := safefs.ReadFile(dir, filepath.Join(".homepanel", stateFile), 4<<20); err == nil {
 		_ = json.Unmarshal(b, st)
 	}
 	if st.Files == nil {
@@ -76,15 +76,7 @@ func saveState(dir string, st *state) error {
 	if err != nil {
 		return err
 	}
-	p := statePath(dir)
-	if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
-		return err
-	}
-	tmp := p + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o640); err != nil {
-		return err
-	}
-	return os.Rename(tmp, p)
+	return safefs.WriteFile(dir, filepath.Join(".homepanel", stateFile), b, 0o640)
 }
 
 // Manager serialises changes per server.

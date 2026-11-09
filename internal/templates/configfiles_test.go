@@ -93,3 +93,35 @@ func TestShellStartKeepsUnusedSecretsOut(t *testing.T) {
 		t.Errorf("start.env still applies: %v", run.Env)
 	}
 }
+
+func TestConfigWritesNeverLeaveTheServerFolder(t *testing.T) {
+	base := t.TempDir()
+	dir, outside := filepath.Join(base, "srv"), filepath.Join(base, "panel.db")
+	os.MkdirAll(dir, 0o755)
+	os.WriteFile(outside, []byte("DB"), 0o600)
+	tpl, err := Parse([]byte("id: cfgsec\nname: C\ncategory: other\nvariables:\n  - {key: PORT, type: number, default: 1}\ninstall: []\nstart: {command: /bin/true}\n" +
+		"configFiles:\n  - {path: server.properties, parser: properties, set: {port: \"{{PORT}}\"}}\n  - {path: dangling.properties, parser: properties, set: {a: b}}\n" +
+		"configDefaults:\n  - {files: [server.cfg], key: sv_x, line: set sv_x 1}\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Symlink(outside, filepath.Join(dir, "server.properties"))
+	os.Symlink(filepath.Join(base, "new-outside"), filepath.Join(dir, "dangling.properties"))
+	os.WriteFile(filepath.Join(dir, "server.cfg"), []byte("ensure x\n"), 0o640)
+	os.Symlink(outside, filepath.Join(dir, "server.cfg.panel-tmp")) // the old fixed temp name
+	if _, err := ApplyConfigFiles(dir, tpl, map[string]string{"PORT": "25565"}); err != nil {
+		t.Log(err)
+	}
+	if _, err := ApplyConfigDefaults(dir, tpl); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(outside); string(b) != "DB" {
+		t.Fatalf("outside file modified: %q", b)
+	}
+	if _, err := os.Stat(filepath.Join(base, "new-outside")); err == nil {
+		t.Fatal("file created through a dangling symlink")
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "server.cfg")); !strings.Contains(string(b), "set sv_x 1") {
+		t.Fatalf("config default not applied: %q", b)
+	}
+}

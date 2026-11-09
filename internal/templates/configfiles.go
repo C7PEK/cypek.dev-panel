@@ -2,7 +2,9 @@ package templates
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -46,13 +48,13 @@ func ApplyConfigFiles(serverDir string, t *Template, vars map[string]string) ([]
 		var did bool
 		switch cf.Parser {
 		case "properties", "ini":
-			did, err = setProperties(path, values, true)
+			did, err = setProperties(root, path, values, true)
 		case "file":
-			did, err = setLines(path, values)
+			did, err = setLines(root, path, values)
 		case "yaml":
-			did, err = setYAML(path, values)
+			did, err = setYAML(root, path, values)
 		case "json":
-			did, err = setJSON(path, values)
+			did, err = setJSON(root, path, values)
 		}
 		if err != nil {
 			return changed, fmt.Errorf("%s: %w", cf.Path, err)
@@ -64,17 +66,16 @@ func ApplyConfigFiles(serverDir string, t *Template, vars map[string]string) ([]
 	return changed, nil
 }
 
-func readLines(path string) ([]string, bool, error) {
-	f, err := os.Open(path)
-	if os.IsNotExist(err) {
+func readLines(root, path string) ([]string, bool, error) {
+	b, err := readUnder(root, path)
+	if errors.Is(err, os.ErrNotExist) {
 		return nil, false, nil
 	}
 	if err != nil {
 		return nil, false, err
 	}
-	defer f.Close()
 	var lines []string
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(bytes.NewReader(b))
 	sc.Buffer(make([]byte, 64*1024), 4<<20)
 	for sc.Scan() {
 		lines = append(lines, strings.TrimRight(sc.Text(), "\r"))
@@ -82,28 +83,21 @@ func readLines(path string) ([]string, bool, error) {
 	return lines, true, sc.Err()
 }
 
-func writeIfChanged(path string, before, after string) (bool, error) {
+func writeIfChanged(root, path string, before, after string) (bool, error) {
 	if before == after {
 		return false, nil
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return false, err
 	}
 	mode := os.FileMode(0o640)
 	if st, err := os.Stat(path); err == nil {
 		mode = st.Mode().Perm()
 	}
-	tmp := path + ".panel-tmp"
-	if err := os.WriteFile(tmp, []byte(after), mode); err != nil {
-		return false, err
-	}
-	return true, os.Rename(tmp, path)
+	return true, writeUnder(root, path, []byte(after), mode)
 }
 
 // setProperties sets key=value lines, keeping comments and order; keys
 // that are missing are appended (sorted for stable output).
-func setProperties(path string, values map[string]string, create bool) (bool, error) {
-	lines, exists, err := readLines(path)
+func setProperties(root, path string, values map[string]string, create bool) (bool, error) {
+	lines, exists, err := readLines(root, path)
 	if err != nil {
 		return false, err
 	}
@@ -139,15 +133,15 @@ func setProperties(path string, values map[string]string, create bool) (bool, er
 	}
 	after := strings.Join(lines, "\n")
 	if exists {
-		return writeIfChanged(path, before+"\n", after+"\n")
+		return writeIfChanged(root, path, before+"\n", after+"\n")
 	}
-	return writeIfChanged(path, "", after+"\n")
+	return writeIfChanged(root, path, "", after+"\n")
 }
 
 // setLines replaces every line that starts with a key by the value
 // (Pterodactyl's "file" parser).
-func setLines(path string, values map[string]string) (bool, error) {
-	lines, exists, err := readLines(path)
+func setLines(root, path string, values map[string]string) (bool, error) {
+	lines, exists, err := readLines(root, path)
 	if err != nil || !exists {
 		return false, err
 	}
@@ -160,12 +154,12 @@ func setLines(path string, values map[string]string) (bool, error) {
 			}
 		}
 	}
-	return writeIfChanged(path, before+"\n", strings.Join(lines, "\n")+"\n")
+	return writeIfChanged(root, path, before+"\n", strings.Join(lines, "\n")+"\n")
 }
 
-func setYAML(path string, values map[string]string) (bool, error) {
-	b, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
+func setYAML(root, path string, values map[string]string) (bool, error) {
+	b, err := readUnder(root, path)
+	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
 	if err != nil {
@@ -178,16 +172,16 @@ func setYAML(path string, values map[string]string) (bool, error) {
 	if doc.Kind == 0 {
 		doc = yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{{Kind: yaml.MappingNode}}}
 	}
-	root := doc.Content[0]
+	top := doc.Content[0]
 	keys := sortedKeys(values)
 	for _, k := range keys {
-		setYAMLPath(root, strings.Split(k, "."), values[k])
+		setYAMLPath(top, strings.Split(k, "."), values[k])
 	}
 	out, err := yaml.Marshal(&doc)
 	if err != nil {
 		return false, err
 	}
-	return writeIfChanged(path, string(b), string(out))
+	return writeIfChanged(root, path, string(b), string(out))
 }
 
 func setYAMLPath(n *yaml.Node, path []string, value string) {
@@ -226,9 +220,9 @@ func scalarNode(v string) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Value: v, Style: yaml.DoubleQuotedStyle}
 }
 
-func setJSON(path string, values map[string]string) (bool, error) {
-	b, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
+func setJSON(root, path string, values map[string]string) (bool, error) {
+	b, err := readUnder(root, path)
+	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
 	if err != nil {
@@ -245,7 +239,7 @@ func setJSON(path string, values map[string]string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return writeIfChanged(path, string(b), string(out)+"\n")
+	return writeIfChanged(root, path, string(b), string(out)+"\n")
 }
 
 func setJSONPath(m map[string]any, path []string, value string) {

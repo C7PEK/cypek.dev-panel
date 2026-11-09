@@ -1,11 +1,11 @@
 package api
 
 import (
-	"fmt"
 	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"image/png"
 	"net/http"
 	"strings"

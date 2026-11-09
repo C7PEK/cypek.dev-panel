@@ -3,6 +3,7 @@ package shim
 import (
 	"bufio"
 	"encoding/json"
+	"github.com/C7PEK/cypek.dev-panel/internal/safefs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -205,8 +206,13 @@ func ReadEvents(serverDir string, limit int) ([]Event, error) {
 	base := filepath.Join(serverDir, MetaDir, EventsFile)
 	var all []Event
 	for _, p := range []string{base + ".1", base} {
-		f, err := os.Open(p)
+		// Regular files only, size-capped: the game can replace them.
+		f, err := safefs.OpenRegular(serverDir, p[len(serverDir)+1:])
 		if err != nil {
+			continue
+		}
+		if st, err := f.Stat(); err != nil || st.Size() > 8*eventsMaxBytes {
+			f.Close()
 			continue
 		}
 		sc := bufio.NewScanner(f)

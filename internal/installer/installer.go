@@ -6,12 +6,14 @@ package installer
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/md5"
 	"crypto/sha1"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/C7PEK/cypek.dev-panel/internal/safefs"
 	"io"
 	"log/slog"
 	"os"
@@ -217,10 +219,15 @@ type stepCtx struct {
 	job  *Job
 	dir  string
 	vars map[string]string
+	tpl  *templates.Template // for masking secret values in the log
 }
 
 func (c *stepCtx) logf(format string, args ...any) {
 	line := fmt.Sprintf(format, args...)
+	if c.tpl != nil {
+		// The log is shown to console.read users and goes to the journal.
+		line = maskSecrets(c.tpl, c.vars, line)
+	}
 	c.m.deps.Log.Info("install", "server", c.job.ServerID, "msg", line)
 	c.m.mu.Lock()
 	c.job.Lines = appendLine(c.job.Lines, line)
@@ -247,7 +254,7 @@ func (m *Manager) run(ctx context.Context, job *Job, dir string, tpl *templates.
 	for k, v := range userVars {
 		vars[k] = v
 	}
-	c := &stepCtx{m: m, job: job, dir: dir, vars: vars}
+	c := &stepCtx{m: m, job: job, dir: dir, vars: vars, tpl: tpl}
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, err
 	}
@@ -530,14 +537,10 @@ func (c *stepCtx) write(n int, st *templates.WriteStep) error {
 	if err != nil {
 		return err
 	}
-	dest, err := insideDir(c.dir, path)
-	if err != nil {
+	if _, err := insideDir(c.dir, path); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(dest), 0o750); err != nil {
-		return err
-	}
-	return os.WriteFile(dest, []byte(content), 0o640)
+	return safefs.WriteFile(c.dir, filepath.Clean(path), []byte(content), 0o640)
 }
 
 // properties sets keys in a Java .properties file, keeping other lines
@@ -548,8 +551,7 @@ func (c *stepCtx) properties(n int, st *templates.PropertiesStep) error {
 		return err
 	}
 	c.begin(n, "Updating "+path)
-	dest, err := insideDir(c.dir, path)
-	if err != nil {
+	if _, err := insideDir(c.dir, path); err != nil {
 		return err
 	}
 	want := map[string]string{}
@@ -559,12 +561,11 @@ func (c *stepCtx) properties(n int, st *templates.PropertiesStep) error {
 		}
 	}
 	var lines []string
-	if f, err := os.Open(dest); err == nil {
-		sc := bufio.NewScanner(f)
+	if b, err := safefs.ReadFile(c.dir, filepath.Clean(path), 16<<20); err == nil {
+		sc := bufio.NewScanner(bytes.NewReader(b))
 		for sc.Scan() {
 			lines = append(lines, sc.Text())
 		}
-		f.Close()
 	}
 	seen := map[string]bool{}
 	for i, l := range lines {
@@ -593,10 +594,7 @@ func (c *stepCtx) properties(n int, st *templates.PropertiesStep) error {
 		lines = append(lines, k+"="+escapeProp(want[k]))
 		c.logf("%s: set %s=%s", path, k, want[k])
 	}
-	if err := os.MkdirAll(filepath.Dir(dest), 0o750); err != nil {
-		return err
-	}
-	return os.WriteFile(dest, []byte(strings.Join(lines, "\n")+"\n"), 0o640)
+	return safefs.WriteFile(c.dir, filepath.Clean(path), []byte(strings.Join(lines, "\n")+"\n"), 0o640)
 }
 
 // escapeProp escapes what Java's Properties loader would otherwise interpret.
@@ -707,7 +705,9 @@ func (c *stepCtx) runtime(ctx context.Context, n int, rt templates.Runtime) erro
 		venv := filepath.Join(c.dir, ".venv")
 		if _, err := os.Stat(filepath.Join(venv, "bin", "python")); err != nil {
 			c.logf("Creating virtual environment .venv")
-			if err := c.runProgram(ctx, py, []string{"-m", "venv", venv}, c.dir, nil, 300); err != nil {
+			// -I: isolated mode, so files planted in the server folder
+			// (venv.py, PYTHON* variables) cannot hook the interpreter.
+			if err := c.runSandboxed(ctx, py, []string{"-I", "-m", "venv", venv}, c.dir, nil, 300); err != nil {
 				return fmt.Errorf("create venv: %w", err)
 			}
 		}
@@ -917,16 +917,39 @@ func (c *stepCtx) exec(ctx context.Context, n int, st *templates.ExecStep) error
 		timeout = 900
 	}
 	c.begin(n, "Running "+filepath.Base(cmd)+" "+strings.Join(args, " "))
-	return c.runProgram(ctx, cmd, args, dir, env, timeout)
+	return c.runSandboxed(ctx, cmd, args, dir, env, timeout)
 }
 
-// runProgram executes cmd with a minimal environment plus the runtime bin
-// dirs on PATH, piping output lines into the install log.
-func (c *stepCtx) runProgram(ctx context.Context, cmd string, args []string, dir string, env map[string]string, timeoutSec int) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSec)*time.Second)
-	defer cancel()
-	p := osexec.CommandContext(ctx, cmd, args...)
-	p.Dir = dir
+// runSandboxed runs a program inside the server's own systemd unit (the
+// same sandbox as the game and as install scripts), never in the panel:
+// npm/pip execute code from the server folder (lifecycle scripts, .npmrc,
+// .venv/bin/*), which the game or a files.write user controls. Without a
+// script runner (unit tests, no supervisor) it falls back to a child
+// process.
+func (c *stepCtx) runSandboxed(ctx context.Context, cmd string, args []string, dir string, env map[string]string, timeoutSec int) error {
+	c.m.mu.Lock()
+	runner := c.m.deps.Scripts
+	c.m.mu.Unlock()
+	if runner == nil || c.job == nil || c.job.ServerID == "" {
+		return c.runProgram(ctx, cmd, args, dir, env, timeoutSec)
+	}
+	full := c.programEnv(env)
+	var b strings.Builder
+	b.WriteString("cd " + shellQuote(dir) + " || exit 1\nexec " + shellQuote(cmd))
+	for _, a := range args {
+		b.WriteString(" " + shellQuote(a))
+	}
+	b.WriteString("\n")
+	return runner.RunScript(ctx, c.job.ServerID, c.dir, b.String(), full, time.Duration(timeoutSec)*time.Second, c.logf)
+}
+
+// shellQuote makes s one literal bash word.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// programEnv is the minimal environment for install programs.
+func (c *stepCtx) programEnv(env map[string]string) map[string]string {
 	path := "/usr/local/bin:/usr/bin:/bin"
 	for _, k := range []string{templates.KeyNode, templates.KeyJava} {
 		if v := c.vars[k]; v != "" {
@@ -940,7 +963,17 @@ func (c *stepCtx) runProgram(ctx context.Context, cmd string, args []string, dir
 	for k, v := range env {
 		full[k] = v
 	}
-	for k, v := range full {
+	return full
+}
+
+// runProgram executes cmd with a minimal environment plus the runtime bin
+// dirs on PATH, piping output lines into the install log.
+func (c *stepCtx) runProgram(ctx context.Context, cmd string, args []string, dir string, env map[string]string, timeoutSec int) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSec)*time.Second)
+	defer cancel()
+	p := osexec.CommandContext(ctx, cmd, args...)
+	p.Dir = dir
+	for k, v := range c.programEnv(env) {
 		p.Env = append(p.Env, k+"="+v)
 	}
 	pr, pw := io.Pipe()
@@ -975,6 +1008,15 @@ func insideDir(dir, rel string) (string, error) {
 	if p != dir && !strings.HasPrefix(p, filepath.Clean(dir)+string(filepath.Separator)) {
 		return "", fmt.Errorf("path %q escapes the server directory", rel)
 	}
+	// Also resolve symlinks: a folder in the path may have been replaced
+	// by a link pointing outside the server.
+	if _, err := os.Stat(dir); err == nil {
+		real, err := files.ResolveSafe(dir, filepath.ToSlash(rel))
+		if err != nil {
+			return "", fmt.Errorf("path %q escapes the server directory", rel)
+		}
+		return real, nil
+	}
 	return p, nil
 }
 
@@ -994,7 +1036,7 @@ func (m *Manager) Reconfigure(serverDir string, tpl *templates.Template, userVar
 		vars[templates.KeyJVMFlags] = "[]"
 	}
 	job := &Job{ServerID: filepath.Base(serverDir), State: JobRunning, Steps: len(tpl.Install) + 1, StartedAt: time.Now(), Percent: -1}
-	c := &stepCtx{m: m, job: job, dir: serverDir, vars: vars}
+	c := &stepCtx{m: m, job: job, dir: serverDir, vars: vars, tpl: tpl}
 	for i, st := range tpl.Install {
 		var err error
 		switch {

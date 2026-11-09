@@ -3,6 +3,7 @@ package templates
 import (
 	"bufio"
 	"fmt"
+	"github.com/C7PEK/cypek.dev-panel/internal/safefs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,7 +39,7 @@ func ApplyConfigDefaults(serverDir string, t *Template) ([]string, error) {
 				if err != nil || !strings.HasPrefix(real, root+string(filepath.Separator)) {
 					continue
 				}
-				added, err := ensureLine(real, d.Key, d.Line, st.Mode().Perm())
+				added, err := ensureLine(root, real, d.Key, d.Line, st.Mode().Perm())
 				if err != nil {
 					return changed, fmt.Errorf("update %s: %w", path, err)
 				}
@@ -54,8 +55,8 @@ func ApplyConfigDefaults(serverDir string, t *Template) ([]string, error) {
 
 // ensureLine prepends line unless an uncommented line already mentions key.
 // Prepending matters for FXServer: convars must be set before `ensure`.
-func ensureLine(path, key, line string, mode os.FileMode) (bool, error) {
-	b, err := os.ReadFile(path)
+func ensureLine(root, path, key, line string, mode os.FileMode) (bool, error) {
+	b, err := readUnder(root, path)
 	if err != nil {
 		return false, err
 	}
@@ -72,9 +73,28 @@ func ensureLine(path, key, line string, mode os.FileMode) (bool, error) {
 		}
 	}
 	out := configDefaultMarker + "\n" + line + "\n\n" + string(b)
-	tmp := path + ".panel-tmp"
-	if err := os.WriteFile(tmp, []byte(out), mode); err != nil {
-		return false, err
+	return true, writeUnder(root, path, []byte(out), mode)
+}
+
+// maxConfigFile bounds config files the panel edits (game-controlled).
+const maxConfigFile = 16 << 20
+
+// readUnder reads abs (inside root) without following links out of root;
+// regular files only.
+func readUnder(root, abs string) ([]byte, error) {
+	rel, err := filepath.Rel(root, abs)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, "../") {
+		return nil, fmt.Errorf("%s is outside the server folder", abs)
 	}
-	return true, os.Rename(tmp, path)
+	return safefs.ReadFile(root, rel, maxConfigFile)
+}
+
+// writeUnder replaces abs (inside root) atomically; a planted symlink or
+// temp name can never redirect the write.
+func writeUnder(root, abs string, data []byte, mode os.FileMode) error {
+	rel, err := filepath.Rel(root, abs)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, "../") {
+		return fmt.Errorf("%s is outside the server folder", abs)
+	}
+	return safefs.WriteFile(root, rel, data, mode)
 }

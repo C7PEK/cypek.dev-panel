@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -19,10 +20,17 @@ type Node struct {
 	mu       sync.Mutex
 }
 
+// versionSelector: "22", "3.12", "22.11.0"; never anything path-like.
+var versionSelector = regexp.MustCompile(`^\d{1,3}(\.\d{1,4}){0,2}$`)
+
 // Ensure returns the node binary for a major version (or "lts").
 func (n *Node) Ensure(ctx context.Context, selector string, logf Logf, progress providers.Progress) (string, error) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
+	// The selector comes from template variables and ends up in a path.
+	if selector != "" && selector != "lts" && !versionSelector.MatchString(strings.TrimPrefix(selector, "v")) {
+		return "", fmt.Errorf("invalid Node.js version %q", selector)
+	}
 	if selector != "" && selector != "lts" {
 		if p := filepath.Join(n.Dir, "node-"+strings.TrimPrefix(selector, "v"), "bin", "node"); executable(p) {
 			logf("Node.js %s already installed", selector)
@@ -55,6 +63,9 @@ func (p *Python) Ensure(ctx context.Context, minor string, logf Logf, progress p
 	defer p.mu.Unlock()
 	if minor == "" {
 		minor = "3.12"
+	}
+	if !versionSelector.MatchString(minor) {
+		return "", fmt.Errorf("invalid Python version %q", minor)
 	}
 	target := filepath.Join(p.Dir, "python-"+minor)
 	if bin := filepath.Join(target, "bin", "python3"); executable(bin) {

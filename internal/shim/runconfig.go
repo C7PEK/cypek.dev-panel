@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/C7PEK/cypek.dev-panel/internal/safefs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,7 +59,7 @@ const (
 // LoadRunConfig reads serverDir/.homepanel/run.json.
 func LoadRunConfig(serverDir string) (*RunConfig, error) {
 	path := filepath.Join(serverDir, MetaDir, RunFile)
-	b, err := os.ReadFile(path)
+	b, err := safefs.ReadFile(serverDir, filepath.Join(MetaDir, RunFile), maxMetaFile)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
@@ -77,23 +78,21 @@ func SaveRunConfig(serverDir string, cfg *RunConfig) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
-	dir := filepath.Join(serverDir, MetaDir)
-	if err := os.MkdirAll(dir, 0o750); err != nil {
-		return fmt.Errorf("create %s: %w", dir, err)
-	}
 	b, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode run config: %w", err)
 	}
-	tmp := filepath.Join(dir, RunFile+".tmp")
-	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+	// The panel writes this into a folder the game can modify: never follow
+	// a planted symlink (safefs works beneath the server folder).
+	if err := safefs.WriteFile(serverDir, filepath.Join(MetaDir, RunFile), b, 0o600); err != nil {
 		return fmt.Errorf("write run config: %w", err)
-	}
-	if err := os.Rename(tmp, filepath.Join(dir, RunFile)); err != nil {
-		return fmt.Errorf("install run config: %w", err)
 	}
 	return nil
 }
+
+// maxMetaFile bounds .homepanel files the panel reads (a game could point
+// them at /dev/zero).
+const maxMetaFile = 1 << 20
 
 // MaxStopTimeoutSec stays below the unit's TimeoutStopSec (180) so the shim,
 // not systemd, ends a game that ignores its stop command.
@@ -144,7 +143,7 @@ const ExitConfigError = 78
 
 // ReadExitInfo returns the last exit record, or nil if none.
 func ReadExitInfo(serverDir string) (*ExitInfo, error) {
-	b, err := os.ReadFile(filepath.Join(serverDir, MetaDir, ExitFile))
+	b, err := safefs.ReadFile(serverDir, filepath.Join(MetaDir, ExitFile), maxMetaFile)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}

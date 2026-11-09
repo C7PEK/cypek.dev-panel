@@ -2,8 +2,8 @@ package alerts
 
 import (
 	"context"
+	"github.com/C7PEK/cypek.dev-panel/internal/safefs"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -329,7 +329,9 @@ func LastLogLines(dir string, n int) []string {
 		return nil
 	}
 	sort.Strings(matches)
-	f, err := os.Open(matches[len(matches)-1])
+	// The log is in the game's folder: regular files only (a FIFO would
+	// stall the alert loop for every server).
+	f, err := safefs.OpenRegular(dir, filepath.Join("logs", filepath.Base(matches[len(matches)-1])))
 	if err != nil {
 		return nil
 	}

@@ -189,3 +189,33 @@ func TestTemplateLibraryNeedsAdmin(t *testing.T) {
 		}
 	}
 }
+
+// Install exec steps run through the server's supervisor unit (the sandbox
+// in production), not as a child of the panel.
+func TestExecStepRunsThroughServerUnit(t *testing.T) {
+	e := newEnv(t)
+	e.completeSetup("owner", "password123")
+	yml := "id: exec-test\nname: Exec Test\ncategory: other\nvariables: []\ninstall:\n" +
+		"  - exec: {command: /bin/sh, args: [\"-c\", \"echo ran-as-unit $HOMEPANEL_UNIT_MARK; touch made-by-exec\"]}\n" +
+		"start: {command: /bin/sleep, args: [\"60\"]}\n"
+	if resp, body := e.do(http.MethodPost, "/api/v1/templates", map[string]any{"yaml": yml}); resp.StatusCode != 201 {
+		t.Fatalf("template: %d %v", resp.StatusCode, body)
+	}
+	resp, body := e.do(http.MethodPost, "/api/v1/servers", map[string]any{"name": "X", "templateId": "exec-test", "variables": map[string]string{}})
+	if resp.StatusCode != 201 {
+		t.Fatalf("create: %d %v", resp.StatusCode, body)
+	}
+	id := body["id"].(string)
+	inst := e.waitInstall(id)
+	if inst["state"] != "done" {
+		t.Fatalf("install: %v", inst)
+	}
+	if _, err := os.Stat(filepath.Join(e.cfg.ServersDir(), id, "made-by-exec")); err != nil {
+		t.Fatal("exec step did not run")
+	}
+	// The shim's console log only exists when the shim ran the program.
+	logs, _ := filepath.Glob(filepath.Join(e.cfg.ServersDir(), id, "logs", "console-*.log"))
+	if len(logs) == 0 {
+		t.Fatal("exec step ran outside the server unit (no shim console log)")
+	}
+}

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"github.com/C7PEK/cypek.dev-panel/internal/safefs"
 	"path/filepath"
 	"strings"
 	"time"
@@ -23,29 +23,27 @@ const installScriptFile = "install.sh"
 
 func (r scriptRunner) RunScript(ctx context.Context, serverID, serverDir, script string, env map[string]string, timeout time.Duration, logf func(string, ...any)) error {
 	sup := r.s.sup
-	meta := filepath.Join(serverDir, shim.MetaDir)
-	if err := os.MkdirAll(meta, 0o750); err != nil {
+	// All files go through safefs: the server folder is writable by the
+	// game, which could plant symlinks at these names.
+	scriptRel := filepath.Join(shim.MetaDir, installScriptFile)
+	if err := safefs.WriteFile(serverDir, scriptRel, []byte(script), 0o700); err != nil {
 		return err
 	}
-	scriptPath := filepath.Join(meta, installScriptFile)
-	if err := os.WriteFile(scriptPath, []byte(script), 0o700); err != nil {
-		return err
-	}
-	defer os.Remove(scriptPath)
+	defer safefs.Remove(serverDir, scriptRel)
 
-	runPath := filepath.Join(meta, shim.RunFile)
-	previous, prevErr := os.ReadFile(runPath)
+	runRel := filepath.Join(shim.MetaDir, shim.RunFile)
+	previous, prevErr := safefs.ReadFile(serverDir, runRel, 1<<20)
 	defer func() {
 		if prevErr == nil {
-			_ = os.WriteFile(runPath, previous, 0o600)
+			_ = safefs.WriteFile(serverDir, runRel, previous, 0o600)
 		} else {
-			_ = os.Remove(runPath)
+			_ = safefs.Remove(serverDir, runRel)
 		}
 	}()
 	if st, err := sup.Status(ctx, serverID); err == nil && st.Active() {
 		return errors.New("the server is running; stop it before installing")
 	}
-	_ = os.Remove(filepath.Join(meta, shim.ExitFile))
+	_ = safefs.Remove(serverDir, filepath.Join(shim.MetaDir, shim.ExitFile))
 	cfg := &shim.RunConfig{Command: "/bin/bash", Args: []string{filepath.Join(shim.MetaDir, installScriptFile)}, Env: env, Oneshot: true, Stop: shim.StopConfig{TimeoutSec: 10}}
 	if err := shim.SaveRunConfig(serverDir, cfg); err != nil {
 		return err
