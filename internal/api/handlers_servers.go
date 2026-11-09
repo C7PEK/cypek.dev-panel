@@ -45,7 +45,7 @@ func (s *Server) toResponse(ctx context.Context, srv *servers.Server) serverResp
 		tpl, _ = s.templates.Get(srv.TemplateID)
 	}
 	st := s.statusOf(ctx, srv.ID)
-	resp := serverResponse{Server: srv, Status: st, Variables: maskedVariables(tpl, srv.Variables), GitUpdate: tpl != nil && tpl.UsesGit()}
+	resp := serverResponse{Server: s.redactRun(ctx, srv, tpl), Status: st, Variables: maskedVariables(tpl, srv.Variables), GitUpdate: tpl != nil && tpl.UsesGit()}
 	if e, err := s.servers.Expiry(ctx, srv.ID); err == nil {
 		resp.expiryView = viewExpiry(e)
 	}
@@ -53,6 +53,51 @@ func (s *Server) toResponse(ctx context.Context, srv *servers.Server) serverResp
 		resp.Players = s.playersOf(ctx, srv)
 	}
 	return resp
+}
+
+// redactRun returns the server with its run config safe to show: values of
+// secret variables (rendered into env/args, e.g. DISCORD_TOKEN) are masked
+// for everyone, and env/args are hidden entirely from viewers without the
+// settings permission.
+func (s *Server) redactRun(ctx context.Context, srv *servers.Server, tpl *templates.Template) *servers.Server {
+	cp := *srv
+	cp.Run.Env = make(map[string]string, len(srv.Run.Env))
+	for k, v := range srv.Run.Env {
+		cp.Run.Env[k] = v
+	}
+	cp.Run.Args = append([]string(nil), srv.Run.Args...)
+	_, user := sessionFromContext(ctx)
+	if user != nil {
+		if ok, err := s.store.Require(ctx, user, auth.PermSettings, srv.ID); err != nil || !ok {
+			cp.Run.Env, cp.Run.Args = map[string]string{}, []string{}
+			return &cp
+		}
+	}
+	if tpl == nil {
+		return &cp
+	}
+	var secretVals []string
+	for _, v := range tpl.Variables {
+		if v.Type != templates.TypeSecret || srv.Variables[v.Key] == "" {
+			continue
+		}
+		if plain, err := s.secrets.Open(srv.Variables[v.Key]); err == nil && len(plain) >= 4 {
+			secretVals = append(secretVals, plain)
+		}
+	}
+	mask := func(x string) string {
+		for _, sv := range secretVals {
+			x = strings.ReplaceAll(x, sv, "••••••••")
+		}
+		return x
+	}
+	for k, v := range cp.Run.Env {
+		cp.Run.Env[k] = mask(v)
+	}
+	for i, a := range cp.Run.Args {
+		cp.Run.Args[i] = mask(a)
+	}
+	return &cp
 }
 
 // playersOf queries the game for its player count when the template told us
@@ -448,6 +493,12 @@ func (s *Server) handleUpdateServer(w http.ResponseWriter, r *http.Request) {
 	srv := serverFromContext(r.Context())
 	var in serverInput
 	if !decodeJSON(w, r, &in) {
+		return
+	}
+	// The start command decides what runs on the machine: admins only. A
+	// "settings" user changes template variables and limits.
+	if in.Run != nil && !user.IsAdmin() {
+		writeError(w, http.StatusForbidden, CodeForbidden, "Only admins can change the start command.")
 		return
 	}
 	oldPorts := append([]servers.Port(nil), srv.Ports...)

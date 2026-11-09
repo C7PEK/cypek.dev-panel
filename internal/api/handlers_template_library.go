@@ -302,7 +302,7 @@ var publicHTTPClient = &http.Client{
 					return err
 				}
 				ip := net.ParseIP(host)
-				if ip == nil || ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.IsMulticast() {
+				if ip == nil || ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.IsMulticast() || inBlocked(ip) {
 					return fmt.Errorf("refusing to connect to %s (not a public address)", host)
 				}
 				return nil
@@ -319,4 +319,24 @@ var publicHTTPClient = &http.Client{
 		}
 		return nil
 	},
+}
+
+// blockedNets: shared/CGNAT (Tailscale 100.64/10), benchmarking, "this"
+// network and NAT64, none of which a public template host uses.
+var blockedNets = func() []*net.IPNet {
+	var out []*net.IPNet
+	for _, c := range []string{"100.64.0.0/10", "198.18.0.0/15", "0.0.0.0/8", "64:ff9b::/96", "64:ff9b:1::/48"} {
+		_, n, _ := net.ParseCIDR(c)
+		out = append(out, n)
+	}
+	return out
+}()
+
+func inBlocked(ip net.IP) bool {
+	for _, n := range blockedNets {
+		if n.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }

@@ -216,11 +216,11 @@ func (s *Server) splitVars(tpl *templates.Template, stored map[string]string) (u
 // maskedVariables hides secrets and drops builtins for API responses.
 func maskedVariables(tpl *templates.Template, stored map[string]string) map[string]string {
 	out := map[string]string{}
+	if tpl == nil {
+		// Template gone: we cannot tell secrets apart, show nothing.
+		return out
+	}
 	for k, v := range stored {
-		if tpl == nil {
-			out[k] = v
-			continue
-		}
 		tv := tpl.Variable(k)
 		if tv == nil {
 			continue

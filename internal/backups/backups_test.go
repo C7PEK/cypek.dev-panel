@@ -58,7 +58,7 @@ func TestCreateRestoreRoundTrip(t *testing.T) {
 	if size == 0 || size > 100000 { // 200 kB of zeros compresses well
 		t.Errorf("archive size = %d", size)
 	}
-	if lastFiles != 4 { // server.properties, level.dat, r.0.0.mca, run.json
+	if lastFiles != 3 { // server.properties, level.dat, r.0.0.mca (.homepanel is never backed up)
 		t.Errorf("files backed up = %d", lastFiles)
 	}
 

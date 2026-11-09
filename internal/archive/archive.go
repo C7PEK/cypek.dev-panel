@@ -16,6 +16,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/klauspost/compress/zstd"
 	"github.com/ulikunitz/xz"
@@ -28,6 +29,9 @@ type Options struct {
 	// Progress, when set, is called with the running entry count every few
 	// hundred entries (big archives take a while with pure-Go xz).
 	Progress func(entries int)
+	// NoLinks refuses symlink and hardlink entries (user uploads). Game
+	// artifacts (FXServer's alpine/) need their symlinks.
+	NoLinks bool
 	// Resolve, when set, must accept the folder of every entry (callers pass
 	// files.ResolveSafe so archives go through the same path check as the
 	// file manager; this package cannot import files).
@@ -213,24 +217,28 @@ func extractTar(archivePath, dest string, opts Options, wrap func(io.Reader) (io
 				return err
 			}
 		case tar.TypeSymlink:
+			if opts.NoLinks {
+				return fmt.Errorf("archive contains a link (%s); links are not allowed here", h.Name)
+			}
 			if err := symlink(destAbs, target, h.Linkname); err != nil {
 				return err
 			}
 		case tar.TypeLink:
+			if opts.NoLinks {
+				return fmt.Errorf("archive contains a link (%s); links are not allowed here", h.Name)
+			}
 			linkRel, _, err := stripped(h.Linkname, opts.Strip)
 			if err != nil {
 				return err
 			}
-			src, err := Within(destAbs, linkRel)
-			if err != nil {
+			if _, err := Within(destAbs, linkRel); err != nil {
 				return err
 			}
-			if err := safeDir(destAbs, filepath.Dir(target)); err != nil {
-				return err
-			}
-			os.Remove(target)
-			if err := os.Link(src, target); err != nil {
-				return err
+			// Copy instead of linking: a hardlink created through a planted
+			// symlink would alias a file outside the destination. os.Root
+			// keeps the source lookup beneath destAbs.
+			if err := copyWithin(destAbs, linkRel, target); err != nil {
+				return fmt.Errorf("hardlink %s: %w", h.Name, err)
 			}
 		default:
 			// devices, fifos: never expected in game archives
@@ -275,6 +283,9 @@ func extractZip(archivePath, dest string, opts Options) error {
 				return err
 			}
 		case mode&os.ModeSymlink != 0:
+			if opts.NoLinks {
+				return fmt.Errorf("archive contains a link (%s); links are not allowed here", zf.Name)
+			}
 			rc, err := zf.Open()
 			if err != nil {
 				return err
@@ -306,11 +317,13 @@ func writeFile(root, target string, r io.Reader, mode os.FileMode) error {
 	if err := safeDir(root, filepath.Dir(target)); err != nil {
 		return err
 	}
-	// Replace, never follow, an existing symlink at the target.
-	if st, err := os.Lstat(target); err == nil && st.Mode()&os.ModeSymlink != 0 {
+	// Replace, never write through, whatever is at the target: a symlink
+	// would redirect the data, an existing hardlink would modify the other
+	// name's file too.
+	if st, err := os.Lstat(target); err == nil && !st.IsDir() {
 		os.Remove(target)
 	}
-	out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+	out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_EXCL|syscall.O_NOFOLLOW, mode)
 	if err != nil {
 		return err
 	}
@@ -377,4 +390,24 @@ func dirMode(m int64) os.FileMode {
 		mode = 0o755
 	}
 	return mode | 0o700
+}
+
+// copyWithin copies the regular file srcRel (beneath root, resolved through
+// os.Root so links cannot lead outside) to target.
+func copyWithin(root, srcRel, target string) error {
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	in, err := r.OpenFile(filepath.Clean(srcRel), os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	st, err := in.Stat()
+	if err != nil || !st.Mode().IsRegular() {
+		return fmt.Errorf("%s is not a regular file", srcRel)
+	}
+	return writeFile(root, target, in, st.Mode().Perm())
 }

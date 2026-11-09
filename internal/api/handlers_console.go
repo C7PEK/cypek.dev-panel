@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -101,6 +102,15 @@ func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request) {
 			c := current()
 			switch m.Type {
 			case "input":
+				// Re-check on every command: a revoked permission, a disabled
+				// account or a logged-out session ends write access at once.
+				if canWrite {
+					fresh, err := s.store.GetUserByID(ctx, user.ID)
+					ok, perr := s.store.Require(ctx, fresh, auth.PermConsoleWrite, srv.ID)
+					if err != nil || fresh.Disabled || perr != nil || !ok || !s.sessionAlive(ctx, r) {
+						canWrite = false
+					}
+				}
 				if !canWrite {
 					_ = send(consoleMsg{Type: "error", Message: "You have permission to view this console but not to send commands."})
 					continue
@@ -113,6 +123,10 @@ func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request) {
 					_ = send(consoleMsg{Type: "error", Message: "The server is not running."})
 					continue
 				}
+				// Control characters (Ctrl+C = SIGINT through the terminal,
+				// Ctrl+\ = SIGQUIT) would stop the game without the power
+				// permission: only text, tabs and line breaks reach it.
+				m.Data = stripControl(m.Data)
 				if err := c.Input(m.Data); err != nil {
 					_ = send(consoleMsg{Type: "error", Message: "Could not send the command: " + err.Error()})
 					continue
@@ -217,4 +231,28 @@ func (s *Server) pumpConsole(ctx context.Context, c supervisor.Console, send fun
 			}
 		}
 	}
+}
+
+func stripControl(in string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 0x20 && r != '\n' && r != '\r' && r != '\t' || r == 0x7f {
+			return -1
+		}
+		return r
+	}, in)
+}
+
+// sessionAlive reports whether the request's session still exists (API
+// keys are checked on each request anyway).
+func (s *Server) sessionAlive(ctx context.Context, r *http.Request) bool {
+	sess, _ := sessionFromContext(r.Context())
+	if sess == nil || sess.APIKey {
+		return sess != nil
+	}
+	c, err := r.Cookie(s.cookieName(r))
+	if err != nil {
+		return false
+	}
+	_, _, err = s.store.LookupSession(ctx, c.Value)
+	return err == nil
 }

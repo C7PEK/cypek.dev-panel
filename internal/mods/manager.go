@@ -58,7 +58,6 @@ type state struct {
 	Files       map[string]*fileMeta `json:"files,omitempty"`
 }
 
-
 // loadState never fails: the file is a cache plus the admin's override.
 func loadState(dir string) *state {
 	st := &state{}

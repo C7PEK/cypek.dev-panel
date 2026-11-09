@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/C7PEK/cypek.dev-panel/internal/safefs"
 	"io"
 	"net/http"
 	"os"
@@ -193,8 +194,18 @@ func WriteStatus(path string, st *Status) error {
 	if err != nil {
 		return err
 	}
+	// Written by root into the panel user's directory: exclusive create so
+	// a planted symlink cannot redirect it; rename replaces a link at path.
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o644); err != nil {
+	f, err := safefs.CreateExclusive(tmp, 0o644)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(b); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
 		return err
 	}
 	return os.Rename(tmp, path)

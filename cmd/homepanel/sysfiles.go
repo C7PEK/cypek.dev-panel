@@ -6,7 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
+	"strconv"
 
 	"github.com/C7PEK/cypek.dev-panel/internal/config"
 )
@@ -47,6 +49,9 @@ func runInstallFiles(args []string) error {
 		}
 		fmt.Println("wrote", dst)
 	}
+	if !*dryRun {
+		secureConfigDir()
+	}
 	return nil
 }
 
@@ -72,4 +77,23 @@ func runInitConfig(args []string) error {
 	}
 	fmt.Println("wrote", *path)
 	return nil
+}
+
+// secureConfigDir makes /etc/homepanel root-owned and group-readable by the
+// panel: root-run helpers (database installer) write there, so the panel
+// user must not be able to plant symlinks in it.
+func secureConfigDir() {
+	const dir = "/etc/homepanel"
+	if _, err := os.Stat(dir); err != nil {
+		return
+	}
+	u, err := user.Lookup("homepanel")
+	if err != nil {
+		return
+	}
+	gid, _ := strconv.Atoi(u.Gid)
+	if err := os.Chown(dir, 0, gid); err == nil {
+		_ = os.Chmod(dir, 0o750)
+		fmt.Println("secured", dir, "(root:homepanel 0750)")
+	}
 }

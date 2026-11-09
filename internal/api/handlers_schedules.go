@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"github.com/C7PEK/cypek.dev-panel/internal/auth"
 	"net/http"
 	"strconv"
 	"time"
@@ -103,6 +104,36 @@ func (in *scheduleInput) apply(sch *scheduler.Schedule) {
 	}
 }
 
+// scheduleAllowed checks that the user may do what every action of the
+// schedule does: a schedule must not become a way around console.write,
+// power or backups.
+func (s *Server) scheduleAllowed(w http.ResponseWriter, r *http.Request, serverID string, actions []scheduler.Action) bool {
+	_, user := sessionFromContext(r.Context())
+	key := apiKeyFromContext(r)
+	need := map[auth.Permission]bool{}
+	for _, a := range actions {
+		switch a.Type {
+		case "warn", "command":
+			need[auth.PermConsoleWrite] = true
+		case "start", "stop", "restart", "kill":
+			need[auth.PermPower] = true
+		case "backup":
+			need[auth.PermBackups] = true
+		}
+	}
+	for perm := range need {
+		ok, err := s.store.Require(r.Context(), user, perm, serverID)
+		if err == nil && ok && key != nil && !key.AllowsPermission(perm) {
+			ok = false
+		}
+		if err != nil || !ok {
+			writeError(w, http.StatusForbidden, CodeForbidden, "This schedule contains actions you are not allowed to do yourself ("+string(perm)+").")
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Server) handleCreateSchedule(w http.ResponseWriter, r *http.Request) {
 	_, user := sessionFromContext(r.Context())
 	srv := serverFromContext(r.Context())
@@ -112,6 +143,9 @@ func (s *Server) handleCreateSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 	sch := &scheduler.Schedule{ServerID: srv.ID, Enabled: true, OnlyIfRunning: true, CreatedBy: &user.ID}
 	in.apply(sch)
+	if !s.scheduleAllowed(w, r, srv.ID, sch.Actions) {
+		return
+	}
 	created, err := s.schedules.Create(r.Context(), sch)
 	if err != nil {
 		s.writeScheduleError(w, r, err)
@@ -134,6 +168,9 @@ func (s *Server) handleUpdateSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	in.apply(sch)
+	if !s.scheduleAllowed(w, r, sch.ServerID, sch.Actions) {
+		return
+	}
 	if err := s.schedules.Update(r.Context(), sch); err != nil {
 		s.writeScheduleError(w, r, err)
 		return
@@ -164,6 +201,9 @@ func (s *Server) handleRunSchedule(w http.ResponseWriter, r *http.Request) {
 	_, user := sessionFromContext(r.Context())
 	sch, ok := s.scheduleFromRequest(w, r)
 	if !ok {
+		return
+	}
+	if !s.scheduleAllowed(w, r, sch.ServerID, sch.Actions) {
 		return
 	}
 	if err := s.scheduleEngine.RunNow(sch.ID); err != nil {

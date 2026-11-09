@@ -45,9 +45,10 @@ func (v *vfs) servers() []ServerRef {
 	defer v.mu.Unlock()
 	if time.Since(v.cachedAt) > 10*time.Second {
 		list, err := v.backend.Servers(v.ctx, v.sess.userID)
-		if err == nil {
-			v.cache, v.cachedAt = list, time.Now()
+		if err != nil {
+			list = nil // disabled or deleted account: no access, not the old list
 		}
+		v.cache, v.cachedAt = list, time.Now()
 	}
 	return v.cache
 }
@@ -108,6 +109,28 @@ func (v *vfs) resolve(p string) (*target, error) {
 		}
 	}
 	return &target{server: srv, rel: rest, abs: abs}, nil
+}
+
+// resolveEntry is resolve without following the last element: removing or
+// renaming a symlink acts on the link, never on what it points to.
+func (v *vfs) resolveEntry(p string) (*target, error) {
+	clean := path.Clean("/" + p)
+	parent, err := v.resolve(path.Dir(clean))
+	if err != nil {
+		return nil, err
+	}
+	if parent.root {
+		return v.resolve(clean) // a server folder itself (refused by callers)
+	}
+	base := path.Base(clean)
+	if parent.rel == "" && base == metaDir {
+		return nil, sftp.ErrSSHFxPermissionDenied
+	}
+	rel := base
+	if parent.rel != "" {
+		rel = parent.rel + "/" + base
+	}
+	return &target{server: parent.server, rel: rel, abs: filepath.Join(parent.abs, base)}, nil
 }
 
 func (v *vfs) writable(t *target) error {
@@ -186,7 +209,12 @@ func (v *vfs) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 
 // Filecmd handles everything that changes metadata or the tree.
 func (v *vfs) Filecmd(r *sftp.Request) error {
-	t, err := v.resolve(r.Filepath)
+	resolve := v.resolve
+	switch r.Method {
+	case "Rename", "PosixRename", "Rmdir", "Remove", "Mkdir":
+		resolve = v.resolveEntry
+	}
+	t, err := resolve(r.Filepath)
 	if err != nil {
 		return err
 	}
@@ -216,7 +244,7 @@ func (v *vfs) Filecmd(r *sftp.Request) error {
 		}
 		return nil // ownership changes are ignored: everything belongs to the panel user
 	case "Rename", "PosixRename":
-		dst, err := v.resolve(r.Target)
+		dst, err := v.resolveEntry(r.Target)
 		if err != nil {
 			return err
 		}

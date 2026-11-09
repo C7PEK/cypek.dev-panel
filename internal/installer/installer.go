@@ -26,6 +26,7 @@ import (
 	"time"
 
 	gogit "github.com/go-git/go-git/v5"
+	gitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
@@ -759,10 +760,21 @@ func (c *stepCtx) git(ctx context.Context, n int, st *templates.GitStep) error {
 	if branch != "" {
 		ref = plumbing.NewBranchReferenceName(branch)
 	}
-	if _, err := os.Stat(filepath.Join(dest, ".git")); err == nil {
+	if gst, err := os.Lstat(filepath.Join(dest, ".git")); err == nil {
+		// .git is writable by the bot: a ".git" file (gitdir: ...) or link
+		// could send the panel's object writes anywhere.
+		if !gst.IsDir() {
+			return errors.New("app/.git is not a normal folder (modified by the bot?); reinstall the server")
+		}
 		repo, err := gogit.PlainOpen(dest)
 		if err != nil {
 			return fmt.Errorf("open repository: %w", err)
+		}
+		// Always fetch from the URL in the server's settings, never from
+		// .git/config, so the access token cannot be sent elsewhere.
+		_ = repo.DeleteRemote("origin")
+		if _, err := repo.CreateRemote(&gitconfig.RemoteConfig{Name: "origin", URLs: []string{rawURL}}); err != nil {
+			return fmt.Errorf("set remote: %w", err)
 		}
 		var before plumbing.Hash
 		if head, err := repo.Head(); err == nil {

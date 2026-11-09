@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/C7PEK/cypek.dev-panel/internal/shim"
 	"mime"
 	"net/http"
 	"os"
@@ -279,6 +280,12 @@ func (s *Server) handleRestoreBackup(w http.ResponseWriter, r *http.Request) {
 		err := backups.Restore(ctx, path, s.servers.Dir(srv.ID))
 		if err != nil {
 			s.log.Error("restore failed", "server", srv.ID, "err", err)
+		} else if cur, gerr := s.servers.Get(ctx, srv.ID); gerr == nil && cur.InstallState == servers.InstallReady {
+			// Older backups carried .homepanel/run.json; the database is the
+			// source of truth for what the server runs.
+			if werr := shim.SaveRunConfig(s.servers.Dir(srv.ID), &cur.Run); werr != nil {
+				s.log.Warn("rewrite run config after restore", "server", srv.ID, "err", werr)
+			}
 		}
 		s.backupJobs.update(srv.ID, func(j *backupJob) {
 			j.Done = true

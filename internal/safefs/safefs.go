@@ -131,3 +131,16 @@ func OpenRegular(root, rel string) (*os.File, error) {
 	}
 	return f, nil
 }
+
+// CreateExclusive creates path as a new file for root-run code writing into
+// a directory an unprivileged user controls: whatever is at the name (a
+// planted symlink) is unlinked, then the file is created with O_EXCL and
+// O_NOFOLLOW, so a link re-planted in between makes it fail instead of
+// redirecting the write. Change ownership with f.Chown (fchown), never by
+// path.
+func CreateExclusive(path string, perm fs.FileMode) (*os.File, error) {
+	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, perm)
+}

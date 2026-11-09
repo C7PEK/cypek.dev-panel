@@ -140,7 +140,9 @@ func Create(ctx context.Context, srcDir, destPath string, settings Settings, pro
 		}
 		rel, _ := filepath.Rel(srcDir, p)
 		rel = filepath.ToSlash(rel)
-		if Excluded(settings.Excludes, rel, d.IsDir()) {
+		// .homepanel holds run.json with plaintext secrets (bot tokens); the
+		// panel rebuilds it from its database after a restore.
+		if rel == ".homepanel" || strings.HasPrefix(rel, ".homepanel/") || Excluded(settings.Excludes, rel, d.IsDir()) {
 			if d.IsDir() {
 				return filepath.SkipDir
 			}

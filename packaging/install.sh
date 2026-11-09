@@ -112,9 +112,14 @@ install -m 755 "$TMP/homepanel" "$BIN"
 say "Writing config, systemd units and polkit rule"
 "$BIN" init-config --port "$PORT"
 "$BIN" install-files
-chown -R "$USER_NAME:$USER_NAME" /etc/homepanel "$DATA" "$LOGS"
-chmod 750 /etc/homepanel "$DATA"
+# /etc/homepanel belongs to root (group-readable by the panel): root-run
+# helpers write there, so the panel user must not be able to plant links.
+chown root:"$USER_NAME" /etc/homepanel
+chmod 750 /etc/homepanel
+chown "$USER_NAME:$USER_NAME" "$CONFIG"
 chmod 600 "$CONFIG"
+chown -R "$USER_NAME:$USER_NAME" "$DATA" "$LOGS"
+chmod 750 "$DATA"
 systemctl daemon-reload
 
 # polkit >= 0.106 is needed for the JavaScript rule (Debian 12+, Ubuntu 23.10+).

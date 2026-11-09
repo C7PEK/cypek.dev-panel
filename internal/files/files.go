@@ -135,6 +135,34 @@ func (m *Manager) resolve(userPath string) (abs, rel string, err error) {
 	return abs, rel, nil
 }
 
+// entry resolves the parent folder safely but not the last element: a
+// symlink is the thing itself (renaming or deleting a link must never act
+// on its target, e.g. "l -> ." would otherwise delete the whole server).
+func (m *Manager) entry(userPath string) (abs, rel string, err error) {
+	rel, err = Clean(userPath)
+	if err != nil {
+		return "", "", err
+	}
+	if rel == "" {
+		return "", "", ErrProtected
+	}
+	parentAbs, _, err := m.resolve(path.Dir(rel))
+	if err != nil && path.Dir(rel) != "." {
+		return "", "", err
+	}
+	if path.Dir(rel) == "." {
+		parentAbs, err = filepath.EvalSymlinks(m.Root)
+		if err != nil {
+			return "", "", err
+		}
+	}
+	base := path.Base(rel)
+	if path.Dir(rel) == "." && base == shim.MetaDir {
+		return "", "", ErrProtected
+	}
+	return filepath.Join(parentAbs, base), rel, nil
+}
+
 // List returns the entries of a directory, directories first.
 func (m *Manager) List(userPath string) ([]Entry, error) {
 	abs, _, err := m.resolve(userPath)
@@ -333,11 +361,11 @@ func (m *Manager) Mkdir(userPath string) error {
 
 // Rename moves a file or directory within the root; refuses to overwrite.
 func (m *Manager) Rename(from, to string) error {
-	src, srcRel, err := m.resolve(from)
+	src, srcRel, err := m.entry(from)
 	if err != nil {
 		return err
 	}
-	dst, dstRel, err := m.resolve(to)
+	dst, dstRel, err := m.entry(to)
 	if err != nil {
 		return err
 	}
@@ -365,7 +393,7 @@ func (m *Manager) Rename(from, to string) error {
 // Delete removes a file, or a directory recursively. Symlinks are removed,
 // never followed.
 func (m *Manager) Delete(userPath string) error {
-	abs, rel, err := m.resolve(userPath)
+	abs, rel, err := m.entry(userPath)
 	if err != nil {
 		return err
 	}
@@ -398,7 +426,20 @@ func (m *Manager) Extract(archivePath, dirPath string) error {
 	if err := os.MkdirAll(dst, 0o750); err != nil {
 		return err
 	}
-	return archive.Extract(src, dst, archive.Options{Resolve: ResolveSafe})
+	// Uploaded archives may not create links (a link to "/" or to another
+	// server would turn later panel operations against the host) nor write
+	// into .homepanel (run.json decides what the server executes).
+	rootReal, _ := filepath.EvalSymlinks(m.Root)
+	return archive.Extract(src, dst, archive.Options{NoLinks: true, Resolve: func(root, p string) (string, error) {
+		abs, err := ResolveSafe(root, p)
+		if err != nil {
+			return "", err
+		}
+		if r, err := filepath.Rel(rootReal, abs); err == nil && (r == shim.MetaDir || strings.HasPrefix(r, shim.MetaDir+string(filepath.Separator))) {
+			return "", ErrProtected
+		}
+		return abs, nil
+	}})
 }
 
 // DiskUsage sums the sizes of regular files under the root (best effort).

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"sort"
 	"strconv"
@@ -222,7 +223,13 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 		return ws.Write(wctx, websocket.MessageText, b)
 	}
 	build := func(typ string, samples map[string]metrics.Sample, host metrics.Host) (eventMsg, error) {
-		ids, all, err := s.store.VisibleServerIDs(ctx, user)
+		// Fresh user and session every tick: a demoted, disabled or
+		// logged-out account stops receiving server data.
+		fresh, err := s.store.GetUserByID(ctx, user.ID)
+		if err != nil || fresh.Disabled || !s.sessionAlive(ctx, r) {
+			return eventMsg{}, errors.New("session ended")
+		}
+		ids, all, err := s.store.VisibleServerIDs(ctx, fresh)
 		if err != nil {
 			return eventMsg{}, err
 		}
@@ -282,7 +289,8 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 		case t := <-ticks:
 			msg, err := build("tick", t.samples, t.host)
 			if err != nil {
-				continue
+				_ = ws.Close(websocket.StatusPolicyViolation, "session ended")
+				return
 			}
 			if err := send(msg); err != nil {
 				return

@@ -189,6 +189,11 @@ func (d *Discord) Send(ctx context.Context, webhook string, msg Message) error {
 		req.Header.Set("User-Agent", "panel.cypek.dev alerts (+https://github.com/C7PEK/cypek.dev-panel)")
 		resp, err := d.Client.Do(req)
 		if err != nil {
+			// url.Error includes the URL, i.e. the webhook token.
+			var ue *url.Error
+			if errors.As(err, &ue) {
+				err = fmt.Errorf("%s Discord: %w", ue.Op, ue.Err)
+			}
 			lastErr = err
 			if !sleepCtx(ctx, time.Duration(attempt+1)*2*time.Second) {
 				return ctx.Err()

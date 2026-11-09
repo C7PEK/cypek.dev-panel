@@ -256,3 +256,23 @@ func TestSplitLogin(t *testing.T) {
 		}
 	}
 }
+
+func TestSFTPRemoveLinkKeepsTarget(t *testing.T) {
+	e := startServer(t)
+	c, _, err := e.dial(t, "cypek.aaaa1111", "secret-pass")
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.MkdirAll(filepath.Join(e.alpha, "world"), 0o755)
+	os.WriteFile(filepath.Join(e.alpha, "world", "level.dat"), []byte("x"), 0o644)
+	os.Symlink("world", filepath.Join(e.alpha, "wlink"))
+	if err := c.Remove("/wlink"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(e.alpha, "world", "level.dat")); err != nil {
+		t.Fatal("removing a link deleted its target")
+	}
+	if _, err := os.Lstat(filepath.Join(e.alpha, "wlink")); err == nil {
+		t.Fatal("link still there")
+	}
+}
