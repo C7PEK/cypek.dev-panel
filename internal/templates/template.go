@@ -124,6 +124,9 @@ type ExecStep struct {
 // DownloadStep fetches an artifact through a named provider:
 //
 //	paper  - PaperMC build for Version (checksummed)
+//	mojang - vanilla server jar for Version (SHA-1 from Mojang)
+//	fabric - Fabric server launcher for Version (latest = newest supported)
+//	purpur - newest Purpur build for Version (MD5 from Purpur)
 //	fivem  - FXServer Linux artifact for Version (recommended|latest|build)
 //	url    - a fixed https URL (optional Sha256)
 type DownloadStep struct {
@@ -690,6 +693,17 @@ type ValueError struct {
 func (e *ValueError) Error() string { return e.Key + " " + e.Message }
 
 // UsesScript reports whether installation runs a shell script.
+// UsesGit reports whether the install fetches code from git (bots), which
+// enables the "update from git" action.
+func (t *Template) UsesGit() bool {
+	for _, st := range t.Install {
+		if st.Git != nil {
+			return true
+		}
+	}
+	return false
+}
+
 func (t *Template) UsesScript() bool {
 	for _, s := range t.Install {
 		if s.Script != nil {

@@ -10,8 +10,8 @@ import (
 )
 
 // Mojang resolves vanilla server jars from the launcher version manifest.
-// TODO(verify): manifest v2 layout (latest.release, versions[].url,
-// downloads.server.{url,sha1}) as of 2026.
+// Manifest v2 layout (latest.release, versions[].url, downloads.server,
+// javaVersion.majorVersion) checked 2026-11-09.
 type Mojang struct{ ManifestURL string }
 
 func NewMojang() *Mojang {
@@ -19,9 +19,30 @@ func NewMojang() *Mojang {
 }
 
 type MojangServer struct {
-	Version string
-	URL     string
-	SHA1    string
+	Version   string
+	URL       string
+	SHA1      string
+	JavaMajor int // javaVersion.majorVersion of the version metadata
+}
+
+// Releases lists release versions, newest first.
+func (m *Mojang) Releases(ctx context.Context) ([]string, error) {
+	var manifest struct {
+		Versions []struct {
+			ID   string `json:"id"`
+			Type string `json:"type"`
+		} `json:"versions"`
+	}
+	if err := getJSON(ctx, m.ManifestURL, &manifest, decodeJSON); err != nil {
+		return nil, fmt.Errorf("minecraft version manifest: %w", err)
+	}
+	var out []string
+	for _, v := range manifest.Versions {
+		if v.Type == "release" {
+			out = append(out, v.ID)
+		}
+	}
+	return out, nil
 }
 
 // Resolve accepts "latest", "snapshot" or a concrete version id.
@@ -56,6 +77,9 @@ func (m *Mojang) Resolve(ctx context.Context, version string) (*MojangServer, er
 					SHA1 string `json:"sha1"`
 				} `json:"server"`
 			} `json:"downloads"`
+			JavaVersion struct {
+				MajorVersion int `json:"majorVersion"`
+			} `json:"javaVersion"`
 		}
 		if err := getJSON(ctx, v.URL, &meta, decodeJSON); err != nil {
 			return nil, fmt.Errorf("minecraft %s metadata: %w", version, err)
@@ -63,7 +87,7 @@ func (m *Mojang) Resolve(ctx context.Context, version string) (*MojangServer, er
 		if meta.Downloads.Server.URL == "" {
 			return nil, fmt.Errorf("minecraft %s has no server download", version)
 		}
-		return &MojangServer{Version: version, URL: meta.Downloads.Server.URL, SHA1: meta.Downloads.Server.SHA1}, nil
+		return &MojangServer{Version: version, URL: meta.Downloads.Server.URL, SHA1: meta.Downloads.Server.SHA1, JavaMajor: meta.JavaVersion.MajorVersion}, nil
 	}
 	return nil, fmt.Errorf("minecraft version %q does not exist", version)
 }
@@ -89,8 +113,8 @@ func VerifySHA1(path, want string) error {
 	return nil
 }
 
-// FabricInstallerURL returns the newest stable Fabric installer jar.
-// TODO(verify): meta.fabricmc.net v2 installer list fields (url, stable).
+// FabricInstallerURL returns the newest stable Fabric installer jar
+// (meta.fabricmc.net v2 fields url/stable checked 2026-11-09).
 func FabricInstallerURL(ctx context.Context) (string, error) {
 	var list []struct {
 		URL    string `json:"url"`

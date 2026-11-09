@@ -40,6 +40,8 @@ type errorDetail struct {
 	Message string `json:"message"`
 	// Field names the offending input when the error is a validation error.
 	Field string `json:"field,omitempty"`
+	// Params fill the translated message (e.g. port, server name).
+	Params map[string]any `json:"params,omitempty"`
 }
 
 // writeError renders the shared error envelope.

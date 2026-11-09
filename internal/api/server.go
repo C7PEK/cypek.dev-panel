@@ -278,6 +278,7 @@ func New(d Deps) (http.Handler, error) {
 				ar.Post("/test", s.handleTestAlerts)
 			})
 
+			priv.With(s.requireRole(auth.RoleAdmin)).Post("/ports/check", s.handlePortsCheck)
 			priv.Get("/servers", s.handleListServers)
 			priv.With(s.requireRole(auth.RoleAdmin)).Post("/servers", s.handleCreateServer)
 			priv.Route("/servers/{id}", func(sr chi.Router) {
@@ -291,6 +292,7 @@ func New(d Deps) (http.Handler, error) {
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/events", s.handleServerEvents)
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/install", s.handleInstallStatus)
 				sr.With(s.withServer(auth.PermSettings)).Post("/install", s.handleReinstall)
+				sr.With(s.withServer(auth.PermSettings)).Post("/git-update", s.handleGitUpdate)
 
 				sr.Route("/users", func(sur chi.Router) {
 					sur.Use(s.requireRole(auth.RoleAdmin), s.withServer(auth.PermSettings))

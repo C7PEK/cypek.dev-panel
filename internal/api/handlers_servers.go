@@ -34,6 +34,8 @@ type serverResponse struct {
 	Status    supervisor.Status `json:"status"`
 	Variables map[string]string `json:"variables"`
 	Players   *query.Players    `json:"players,omitempty"`
+	// GitUpdate: the server's code comes from git ("Update from git").
+	GitUpdate bool `json:"gitUpdate"`
 }
 
 func (s *Server) toResponse(ctx context.Context, srv *servers.Server) serverResponse {
@@ -42,7 +44,7 @@ func (s *Server) toResponse(ctx context.Context, srv *servers.Server) serverResp
 		tpl, _ = s.templates.Get(srv.TemplateID)
 	}
 	st := s.statusOf(ctx, srv.ID)
-	resp := serverResponse{Server: srv, Status: st, Variables: maskedVariables(tpl, srv.Variables)}
+	resp := serverResponse{Server: srv, Status: st, Variables: maskedVariables(tpl, srv.Variables), GitUpdate: tpl != nil && tpl.UsesGit()}
 	if st.State == supervisor.StateRunning {
 		resp.Players = s.playersOf(ctx, srv)
 	}
@@ -88,6 +90,9 @@ type serverInput struct {
 	// Variables alone reconfigure a template server (patch).
 	TemplateID *string            `json:"templateId"`
 	Variables  *map[string]string `json:"variables"`
+	// ForcePorts saves even though another server uses the same port (they
+	// then must not run at the same time).
+	ForcePorts bool `json:"forcePorts"`
 }
 
 type runInput struct {
@@ -371,6 +376,16 @@ func (s *Server) handleCreateServer(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		if ports, err := templates.RenderPorts(tpl, vals); err == nil && !in.ForcePorts {
+			if cs := s.portConflicts(r.Context(), "", ports, false); len(cs) > 0 {
+				field := "variables"
+				if k := templates.PortVariable(tpl, cs[0].Name); k != "" {
+					field = "variables." + k
+				}
+				s.writePortConflict(w, r, cs[0], field, true)
+				return
+			}
+		}
 		userVars = vals
 		srv.TemplateID = tpl.ID
 		srv.Category = tpl.Category
@@ -384,6 +399,12 @@ func (s *Server) handleCreateServer(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			srv.Variables[k] = v
+		}
+	}
+	if tpl == nil && !in.ForcePorts {
+		if cs := s.portConflicts(r.Context(), "", srv.Ports, false); len(cs) > 0 {
+			s.writePortConflict(w, r, cs[0], "ports", true)
+			return
 		}
 	}
 	created, err := s.servers.Create(r.Context(), srv)
@@ -412,6 +433,7 @@ func (s *Server) handleUpdateServer(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &in) {
 		return
 	}
+	oldPorts := append([]servers.Port(nil), srv.Ports...)
 	if field, msg := in.apply(srv, false); field != "" {
 		writeFieldError(w, CodeValidation, field, msg)
 		return
@@ -434,6 +456,19 @@ func (s *Server) handleUpdateServer(w http.ResponseWriter, r *http.Request) {
 			} else {
 				writeError(w, http.StatusBadGateway, code, msg)
 			}
+			return
+		}
+	}
+	if !in.ForcePorts && !samePorts(oldPorts, srv.Ports) {
+		if cs := s.portConflicts(r.Context(), srv.ID, newPorts(oldPorts, srv.Ports), false); len(cs) > 0 {
+			field := "ports"
+			if tpl, ok := s.templates.Get(srv.TemplateID); ok && isTemplateServer(srv) {
+				field = "variables"
+				if k := templates.PortVariable(tpl, cs[0].Name); k != "" {
+					field = "variables." + k
+				}
+			}
+			s.writePortConflict(w, r, cs[0], field, true)
 			return
 		}
 	}
@@ -593,6 +628,10 @@ func (s *Server) handlePower(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.applyConfigDefaults(srv)
+		if cs := s.portConflicts(r.Context(), srv.ID, srv.Ports, true); len(cs) > 0 {
+			s.writePortConflict(w, r, cs[0], "", false)
+			return
+		}
 		if msg := servers.CommandProblem(srv.Run.Command, s.servers.Dir(srv.ID)); msg != "" {
 			writeFieldError(w, CodeCommandNotFound, "run.command", msg)
 			return
@@ -630,4 +669,34 @@ func (s *Server) handlePower(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"status": s.statusOf(r.Context(), srv.ID)})
+}
+
+func samePorts(a, b []servers.Port) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// newPorts keeps only ports that were not there before, so saving other
+// settings is not blocked by an old, accepted conflict.
+func newPorts(old, cur []servers.Port) []servers.Port {
+	var out []servers.Port
+	for _, p := range cur {
+		seen := false
+		for _, o := range old {
+			if o.Port == p.Port && o.Protocol == p.Protocol {
+				seen = true
+			}
+		}
+		if !seen {
+			out = append(out, p)
+		}
+	}
+	return out
 }

@@ -7,6 +7,8 @@ package installer
 import (
 	"bufio"
 	"context"
+	"crypto/md5"
+	"crypto/sha1"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,6 +40,9 @@ import (
 type Deps struct {
 	Paper  *providers.Paper
 	FiveM  *providers.FiveM
+	Mojang *providers.Mojang
+	Fabric *providers.Fabric
+	Purpur *providers.Purpur
 	Java   *runtimes.Java
 	Node   *runtimes.Node
 	Python *runtimes.Python
@@ -144,6 +149,18 @@ func (m *Manager) Forget(serverID string) {
 // user variables; serverDir is the server's working directory. done is
 // called exactly once from the job goroutine with the outcome.
 func (m *Manager) Start(ctx context.Context, serverID, serverDir string, tpl *templates.Template, vars map[string]string, done func(*Result, error)) error {
+	return m.StartWith(ctx, serverID, serverDir, tpl, vars, Hooks{}, done)
+}
+
+// Hooks customise a job: Before runs first inside the job (its log lines
+// show up in the install log), e.g. stopping the server for a git update.
+type Hooks struct {
+	Before   func(ctx context.Context, logf func(string, ...any)) error
+	Finished string // last log line on success (default "Installation finished.")
+}
+
+// StartWith is Start with hooks.
+func (m *Manager) StartWith(ctx context.Context, serverID, serverDir string, tpl *templates.Template, vars map[string]string, hooks Hooks, done func(*Result, error)) error {
 	m.mu.Lock()
 	if j, ok := m.jobs[serverID]; ok && j.State == JobRunning {
 		m.mu.Unlock()
@@ -154,7 +171,21 @@ func (m *Manager) Start(ctx context.Context, serverID, serverDir string, tpl *te
 	m.mu.Unlock()
 
 	go func() {
-		res, err := m.run(ctx, job, serverDir, tpl, vars)
+		var (
+			res *Result
+			err error
+		)
+		if hooks.Before != nil {
+			c := &stepCtx{m: m, job: job, dir: serverDir}
+			err = hooks.Before(ctx, c.logf)
+		}
+		if err == nil {
+			res, err = m.run(ctx, job, serverDir, tpl, vars)
+		}
+		finished := hooks.Finished
+		if finished == "" {
+			finished = "Installation finished."
+		}
 		m.mu.Lock()
 		job.FinishedAt = time.Now()
 		if err != nil {
@@ -164,7 +195,7 @@ func (m *Manager) Start(ctx context.Context, serverID, serverDir string, tpl *te
 		} else {
 			job.State = JobDone
 			job.Percent = 100
-			job.Lines = appendLine(job.Lines, "Installation finished.")
+			job.Lines = appendLine(job.Lines, finished)
 		}
 		m.mu.Unlock()
 		done(res, err)
@@ -318,6 +349,92 @@ func (c *stepCtx) download(ctx context.Context, n int, st *templates.DownloadSte
 		c.vars["JAVA_MIN"] = strconv.Itoa(info.JavaMinimum)
 		flags, _ := json.Marshal(info.JVMFlags)
 		c.vars[templates.KeyJVMFlags] = string(flags)
+		return nil
+	case "mojang":
+		if version == "latest" && c.vars["MC_VERSION_RESOLVED"] != "" {
+			version = c.vars["MC_VERSION_RESOLVED"] // e.g. picked by the Fabric step
+		}
+		c.begin(n, "Downloading the Minecraft server")
+		mj := c.m.deps.Mojang
+		if mj == nil {
+			mj = providers.NewMojang()
+		}
+		srv, err := mj.Resolve(ctx, version)
+		if err != nil {
+			return err
+		}
+		c.logf("Minecraft %s, needs Java %d", srv.Version, srv.JavaMajor)
+		if err := providers.DownloadVerified(ctx, srv.URL, dest, sha1.New(), srv.SHA1, 0, c.progress); err != nil {
+			return err
+		}
+		c.logf("Downloaded and verified %s (SHA-1 from Mojang)", filepath.Base(dest))
+		c.vars["MC_VERSION_RESOLVED"] = srv.Version
+		if srv.JavaMajor > 0 {
+			c.vars["JAVA_MIN"] = strconv.Itoa(srv.JavaMajor)
+		}
+		return nil
+	case "fabric":
+		c.begin(n, "Downloading the Fabric server launcher")
+		fb := c.m.deps.Fabric
+		if fb == nil {
+			fb = providers.NewFabric()
+		}
+		if version == "latest" || version == "" {
+			list, err := fb.GameVersions(ctx)
+			if err != nil {
+				return err
+			}
+			if len(list) == 0 {
+				return errors.New("fabric: no supported Minecraft versions")
+			}
+			version = list[0]
+		}
+		srv, err := fb.Server(ctx, version)
+		if err != nil {
+			return err
+		}
+		c.logf("Fabric loader %s for Minecraft %s (installer %s)", srv.Loader, version, srv.Installer)
+		c.logf("Fabric publishes no checksum for the launcher; downloading over HTTPS only")
+		if err := providers.Download(ctx, srv.URL, dest, "", c.progress); err != nil {
+			return err
+		}
+		c.vars["MC_VERSION_RESOLVED"] = version
+		c.vars["FABRIC_LOADER"] = srv.Loader
+		return nil
+	case "purpur":
+		c.begin(n, "Downloading Purpur")
+		pp := c.m.deps.Purpur
+		if pp == nil {
+			pp = providers.NewPurpur()
+		}
+		if version == "latest" || version == "" {
+			list, err := pp.Versions(ctx)
+			if err != nil {
+				return err
+			}
+			if len(list) == 0 {
+				return errors.New("purpur: no versions published")
+			}
+			version = list[0]
+		}
+		b, err := pp.Latest(ctx, version)
+		if err != nil {
+			return err
+		}
+		c.logf("Purpur %s build %d", b.Version, b.Build)
+		if err := providers.DownloadVerified(ctx, b.URL, dest, md5.New(), b.MD5, 0, c.progress); err != nil {
+			return err
+		}
+		c.logf("Downloaded and verified %s (MD5 from Purpur)", filepath.Base(dest))
+		c.vars["MC_VERSION_RESOLVED"] = b.Version
+		c.vars["MC_BUILD"] = strconv.Itoa(b.Build)
+		mj := c.m.deps.Mojang
+		if mj == nil {
+			mj = providers.NewMojang()
+		}
+		if srv, err := mj.Resolve(ctx, b.Version); err == nil && srv.JavaMajor > 0 {
+			c.vars["JAVA_MIN"] = strconv.Itoa(srv.JavaMajor)
+		}
 		return nil
 	case "fivem":
 		c.begin(n, "Downloading FXServer")
@@ -646,6 +763,10 @@ func (c *stepCtx) git(ctx context.Context, n int, st *templates.GitStep) error {
 		if err != nil {
 			return fmt.Errorf("open repository: %w", err)
 		}
+		var before plumbing.Hash
+		if head, err := repo.Head(); err == nil {
+			before = head.Hash()
+		}
 		c.logf("Repository exists, pulling latest changes")
 		if err := repo.FetchContext(ctx, &gogit.FetchOptions{Auth: auth, Force: true, Depth: 0}); err != nil && !errors.Is(err, gogit.NoErrAlreadyUpToDate) {
 			return fmt.Errorf("git fetch: %w", err)
@@ -669,7 +790,15 @@ func (c *stepCtx) git(ctx context.Context, n int, st *templates.GitStep) error {
 		if err := wt.Reset(&gogit.ResetOptions{Commit: target.Hash(), Mode: gogit.HardReset}); err != nil {
 			return fmt.Errorf("git reset: %w", err)
 		}
-		c.logf("Now at %s", target.Hash().String()[:10])
+		after := target.Hash()
+		switch {
+		case after == before:
+			c.logf("Already up to date (%s)", after.String()[:10])
+		case before.IsZero():
+			c.logf("Now at %s", describeCommit(repo, after))
+		default:
+			c.logf("Updated %s → %s", before.String()[:10], describeCommit(repo, after))
+		}
 		return nil
 	}
 	if err := os.MkdirAll(dest, 0o750); err != nil {
@@ -684,6 +813,20 @@ func (c *stepCtx) git(ctx context.Context, n int, st *templates.GitStep) error {
 		c.logf("Cloned at %s", head.Hash().String()[:10])
 	}
 	return nil
+}
+
+// describeCommit is "abc1234567: first line of the message (author)".
+func describeCommit(repo *gogit.Repository, h plumbing.Hash) string {
+	out := h.String()[:10]
+	c, err := repo.CommitObject(h)
+	if err != nil {
+		return out
+	}
+	msg, _, _ := strings.Cut(strings.TrimSpace(c.Message), "\n")
+	if len(msg) > 100 {
+		msg = msg[:100] + "…"
+	}
+	return fmt.Sprintf("%s: %s (%s)", out, msg, c.Author.Name)
 }
 
 // allowLocalGit lets tests clone from file:// repositories.

@@ -2,6 +2,7 @@ package installer
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -92,8 +93,30 @@ func TestGitAndExecSteps(t *testing.T) {
 	if b, _ := os.ReadFile(filepath.Join(dir, "app", "index.js")); string(b) != "console.log(2)" {
 		t.Errorf("after update = %q", b)
 	}
-	if !strings.Contains(strings.Join(lines, "\n"), "pulling latest") {
-		t.Errorf("update log:\n%s", strings.Join(lines, "\n"))
+	if l := strings.Join(lines, "\n"); !strings.Contains(l, "pulling latest") || !strings.Contains(l, "Updated ") || !strings.Contains(l, ": c (t)") {
+		t.Errorf("update log:\n%s", l)
+	}
+	if _, lines, err = run(); err != nil || !strings.Contains(strings.Join(lines, "\n"), "Already up to date") {
+		t.Errorf("no-op update: %v\n%s", err, strings.Join(lines, "\n"))
+	}
+
+	// Hooks: Before runs inside the job; its failure fails the job.
+	done0 := make(chan error, 1)
+	_ = m.StartWith(context.Background(), "bot00001", dir, tpl, map[string]string{"REPO_URL": url}, Hooks{
+		Before:   func(_ context.Context, logf func(string, ...any)) error { logf("stopping first"); return nil },
+		Finished: "Update finished.",
+	}, func(_ *Result, e error) { done0 <- e })
+	if err := <-done0; err != nil {
+		t.Fatal(err)
+	}
+	if job, _ := m.Get("bot00001"); !strings.Contains(strings.Join(job.Lines, "\n"), "stopping first") || !strings.HasSuffix(job.Lines[len(job.Lines)-1], "Update finished.") {
+		t.Errorf("hook log: %v", job.Lines)
+	}
+	_ = m.StartWith(context.Background(), "bot00001", dir, tpl, map[string]string{"REPO_URL": url}, Hooks{
+		Before: func(context.Context, func(string, ...any)) error { return errors.New("could not stop") },
+	}, func(_ *Result, e error) { done0 <- e })
+	if err := <-done0; err == nil || err.Error() != "could not stop" {
+		t.Errorf("failing hook: %v", err)
 	}
 
 	// A failing exec fails the install with its output in the log.

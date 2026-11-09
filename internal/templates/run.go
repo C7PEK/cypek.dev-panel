@@ -78,19 +78,42 @@ func BuildRun(t *Template, vars map[string]string) (shim.RunConfig, []servers.Po
 	if err := run.Validate(); err != nil {
 		return run, nil, err
 	}
+	ports, err := RenderPorts(t, vars)
+	if err != nil {
+		return run, nil, err
+	}
+	return run, ports, nil
+}
+
+// RenderPorts resolves the template's port list for the given values.
+func RenderPorts(t *Template, vars map[string]string) ([]servers.Port, error) {
 	ports := make([]servers.Port, 0, len(t.Ports))
 	for _, p := range t.Ports {
 		rendered, err := Render(p.Port, vars)
 		if err != nil {
-			return run, nil, fmt.Errorf("port %s: %w", p.Name, err)
+			return nil, fmt.Errorf("port %s: %w", p.Name, err)
 		}
 		n, err := strconv.Atoi(rendered)
 		if err != nil || n < 1 || n > 65535 {
-			return run, nil, fmt.Errorf("port %s: %q is not a valid port", p.Name, rendered)
+			return nil, fmt.Errorf("port %s: %q is not a valid port", p.Name, rendered)
 		}
 		ports = append(ports, servers.Port{Name: p.Name, Port: n, Protocol: p.Protocol})
 	}
-	return run, ports, nil
+	return ports, nil
+}
+
+// PortVariable names the variable a port comes from when the template's
+// port is exactly "{{KEY}}" (so errors can point at that field).
+func PortVariable(t *Template, name string) string {
+	for _, p := range t.Ports {
+		if p.Name != name {
+			continue
+		}
+		if m := placeholderRe.FindStringSubmatch(p.Port); m != nil && m[0] == p.Port {
+			return m[1]
+		}
+	}
+	return ""
 }
 
 // ShellReferences turns {{KEY}} into "${KEY}" (and {{KEY...}} into ${KEY})

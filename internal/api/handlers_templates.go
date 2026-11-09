@@ -92,6 +92,30 @@ func (s *Server) sourceOptions(ctx context.Context, source string) ([]sourceOpti
 			opts = append(opts, sourceOption{Value: v, Label: v, Prerelease: providers.IsPrerelease(v)})
 		}
 		return opts, nil
+	case "minecraft-versions", "fabric-versions", "purpur-versions":
+		var (
+			list []string
+			err  error
+		)
+		switch source {
+		case "minecraft-versions":
+			list, err = providers.NewMojang().Releases(ctx)
+		case "fabric-versions":
+			list, err = providers.NewFabric().GameVersions(ctx)
+		default:
+			list, err = providers.NewPurpur().Versions(ctx)
+		}
+		if err != nil {
+			return nil, err
+		}
+		opts := []sourceOption{{Value: "latest", Label: "latest"}}
+		if len(list) > 0 {
+			opts[0].Label = "latest (" + list[0] + ")"
+		}
+		for _, v := range list {
+			opts = append(opts, sourceOption{Value: v, Label: v})
+		}
+		return opts, nil
 	case "fivem-artifacts":
 		items, err := s.fivem.Options(ctx)
 		if err != nil {
@@ -128,10 +152,19 @@ func (s *Server) validateSourceValue(ctx context.Context, v *templates.Variable,
 // startInstall kicks off the installer for a template server and wires the
 // completion back into the store. The job outlives the HTTP request.
 func (s *Server) startInstall(srv *servers.Server, tpl *templates.Template, userVars map[string]string) error {
+	return s.startInstallWith(srv, tpl, userVars, installer.Hooks{}, nil)
+}
+
+// startInstallWith runs an install job with hooks; then (optional) is called
+// after the outcome is stored, with ok=false when the job failed.
+func (s *Server) startInstallWith(srv *servers.Server, tpl *templates.Template, userVars map[string]string, hooks installer.Hooks, then func(ok bool, err error)) error {
 	dir := s.servers.Dir(srv.ID)
 	ctx := s.bgCtx
 	_ = s.servers.SetInstallState(ctx, srv.ID, servers.InstallInstalling, "")
-	return s.installer.Start(ctx, srv.ID, dir, tpl, userVars, func(res *installer.Result, err error) {
+	return s.installer.StartWith(ctx, srv.ID, dir, tpl, userVars, hooks, func(res *installer.Result, err error) {
+		if then != nil {
+			defer func() { then(err == nil, err) }()
+		}
 		if err != nil {
 			s.log.Warn("install failed", "server", srv.ID, "err", err)
 			_ = s.servers.SetInstallState(ctx, srv.ID, servers.InstallFailed, err.Error())
