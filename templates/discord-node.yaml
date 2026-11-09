@@ -40,12 +40,12 @@ variables:
   - key: START_FILE
     label: { pl: Plik startowy, en: Entry file }
     help:
-      pl: Względem katalogu repo, np. index.js, src/bot.js lub dist/index.js (po buildzie TypeScript).
-      en: Relative to the repo folder, e.g. index.js, src/bot.js or dist/index.js (after a TypeScript build).
+      pl: Względem katalogu repo, np. index.js, src/bot.js lub dist/index.js (po buildzie TypeScript). Zostaw puste, żeby uruchomić skrypt "start" z package.json (npm start).
+      en: Relative to the repo folder, e.g. index.js, src/bot.js or dist/index.js (after a TypeScript build). Leave empty to run the "start" script from package.json (npm start).
     type: string
     default: index.js
     maxLength: 200
-    pattern: '^[^\s/][^\s]*\.(js|mjs|cjs)$'
+    pattern: '^$|^[^\s/][^\s]*\.(js|mjs|cjs)$'
   - key: NODE_VERSION
     label: { pl: Wersja Node.js, en: Node.js version }
     type: select
@@ -62,11 +62,19 @@ install:
       branch: "{{BRANCH}}"
       token: GIT_TOKEN
       to: app
+  # npm ci installs exactly what package-lock.json pins; without a lockfile
+  # fall back to npm install.
+  - exec:
+      command: "{{NPM}}"
+      args: ["ci", "--no-fund", "--no-audit"]
+      dir: app
+      ifExists: package-lock.json
   - exec:
       command: "{{NPM}}"
       args: ["install", "--no-fund", "--no-audit"]
       dir: app
       ifExists: package.json
+      ifMissing: package-lock.json
   - exec:
       command: "{{NPM}}"
       args: ["run", "build", "--if-present"]
@@ -74,8 +82,8 @@ install:
       ifExists: package.json
 
 start:
-  command: "{{NODE}}"
-  args: ["{{START_FILE}}"]
+  # node <file>, or "npm start" when no entry file is given.
+  shell: 'if [ -n {{START_FILE}} ]; then exec node {{START_FILE}}; else exec npm start; fi'
   dir: app
   env:
     DISCORD_TOKEN: "{{DISCORD_TOKEN}}"

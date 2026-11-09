@@ -1,6 +1,7 @@
 package installer
 
 import (
+	"github.com/C7PEK/cypek.dev-panel/internal/templates"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -40,5 +41,16 @@ func TestMissingTools(t *testing.T) {
 	}
 	if got := MissingTools("echo hi\n"); len(got) != 0 {
 		t.Fatalf("got %v", got)
+	}
+}
+
+func TestMaskSecrets(t *testing.T) {
+	tpl, err := templates.Parse([]byte("id: mask\nname: M\ncategory: other\nvariables:\n  - {key: KEY, type: secret}\n  - {key: X, type: secret}\ninstall: []\nstart: {command: /bin/run, args: [\"--key={{KEY}}\"]}\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := maskSecrets(tpl, map[string]string{"KEY": "cfxk_super", "X": "ab"}, "/bin/run --key=cfxk_super ab")
+	if got != "/bin/run --key=•••• ab" {
+		t.Errorf("got %q", got)
 	}
 }

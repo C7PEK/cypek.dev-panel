@@ -29,6 +29,7 @@ import (
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 
 	"github.com/C7PEK/cypek.dev-panel/internal/archive"
+	"github.com/C7PEK/cypek.dev-panel/internal/files"
 	"github.com/C7PEK/cypek.dev-panel/internal/providers"
 	"github.com/C7PEK/cypek.dev-panel/internal/runtimes"
 	"github.com/C7PEK/cypek.dev-panel/internal/servers"
@@ -312,7 +313,7 @@ func (m *Manager) run(ctx context.Context, job *Job, dir string, tpl *templates.
 			builtins[k] = v
 		}
 	}
-	c.logf("Start command: %s %s", run.Command, strings.Join(run.Args, " "))
+	c.logf("Start command: %s", maskSecrets(tpl, vars, run.Command+" "+strings.Join(run.Args, " ")))
 	return &Result{Run: run, Ports: ports, Builtins: builtins}, nil
 }
 
@@ -503,7 +504,7 @@ func (c *stepCtx) extract(n int, st *templates.ExtractStep) error {
 			last = time.Now()
 		}
 	}
-	if err := archive.Extract(src, dest, archive.Options{Strip: st.Strip, Progress: progress}); err != nil {
+	if err := archive.Extract(src, dest, archive.Options{Strip: st.Strip, Progress: progress, Resolve: files.ResolveSafe}); err != nil {
 		return fmt.Errorf("extract %s: %w", from, err)
 	}
 	if st.Delete == nil || *st.Delete {
@@ -891,6 +892,16 @@ func (c *stepCtx) exec(ctx context.Context, n int, st *templates.ExecStep) error
 			return nil
 		}
 	}
+	if st.IfMissing != "" {
+		probe, err := templates.Render(st.IfMissing, c.vars)
+		if err != nil {
+			return err
+		}
+		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(probe))); err == nil {
+			c.begin(n, "Skipping "+filepath.Base(cmd)+" ("+probe+" exists)")
+			return nil
+		}
+	}
 	env := map[string]string{}
 	for k, v := range st.Env {
 		if env[k], err = templates.Render(v, c.vars); err != nil {
@@ -1007,4 +1018,17 @@ func (m *Manager) Reconfigure(serverDir string, tpl *templates.Template, userVar
 		}
 	}
 	return &Result{Run: run, Ports: ports, Builtins: out}, nil
+}
+
+// maskSecrets hides values of secret variables in text meant for logs.
+func maskSecrets(tpl *templates.Template, vars map[string]string, text string) string {
+	for _, v := range tpl.Variables {
+		if v.Type != templates.TypeSecret {
+			continue
+		}
+		if val := vars[v.Key]; len(val) >= 4 {
+			text = strings.ReplaceAll(text, val, "••••")
+		}
+	}
+	return text
 }

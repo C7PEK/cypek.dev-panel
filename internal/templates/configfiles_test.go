@@ -73,3 +73,23 @@ func TestShellStartIsInjectionSafe(t *testing.T) {
 		t.Errorf("env = %v", run.Env)
 	}
 }
+
+func TestShellStartKeepsUnusedSecretsOut(t *testing.T) {
+	tpl, err := Parse([]byte("id: sec\nname: S\ncategory: other\nvariables:\n  - {key: TOKEN, type: secret}\n  - {key: GIT_TOKEN, type: secret}\n  - {key: NAME, type: string}\ninstall: []\nstart:\n  shell: 'run --token {{TOKEN}}'\n  env: {EXTRA: \"{{GIT_TOKEN}}x\"}\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	run, _, err := BuildRun(tpl, map[string]string{"TOKEN": "a", "GIT_TOKEN": "b", "NAME": "n", KeyServerDir: "/srv"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.Env["TOKEN"] != "a" || run.Env["NAME"] != "n" {
+		t.Errorf("used values missing: %v", run.Env)
+	}
+	if _, ok := run.Env["GIT_TOKEN"]; ok {
+		t.Errorf("unused secret exported: %v", run.Env)
+	}
+	if run.Env["EXTRA"] != "bx" {
+		t.Errorf("start.env still applies: %v", run.Env)
+	}
+}

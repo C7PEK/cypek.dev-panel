@@ -117,6 +117,8 @@ type ExecStep struct {
 	Env     map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
 	// IfExists skips the step unless this file (relative to Dir) exists.
 	IfExists string `yaml:"ifExists,omitempty" json:"ifExists,omitempty"`
+	// IfMissing skips the step when this file exists (npm ci vs install).
+	IfMissing string `yaml:"ifMissing,omitempty" json:"ifMissing,omitempty"`
 	// TimeoutSec bounds the run (default 900).
 	TimeoutSec int `yaml:"timeoutSec,omitempty" json:"timeoutSec,omitempty"`
 }
@@ -397,6 +399,11 @@ func (t *Template) Validate() error {
 					return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
 				}
 			}
+			if s.Exec.IfMissing != "" {
+				if err := safeRelPath(s.Exec.IfMissing); err != nil {
+					return fmt.Errorf("template %s: install step %d: ifMissing: %w", t.ID, i+1, err)
+				}
+			}
 			if s.Exec.IfExists != "" {
 				if err := safeRelPath(s.Exec.IfExists); err != nil {
 					return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
@@ -504,7 +511,7 @@ func (t *Template) allTemplatedStrings() []string {
 			out = append(out, s.Git.URL, s.Git.Branch, s.Git.To)
 		}
 		if s.Exec != nil {
-			out = append(out, s.Exec.Command, s.Exec.Dir, s.Exec.IfExists)
+			out = append(out, s.Exec.Command, s.Exec.Dir, s.Exec.IfExists, s.Exec.IfMissing)
 			out = append(out, s.Exec.Args...)
 			for _, v := range s.Exec.Env {
 				out = append(out, v)

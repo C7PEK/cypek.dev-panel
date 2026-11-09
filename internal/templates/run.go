@@ -51,6 +51,17 @@ func BuildRun(t *Template, vars map[string]string) (shim.RunConfig, []servers.Po
 		run.Command = "/bin/bash"
 		run.Args = []string{"-c", ShellReferences(t.Start.Shell)}
 		run.Env = ShellEnv(vars)
+		// Secrets the start command never mentions (e.g. a git token) stay
+		// out of the server's environment and its run.json.
+		used := map[string]bool{}
+		for _, k := range placeholders(t.Start.Shell) {
+			used[k] = true
+		}
+		for _, v := range t.Variables {
+			if v.Type == TypeSecret && !used[v.Key] {
+				delete(run.Env, v.Key)
+			}
+		}
 	} else {
 		if run.Command, err = Render(t.Start.Command, vars); err != nil {
 			return run, nil, fmt.Errorf("start.command: %w", err)
