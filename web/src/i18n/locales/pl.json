@@ -144,7 +144,13 @@
     "platform_unknown": "Panel nie wie, na czym działa ten serwer. Wybierz silnik serwera w zakładce Pluginy.",
     "no_compatible_version": "Ten plugin lub mod nie ma wersji dla Twojego serwera i wersji Minecrafta.",
     "no_webhook": "Nie ustawiono webhooka Discord. Dodaj go w Powiadomieniach.",
-    "webhook_failed": "Discord odrzucił wiadomość: {{message}}"
+    "webhook_failed": "Discord odrzucił wiadomość: {{message}}",
+    "port_in_use": "Port {{port}} jest zajęty przez serwer „{{server}}”.",
+    "port_in_use_other": "Port {{port}} jest zajęty przez inny serwer.",
+    "port_in_use_running": "Ten serwer teraz działa — zatrzymaj go albo zmień port.",
+    "port_in_use_host": "Port {{port}} jest już zajęty przez inny program na tym komputerze.",
+    "port_suggestion": "Wolny port: {{suggestion}}.",
+    "no_git_source": "Ten serwer nie pobiera kodu z gita."
   },
   "servers": {
     "create": "Utwórz serwer",
@@ -1157,5 +1163,23 @@
       "noWebhookAdmin": "Nie ustawiono jeszcze webhooka Discord.",
       "openSettings": "Ustaw go w Powiadomieniach"
     }
+  },
+  "ports": {
+    "useSuggestion": "Użyj wolnego portu {{port}}",
+    "saveAnyway": "Zapisz mimo to",
+    "createAnyway": "Utwórz mimo to",
+    "anywayHint": "Oba serwery nie będą mogły działać jednocześnie."
+  },
+  "gitUpdate": {
+    "title": "Aktualizacja z gita",
+    "description": "Pobiera najnowszy kod z repozytorium, instaluje zależności i uruchamia bota ponownie.",
+    "button": "Aktualizuj z gita",
+    "confirmTitle": "Aktualizować z gita?",
+    "confirm": "Pobierzemy najnowszy kod z gałęzi, zainstalujemy zależności i uruchomimy bota ponownie. Lokalne zmiany w plikach z repozytorium zostaną nadpisane.",
+    "restart": "Uruchom po aktualizacji",
+    "restartHelp": "Wyłączone: bot uruchomi się tylko, jeśli działał przed aktualizacją.",
+    "run": "Aktualizuj",
+    "started": "Aktualizacja rozpoczęta",
+    "progressTitle": "Aktualizacja z gita"
   }
 }

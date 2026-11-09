@@ -5,13 +5,16 @@ export class ApiError extends Error {
   status: number
   code: string
   field?: string
+  /** Values for the translated message (e.g. port, server name). */
+  params?: Record<string, unknown>
 
-  constructor(status: number, code: string, message: string, field?: string) {
+  constructor(status: number, code: string, message: string, field?: string, params?: Record<string, unknown>) {
     super(message)
     this.name = "ApiError"
     this.status = status
     this.code = code
     this.field = field
+    this.params = params
   }
 }
 
@@ -53,8 +56,8 @@ export async function api<T>(method: Method, path: string, body?: unknown): Prom
   }
 
   if (!res.ok) {
-    const err = (data as { error?: { code?: string; message?: string; field?: string } } | null)?.error
-    const apiErr = new ApiError(res.status, err?.code ?? "internal_error", err?.message ?? res.statusText, err?.field)
+    const err = (data as { error?: { code?: string; message?: string; field?: string; params?: Record<string, unknown> } } | null)?.error
+    const apiErr = new ApiError(res.status, err?.code ?? "internal_error", err?.message ?? res.statusText, err?.field, err?.params)
     notifyGlobalError(apiErr)
     throw apiErr
   }

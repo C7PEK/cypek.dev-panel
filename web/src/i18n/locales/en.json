@@ -142,7 +142,13 @@
     "platform_unknown": "The panel doesn't know what this server runs. Pick the server software in the Plugins tab.",
     "no_compatible_version": "This plugin or mod has no version for your server software and Minecraft version.",
     "no_webhook": "No Discord webhook is set. Add one under Alerts.",
-    "webhook_failed": "Discord rejected the message: {{message}}"
+    "webhook_failed": "Discord rejected the message: {{message}}",
+    "port_in_use": "Port {{port}} is already used by the server “{{server}}”.",
+    "port_in_use_other": "Port {{port}} is already used by another server.",
+    "port_in_use_running": "That server is running right now — stop it or change the port.",
+    "port_in_use_host": "Port {{port}} is already used by another program on this machine.",
+    "port_suggestion": "Free port: {{suggestion}}.",
+    "no_git_source": "This server does not get its code from git."
   },
   "servers": {
     "create": "Create a server",
@@ -1121,5 +1127,23 @@
       "noWebhookAdmin": "No Discord webhook is set yet.",
       "openSettings": "Set it up in Alerts"
     }
+  },
+  "ports": {
+    "useSuggestion": "Use free port {{port}}",
+    "saveAnyway": "Save anyway",
+    "createAnyway": "Create anyway",
+    "anywayHint": "The two servers will not be able to run at the same time."
+  },
+  "gitUpdate": {
+    "title": "Update from git",
+    "description": "Fetches the latest code from the repository, installs dependencies and starts the bot again.",
+    "button": "Update from git",
+    "confirmTitle": "Update from git?",
+    "confirm": "We will fetch the latest code from the branch, install dependencies and start the bot again. Local changes to files from the repository will be overwritten.",
+    "restart": "Start after the update",
+    "restartHelp": "Off: the bot starts only if it was running before the update.",
+    "run": "Update",
+    "started": "Update started",
+    "progressTitle": "Update from git"
   }
 }

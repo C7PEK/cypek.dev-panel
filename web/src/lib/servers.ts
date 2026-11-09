@@ -132,6 +132,18 @@ export function useReinstall(id: string) {
   })
 }
 
+/** Pull the latest code from git, reinstall dependencies, start again. */
+export function useGitUpdate(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (restart: boolean) => api<void>("POST", `${serverPath(id)}/git-update`, { restart }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: serverKey(id) })
+      void qc.invalidateQueries({ queryKey: installJobKey(id) })
+    },
+  })
+}
+
 export const consoleHintsKey = (id: string) => ["servers", id, "console-hints"] as const
 
 /** Command list + online players for console autocompletion; polls every 5 s while enabled. */

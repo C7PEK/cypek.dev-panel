@@ -1,4 +1,7 @@
 import { RotateCcwIcon } from "lucide-react"
+
+import { GitUpdateButton } from "@/components/servers/git-update-button"
+import { PortConflictNotice } from "@/components/servers/port-conflict-notice"
 import { type FormEvent, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -11,7 +14,7 @@ import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLab
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { isApiError } from "@/lib/api"
-import { describeError } from "@/lib/errors"
+import { describeError, describePortConflict, portConflictOf } from "@/lib/errors"
 import { canDo, isInstalling, useReinstall, useUpdateServer } from "@/lib/servers"
 import { useTemplates } from "@/lib/templates"
 import type { Server, TemplateVariable } from "@/lib/types"
@@ -32,6 +35,7 @@ export function TemplateSettings({ server }: { server: Server }) {
   }
   return (
     <>
+      {server.gitUpdate && <GitUpdateCard server={server} />}
       <SettingsForm key={server.updatedAt} server={server} tplId={tpl.id} variables={tpl.variables} />
       <ReinstallCard server={server} />
     </>
@@ -61,9 +65,15 @@ function SettingsForm({ server, tplId, variables }: { server: Server; tplId: str
   }, [localErrors, apiField, apiMessage])
   const generalError = update.error && !(apiField && (apiField === "name" || apiField.startsWith("variables."))) ? apiMessage : undefined
   const notReady = server.installState !== "ready"
+  const conflict = portConflictOf(update.error)
+  const conflictKey = conflict?.field?.startsWith("variables.") ? conflict.field.slice("variables.".length) : undefined
 
   function submit(e: FormEvent) {
     e.preventDefault()
+    save(false)
+  }
+
+  function save(forcePorts: boolean) {
     const errors: Record<string, string | undefined> = {}
     if (!name.trim()) errors.__name = t("servers.validation.required")
     if (!/^\d+$/.test(memoryMb.trim())) errors.__memoryMb = t("servers.validation.integer")
@@ -73,7 +83,13 @@ function SettingsForm({ server, tplId, variables }: { server: Server; tplId: str
     // Masked secrets go back masked; the backend keeps the stored value then.
     const vars = Object.fromEntries(variables.map((v) => [v.key, (values[v.key] ?? "").trim()]))
     update.mutate(
-      { name: name.trim(), variables: vars, limits: { memoryMb: Number(memoryMb), cpuPercent: Number(cpuPercent) }, autostart },
+      {
+        name: name.trim(),
+        variables: vars,
+        limits: { memoryMb: Number(memoryMb), cpuPercent: Number(cpuPercent) },
+        autostart,
+        forcePorts: forcePorts || undefined,
+      },
       { onSuccess: () => toast.success(t("servers.saved")) },
     )
   }
@@ -101,11 +117,29 @@ function SettingsForm({ server, tplId, variables }: { server: Server; tplId: str
               templateId={tplId}
               variables={variables}
               values={values}
-              onChange={(k, v) => setValues((p) => ({ ...p, [k]: v }))}
+              onChange={(k, v) => {
+                setValues((p) => ({ ...p, [k]: v }))
+                if (apiField === `variables.${k}`) update.reset()
+              }}
               errors={variableErrors}
               lockConsent
               idPrefix="ts"
             />
+            {conflict && conflict.canForce !== false && (
+              <PortConflictNotice
+                error
+                message={`${describePortConflict(t, conflict.code, conflict)} ${t("ports.anywayHint")}`}
+                suggestion={conflictKey ? conflict.suggestion : undefined}
+                onUseSuggestion={() => {
+                  if (conflictKey && conflict.suggestion) {
+                    setValues((p) => ({ ...p, [conflictKey]: String(conflict.suggestion) }))
+                    update.reset()
+                  }
+                }}
+                onForce={() => save(true)}
+                pending={update.isPending}
+              />
+            )}
             <div className="grid gap-5 sm:grid-cols-2">
               <Field data-invalid={!!localErrors.__memoryMb || undefined}>
                 <FieldLabel htmlFor="ts-memoryMb">{t("servers.memoryMb")}</FieldLabel>
@@ -174,6 +208,21 @@ function ReinstallCard({ server }: { server: Server }) {
           <RotateCcwIcon />
           {t("templates.reinstall")}
         </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+function GitUpdateCard({ server }: { server: Server }) {
+  const { t } = useTranslation()
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="font-heading text-lg font-medium tracking-[0.04em] uppercase">{t("gitUpdate.title")}</CardTitle>
+        <CardDescription>{t("gitUpdate.description")}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex justify-end">
+        <GitUpdateButton server={server} />
       </CardContent>
     </Card>
   )

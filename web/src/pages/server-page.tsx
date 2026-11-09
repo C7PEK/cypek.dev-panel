@@ -12,6 +12,7 @@ import { InstallBadge } from "@/components/servers/install-badge"
 import { InstallPanel } from "@/components/servers/install-panel"
 import { TemplateSettings } from "@/components/servers/template-settings"
 import { ServerAlertsCard } from "@/components/alerts/server-alerts-card"
+import { GitUpdateButton } from "@/components/servers/git-update-button"
 import { PowerButtons } from "@/components/servers/power-buttons"
 import { ServerForm, valuesFromServer } from "@/components/servers/server-form"
 import { StateBadge } from "@/components/servers/state-badge"
@@ -132,6 +133,7 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
           </div>
           <div className="flex flex-col items-end gap-2">
             <PowerButtons server={s} withKill />
+            {s.gitUpdate && <GitUpdateButton server={s} size="sm" className="hidden sm:inline-flex" />}
           </div>
         </header>
 

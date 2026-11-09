@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { AppShell } from "@/components/layout/app-shell"
 import { CategoryIcon } from "@/components/servers/category-icon"
 import { CreateServerDialog } from "@/components/servers/create-server-dialog"
+import { PortConflictNotice } from "@/components/servers/port-conflict-notice"
 import { VariableFields } from "@/components/servers/variable-fields"
 import { ScriptBadge, SourceBadge } from "@/components/templates/source-badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -16,7 +17,8 @@ import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLab
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { isApiError } from "@/lib/api"
-import { describeError } from "@/lib/errors"
+import { describeError, describePortConflict, portConflictOf } from "@/lib/errors"
+import { describeLiveConflict, portVariable, resolvePorts, usePortCheck } from "@/lib/ports"
 import { useCreateServer } from "@/lib/servers"
 import { isImported, localized, renderPort, sourceKind, useTemplates } from "@/lib/templates"
 import type { CreateServerInput, Template, User } from "@/lib/types"
@@ -64,6 +66,13 @@ export function NewServerPage({ user }: { user: User }) {
   const nameError = localErrors.__name ?? (apiField === "name" ? apiMessage : undefined)
   const generalError = apiErr && !(apiField && (apiField === "name" || apiField.startsWith("variables."))) ? apiMessage : undefined
 
+  // Ports: live warning while typing, plus actions when the create was refused.
+  const livePorts = useMemo(() => (template ? resolvePorts(template, values) : []), [template, values])
+  const portCheck = usePortCheck(livePorts, undefined, step >= 2 && !!template)
+  const liveConflicts = portCheck.data ?? []
+  const createConflict = portConflictOf(apiErr)
+  const conflictPorts = new Set(liveConflicts.map((c) => c.port))
+
   function pick(tpl: Template) {
     setTemplate(tpl)
     setValues(defaultsFor(tpl))
@@ -75,6 +84,12 @@ export function NewServerPage({ user }: { user: User }) {
   function setValue(key: string, value: string) {
     setValues((v) => ({ ...v, [key]: value }))
     setLocalErrors((e) => (e[key] ? { ...e, [key]: undefined } : e))
+    if (apiField === `variables.${key}`) create.reset()
+  }
+
+  function applySuggestedPort(portName: string, port: number) {
+    const key = template ? portVariable(template, portName) : undefined
+    if (key) setValue(key, String(port))
   }
 
   // Client-side checks mirror the server's so most mistakes are caught before the request.
@@ -110,10 +125,11 @@ export function NewServerPage({ user }: { user: User }) {
     if (validateSettings()) setStep(3)
   }
 
-  function submit() {
+  function submit(forcePorts = false) {
     if (!template) return
     const input: CreateServerInput = {
       name: name.trim(),
+      forcePorts: forcePorts || undefined,
       templateId: template.id,
       variables: Object.fromEntries(template.variables.map((v) => [v.key, (values[v.key] ?? "").trim()])),
       limits: { memoryMb: Number(advanced.memoryMb) || 0, cpuPercent: Number(advanced.cpuPercent) || 0 },
@@ -283,6 +299,29 @@ export function NewServerPage({ user }: { user: User }) {
                     errors={variableErrors}
                     idPrefix="new"
                   />
+                  {createConflict ? (
+                    <PortConflictNotice
+                      error
+                      message={`${describePortConflict(t, createConflict.code, createConflict)} ${t("ports.anywayHint")}`}
+                      suggestion={createConflict.suggestion}
+                      onUseSuggestion={() => {
+                        const key = createConflict.field?.startsWith("variables.") ? createConflict.field.slice("variables.".length) : undefined
+                        if (key && createConflict.suggestion) setValue(key, String(createConflict.suggestion))
+                      }}
+                      forceLabel={t("ports.createAnyway")}
+                      onForce={() => submit(true)}
+                      pending={create.isPending}
+                    />
+                  ) : (
+                    liveConflicts.map((c) => (
+                      <PortConflictNotice
+                        key={`${c.name}-${c.port}`}
+                        message={describeLiveConflict(t, c)}
+                        suggestion={portVariable(template, c.name) ? c.suggestion : undefined}
+                        onUseSuggestion={() => c.suggestion && applySuggestedPort(c.name, c.suggestion)}
+                      />
+                    ))
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowAdvanced((v) => !v)}
@@ -389,19 +428,42 @@ export function NewServerPage({ user }: { user: User }) {
                 <div className="label-caps mb-2 text-[0.66rem] text-muted-foreground">{t("templates.portsTitle")}</div>
                 {template.ports && template.ports.length > 0 ? (
                   <ul className="flex flex-wrap gap-2">
-                    {template.ports.map((p) => (
-                      <li key={p.name} className="inline-flex items-center gap-2 rounded-md border bg-background px-2 py-1 font-mono text-xs">
-                        <span className="brand-pulse size-1.5 rounded-full bg-brand-cyan shadow-[0_0_8px_var(--brand-cyan)]" />
+                    {template.ports.map((p) => {
+                      const taken = conflictPorts.has(Number(renderPort(p, values)))
+                      return (
+                      <li
+                        key={p.name}
+                        className={cn(
+                          "inline-flex items-center gap-2 rounded-md border bg-background px-2 py-1 font-mono text-xs",
+                          taken && "border-amber-500/50 text-amber-200",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "size-1.5 rounded-full",
+                            taken ? "bg-amber-400" : "brand-pulse bg-brand-cyan shadow-[0_0_8px_var(--brand-cyan)]",
+                          )}
+                        />
                         {renderPort(p, values)}/{p.protocol}
                         <span className="text-muted-foreground">· {p.name}</span>
                       </li>
-                    ))}
+                      )
+                    })}
                   </ul>
                 ) : (
                   <p className="text-sm text-muted-foreground">{t("templates.noPorts")}</p>
                 )}
                 <p className="mt-2 text-xs text-muted-foreground">{t("templates.portsHelp")}</p>
               </div>
+              {!createConflict &&
+                liveConflicts.map((c) => (
+                  <PortConflictNotice
+                    key={`${c.name}-${c.port}`}
+                    message={describeLiveConflict(t, c)}
+                    suggestion={portVariable(template, c.name) ? c.suggestion : undefined}
+                    onUseSuggestion={() => c.suggestion && applySuggestedPort(c.name, c.suggestion)}
+                  />
+                ))}
 
               {template.usesScript && (
                 <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-200">
@@ -415,17 +477,27 @@ export function NewServerPage({ user }: { user: User }) {
 
               <p className="text-sm text-muted-foreground">{t("templates.installNote")}</p>
 
-              {generalError && (
-                <Alert variant="destructive">
-                  <AlertDescription>{generalError}</AlertDescription>
-                </Alert>
+              {createConflict && !createConflict.field?.startsWith("variables.") ? (
+                <PortConflictNotice
+                  error
+                  message={`${describePortConflict(t, createConflict.code, createConflict)} ${t("ports.anywayHint")}`}
+                  forceLabel={t("ports.createAnyway")}
+                  onForce={() => submit(true)}
+                  pending={create.isPending}
+                />
+              ) : (
+                generalError && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{generalError}</AlertDescription>
+                  </Alert>
+                )
               )}
               <div className="flex flex-wrap justify-between gap-2">
                 <Button type="button" variant="ghost" onClick={() => setStep(2)} disabled={create.isPending}>
                   <ArrowLeftIcon />
                   {t("templates.back")}
                 </Button>
-                <Button type="button" onClick={submit} disabled={create.isPending}>
+                <Button type="button" onClick={() => submit()} disabled={create.isPending}>
                   {create.isPending ? <Loader2Icon className="animate-spin" /> : <CheckIcon />}
                   {create.isPending ? t("servers.submitting") : t("templates.create")}
                 </Button>

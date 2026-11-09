@@ -111,6 +111,8 @@ export interface Server {
   status: ServerStatus
   /** Present only while running and the game answered the query. */
   players?: Players
+  /** The code comes from git: "Update from git" is available. */
+  gitUpdate?: boolean
 }
 
 export interface CreateServerInput {
@@ -123,9 +125,23 @@ export interface CreateServerInput {
   limits?: Limits
   autostart?: boolean
   ports?: Port[]
+  /** Save even though another server declares the same port. */
+  forcePorts?: boolean
 }
 
-export type UpdateServerInput = Partial<Pick<Server, "name" | "run" | "limits" | "autostart" | "ports" | "variables">>
+export type UpdateServerInput = Partial<Pick<Server, "name" | "run" | "limits" | "autostart" | "ports" | "variables">> & { forcePorts?: boolean }
+
+/** One port another server (or another program) already uses. */
+export interface PortConflict {
+  port: number
+  protocol: string
+  name: string
+  serverId?: string
+  serverName?: string
+  running: boolean
+  host: boolean
+  suggestion?: number
+}
 
 // --- Templates -----------------------------------------------------------------
 

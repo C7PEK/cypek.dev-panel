@@ -25,6 +25,8 @@ export function InstallPanel({ server }: { server: Server }) {
   }, [lines.length])
 
   const failed = server.installState === "failed" || job.data?.state === "failed"
+  // Git updates run as install jobs; their log starts with the stop step.
+  const isGitUpdate = !!server.gitUpdate && lines.some((l) => l.includes("Stopping the server for the update") || l.endsWith("Update finished."))
   const percent = job.data?.percent ?? -1
   const stepText =
     job.data && job.data.steps > 0 && job.data.state === "running"
@@ -40,7 +42,7 @@ export function InstallPanel({ server }: { server: Server }) {
           <div className="flex items-center gap-2">
             {running && <Loader2Icon className="size-4 animate-spin text-primary" />}
             <span className="font-heading text-lg font-medium tracking-[0.04em] uppercase">
-              {failed ? t("install.failedTitle") : t("install.title")}
+              {failed ? t("install.failedTitle") : isGitUpdate ? t("gitUpdate.progressTitle") : t("install.title")}
             </span>
           </div>
           {percent >= 0 && running && <span className="font-mono text-xs text-muted-foreground">{percent}%</span>}
