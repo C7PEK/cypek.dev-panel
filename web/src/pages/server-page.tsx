@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { AppShell } from "@/components/layout/app-shell"
 import { CategoryIcon } from "@/components/servers/category-icon"
 import { Console } from "@/components/console/console"
+import { SftpCard } from "@/components/files/sftp-card"
 import { FileBrowser } from "@/components/files/file-browser"
 import { InstallBadge } from "@/components/servers/install-badge"
 import { InstallPanel } from "@/components/servers/install-panel"
@@ -155,6 +156,7 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
             {ready && <EventsPanel serverId={s.id} />}
           </TabsContent>
           <TabsContent value="files" className="pt-3">
+            <SftpCard serverId={s.id} username={user.username} />
             <FileBrowser serverId={s.id} path={filesPath} onPathChange={setFilesPath} />
           </TabsContent>
           {showMods && (

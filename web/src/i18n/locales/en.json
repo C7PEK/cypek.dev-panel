@@ -1201,5 +1201,18 @@
       "security": "Security",
       "alerts": "Alerts"
     }
+  },
+  "sftp": {
+    "title": "Connect with SFTP",
+    "apps": "WinSCP, FileZilla, Cyberduck, VS Code",
+    "host": "Host",
+    "port": "Port",
+    "login": "Username",
+    "password": "Password: the one you use for the panel. Protocol: SFTP (not FTP).",
+    "allServers": "With the username “{{username}}” (no suffix) you see all your servers as folders.",
+    "open": "Open in app",
+    "openHint": "Works when WinSCP or FileZilla handles sftp:// links.",
+    "fingerprint": "Server key fingerprint",
+    "fingerprintHint": "Your app shows this fingerprint on the first connection. Accept it if it matches."
   }
 }

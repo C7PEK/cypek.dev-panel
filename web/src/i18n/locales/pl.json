@@ -1237,5 +1237,18 @@
       "security": "Bezpieczeństwo",
       "alerts": "Powiadomienia"
     }
+  },
+  "sftp": {
+    "title": "Połącz przez SFTP",
+    "apps": "WinSCP, FileZilla, Cyberduck, VS Code",
+    "host": "Adres (host)",
+    "port": "Port",
+    "login": "Login",
+    "password": "Hasło: to samo, którym logujesz się do panelu. Protokół: SFTP (nie FTP).",
+    "allServers": "Z loginem „{{username}}” (bez końcówki) zobaczysz wszystkie swoje serwery jako foldery.",
+    "open": "Otwórz w programie",
+    "openHint": "Działa, gdy WinSCP lub FileZilla obsługuje linki sftp://.",
+    "fingerprint": "Odcisk klucza serwera",
+    "fingerprintHint": "Przy pierwszym połączeniu program pokaże ten odcisk. Jeśli się zgadza, zaakceptuj go."
   }
 }
