@@ -120,7 +120,7 @@ export function AdminTemplatesPage({ user }: { user: User }) {
                   <CardContent className="flex flex-1 flex-col gap-3">
                     <div className="flex items-start gap-3">
                       <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                        <CategoryIcon category={tpl.category} className="size-5" />
+                        <CategoryIcon category={tpl.category} templateId={tpl.id} className="size-5" />
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-heading text-lg font-medium tracking-[0.03em]">{tpl.name}</div>

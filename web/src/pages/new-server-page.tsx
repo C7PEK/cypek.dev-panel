@@ -225,7 +225,7 @@ export function NewServerPage({ user }: { user: User }) {
                   >
                     <div className="flex items-center gap-3">
                       <span className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:text-foreground">
-                        <CategoryIcon category={tpl.category} className="size-5" />
+                        <CategoryIcon category={tpl.category} templateId={tpl.id} className="size-5" />
                       </span>
                       <div className="min-w-0">
                         <div className="font-heading text-lg font-medium tracking-[0.03em]">{tpl.name}</div>
@@ -268,7 +268,7 @@ export function NewServerPage({ user }: { user: User }) {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 font-heading text-lg font-medium tracking-[0.04em] uppercase">
-                  <CategoryIcon category={template.category} className="size-4" />
+                  <CategoryIcon category={template.category} templateId={template.id} className="size-4" />
                   {template.name}
                   {sourceKind(template) !== "builtin" && <SourceBadge template={template} className="ml-1" />}
                 </CardTitle>

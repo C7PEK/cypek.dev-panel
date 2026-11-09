@@ -32,7 +32,7 @@ export function ServerTile({ server: raw, live }: { server: Server; live?: LiveS
       <CardContent className="flex flex-col gap-3">
         <div className="flex items-start gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-            <CategoryIcon category={server.category} className="size-5" />
+            <CategoryIcon category={server.category} templateId={server.templateId} className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
             <Link
