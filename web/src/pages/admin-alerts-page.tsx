@@ -5,7 +5,6 @@ import { toast } from "sonner"
 
 import { MentionBuilder } from "@/components/alerts/mention-builder"
 import { WebhookInput } from "@/components/alerts/webhook-input"
-import { AppShell } from "@/components/layout/app-shell"
 import { NativeSelect } from "@/components/mods/platform-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -17,31 +16,27 @@ import { emptyWebhookDraft, useAlerts, useSaveAlerts, useTestAlerts, validMentio
 import { isApiError } from "@/lib/api"
 import { describeError } from "@/lib/errors"
 import { formatDateTime } from "@/lib/format"
-import type { AlertHistoryItem, AlertKind, AlertSettings, User } from "@/lib/types"
+import type { AlertHistoryItem, AlertKind, AlertSettings } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 const titleClass = "font-heading text-lg font-medium tracking-[0.04em] uppercase"
 
-export function AdminAlertsPage({ user }: { user: User }) {
+// AlertsSettings is the "Powiadomienia" tab of the settings page.
+export function AlertsSettings() {
   const { t } = useTranslation()
   const q = useAlerts()
   const s = q.data?.settings
   return (
-    <AppShell user={user}>
-      <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="flex items-center gap-2 font-heading text-2xl font-medium tracking-[0.06em] uppercase">
-            <BellIcon className="size-5 text-primary" />
-            {t("alerts.title")}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("alerts.description")}</p>
-        </div>
-        {q.isError && <p className="text-sm text-destructive">{describeError(t, q.error)}</p>}
-        {q.isPending && <Loader2Icon className="animate-spin text-muted-foreground" />}
-        {s && <SettingsForm key={settingsKey(s)} settings={s} />}
-        {q.data && <HistoryCard items={q.data.history ?? []} />}
-      </div>
-    </AppShell>
+    <div className="flex flex-col gap-6">
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        <BellIcon className="size-4 text-primary" />
+        {t("alerts.description")}
+      </p>
+      {q.isError && <p className="text-sm text-destructive">{describeError(t, q.error)}</p>}
+      {q.isPending && <Loader2Icon className="animate-spin text-muted-foreground" />}
+      {s && <SettingsForm key={settingsKey(s)} settings={s} />}
+      {q.data && <HistoryCard items={q.data.history ?? []} />}
+    </div>
   )
 }
 

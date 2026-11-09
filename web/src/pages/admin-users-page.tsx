@@ -155,7 +155,6 @@ export function AdminUsersPage({ user }: { user: User }) {
           </CardContent>
         </Card>
 
-        {isOwner && <SecurityCard owner={user} />}
       </div>
 
       <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (!o) create.reset() }}>
@@ -274,7 +273,7 @@ export function AdminUsersPage({ user }: { user: User }) {
   )
 }
 
-function SecurityCard({ owner }: { owner: User }) {
+export function SecurityCard({ owner }: { owner: User }) {
   const { t } = useTranslation()
   const sec = useSecurity()
   const set = useSetSecurity()

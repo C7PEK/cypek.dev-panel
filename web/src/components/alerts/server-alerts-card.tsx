@@ -77,7 +77,7 @@ function AlertsForm({ serverId, data, admin }: { serverId: string; data: ServerA
               {admin ? (
                 <span>
                   {t("alerts.server.noWebhookAdmin")}{" "}
-                  <Link to="/admin/alerts" className="text-primary underline-offset-4 hover:underline">
+                  <Link to="/settings/alerts" className="text-primary underline-offset-4 hover:underline">
                     {t("alerts.server.openSettings")}
                   </Link>
                 </span>

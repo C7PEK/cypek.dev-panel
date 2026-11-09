@@ -22,7 +22,8 @@
     "audit": "Audit log",
     "database": "Databases",
     "templates": "Templates",
-    "alerts": "Alerts"
+    "alerts": "Alerts",
+    "settings": "Settings"
   },
   "roles": {
     "owner": "Owner",
@@ -1192,5 +1193,13 @@
     "failed": "The update failed: {{message}}",
     "timeout": "The panel did not come back within 5 minutes after the update. Check: journalctl -u homepanel-update",
     "navHint": "Panel update available"
+  },
+  "settings": {
+    "title": "Settings",
+    "tabs": {
+      "general": "General",
+      "security": "Security",
+      "alerts": "Alerts"
+    }
   }
 }

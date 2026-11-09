@@ -1,4 +1,4 @@
-import { BellIcon, DatabaseIcon, LayersIcon, LogOutIcon, ScrollTextIcon, UserCogIcon, UserIcon, UsersIcon } from "lucide-react"
+import { DatabaseIcon, LayersIcon, LogOutIcon, ScrollTextIcon, SettingsIcon, UserCogIcon, UserIcon, UsersIcon } from "lucide-react"
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
@@ -43,7 +43,6 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
               className="label-caps hidden text-[0.72rem] text-muted-foreground transition-colors hover:text-foreground sm:block"
             >
               {t("nav.dashboard")}
-              {updateDot}
             </Link>
             {user.role !== "user" && (
               <>
@@ -72,10 +71,11 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
                   {t("nav.templates")}
                 </Link>
                 <Link
-                  to="/admin/alerts"
+                  to="/settings"
                   className="label-caps hidden text-[0.72rem] text-muted-foreground transition-colors hover:text-foreground md:block"
                 >
-                  {t("nav.alerts")}
+                  {t("nav.settings")}
+                  {updateDot}
                 </Link>
               </>
             )}
@@ -129,9 +129,9 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="md:hidden">
-                      <Link to="/admin/alerts">
-                        <BellIcon />
-                        {t("nav.alerts")}
+                      <Link to="/settings">
+                        <SettingsIcon />
+                        {t("nav.settings")}
                       </Link>
                     </DropdownMenuItem>
                   </>

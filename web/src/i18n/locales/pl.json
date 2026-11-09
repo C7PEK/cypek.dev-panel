@@ -22,7 +22,8 @@
     "audit": "Dziennik zdarzeń",
     "database": "Bazy danych",
     "templates": "Szablony",
-    "alerts": "Powiadomienia"
+    "alerts": "Powiadomienia",
+    "settings": "Ustawienia"
   },
   "roles": {
     "owner": "Właściciel",
@@ -1228,5 +1229,13 @@
     "failed": "Aktualizacja nie powiodła się: {{message}}",
     "timeout": "Panel nie wrócił po aktualizacji w ciągu 5 minut. Sprawdź: journalctl -u homepanel-update",
     "navHint": "Dostępna aktualizacja panelu"
+  },
+  "settings": {
+    "title": "Ustawienia",
+    "tabs": {
+      "general": "Ogólne",
+      "security": "Bezpieczeństwo",
+      "alerts": "Powiadomienia"
+    }
   }
 }
