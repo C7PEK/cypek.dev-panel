@@ -46,6 +46,8 @@ type Config struct {
 	BackupsDirOverride string `toml:"backups_dir"`
 
 	TLS TLSConfig `toml:"tls"`
+	// SFTP is the built-in SFTP server for game server files.
+	SFTP SFTPConfig `toml:"sftp"`
 
 	// Dev is set by `serve --dev`; never read from the file.
 	Dev bool `toml:"-"`
@@ -64,12 +66,23 @@ type TLSConfig struct {
 	SelfSigned bool `toml:"self_signed"`
 }
 
+// SFTPConfig: panel logins over SFTP (WinSCP, FileZilla, ...), one folder
+// per server the user may read.
+type SFTPConfig struct {
+	Enabled bool   `toml:"enabled"`
+	Listen  string `toml:"listen"`
+}
+
+// DefaultSFTPPort matches Pterodactyl/Pelican and stays off the system SSH port.
+const DefaultSFTPPort = 2022
+
 // Default returns the production defaults without secrets.
 func Default() *Config {
 	return &Config{
 		Listen:  fmt.Sprintf(":%d", DefaultPort),
 		DataDir: DefaultDataDir,
 		LogDir:  DefaultLogDir,
+		SFTP:    SFTPConfig{Enabled: true, Listen: fmt.Sprintf(":%d", DefaultSFTPPort)},
 	}
 }
 

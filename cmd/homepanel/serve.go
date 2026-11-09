@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -30,6 +31,7 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/scheduler"
 	"github.com/C7PEK/cypek.dev-panel/internal/secrets"
 	"github.com/C7PEK/cypek.dev-panel/internal/servers"
+	"github.com/C7PEK/cypek.dev-panel/internal/sftpd"
 	"github.com/C7PEK/cypek.dev-panel/internal/supervisor"
 	"github.com/C7PEK/cypek.dev-panel/internal/templates"
 	"github.com/C7PEK/cypek.dev-panel/internal/tlsutil"
@@ -139,9 +141,29 @@ func runServe(args []string) error {
 		deps.DevProxy = devViteURL
 		log.Info("dev mode: proxying the frontend from Vite when it is running, embedded build otherwise", "vite", devViteURL)
 	}
+	var sftpSrv *sftpd.Server
+	if cfg.SFTP.Enabled {
+		sftpSrv = &sftpd.Server{Listen: cfg.SFTP.Listen, HostKeyPath: filepath.Join(cfg.DataDir, "sftp_host_ed25519_key"), Log: log}
+		if err := sftpSrv.LoadHostKey(); err != nil {
+			log.Warn("SFTP disabled: host key", "err", err)
+			sftpSrv = nil
+		}
+	}
+	if sftpSrv != nil {
+		deps.SFTPInfo = api.SFTPInfo{Enabled: true, Port: portOf(cfg.SFTP.Listen), Fingerprint: sftpSrv.Fingerprint()}
+		deps.ExposeSFTP = func(b sftpd.Backend) { sftpSrv.Backend = b }
+	}
 	handler, err := api.New(deps)
 	if err != nil {
 		return fmt.Errorf("build router: %w", err)
+	}
+	if sftpSrv != nil {
+		go func() {
+			log.Info("SFTP server listening", "listen", cfg.SFTP.Listen, "hostKey", sftpSrv.Fingerprint())
+			if err := sftpSrv.Run(ctx); err != nil {
+				log.Error("SFTP server stopped", "err", err)
+			}
+		}()
 	}
 
 	srv := &http.Server{
@@ -224,6 +246,7 @@ func loadConfig(path string, dev bool) (*config.Config, error) {
 	}
 	base := config.Default()
 	base.Listen = fmt.Sprintf("127.0.0.1:%d", config.DefaultPort)
+	base.SFTP.Listen = fmt.Sprintf("127.0.0.1:%d", config.DefaultSFTPPort)
 	base.DataDir = devDir
 	base.LogDir = filepath.Join(devDir, "log")
 	base.Supervisor = "local"
@@ -339,4 +362,14 @@ func newLogger(level string) *slog.Logger {
 		lvl = slog.LevelInfo
 	}
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lvl}))
+}
+
+// portOf extracts the port from a listen address like ":2022".
+func portOf(listen string) int {
+	_, p, err := net.SplitHostPort(listen)
+	if err != nil {
+		return 0
+	}
+	n, _ := strconv.Atoi(p)
+	return n
 }

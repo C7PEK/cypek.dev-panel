@@ -28,6 +28,7 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/scheduler"
 	"github.com/C7PEK/cypek.dev-panel/internal/secrets"
 	"github.com/C7PEK/cypek.dev-panel/internal/servers"
+	"github.com/C7PEK/cypek.dev-panel/internal/sftpd"
 	"github.com/C7PEK/cypek.dev-panel/internal/supervisor"
 	"github.com/C7PEK/cypek.dev-panel/internal/templates"
 )
@@ -47,6 +48,10 @@ type Deps struct {
 	Paper     *providers.Paper
 	// Alerts stores Discord alert settings (nil disables alerts).
 	Alerts *alerts.Store
+	// SFTPInfo describes the built-in SFTP server for the UI; ExposeSFTP
+	// receives the backend the SFTP server authenticates against.
+	SFTPInfo   SFTPInfo
+	ExposeSFTP func(sftpd.Backend)
 	// AlertSender overrides the Discord client (tests).
 	AlertSender alerts.Sender
 	// Modrinth backs the Minecraft plugin/mod manager (nil = public API).
@@ -100,6 +105,7 @@ type Server struct {
 	alertStore     *alerts.Store
 	alertMon       *alerts.Monitor
 	alertSender    alerts.Sender
+	sftpInfo       SFTPInfo
 
 	loginLimitIP   *auth.RateLimiter
 	loginLimitUser *auth.RateLimiter
@@ -154,6 +160,10 @@ func New(d Deps) (http.Handler, error) {
 	s.mods = mods.NewManager(d.Modrinth)
 	s.alertStore = d.Alerts
 	s.alertSender = d.AlertSender
+	s.sftpInfo = d.SFTPInfo
+	if d.ExposeSFTP != nil {
+		d.ExposeSFTP(s.SFTPBackend())
+	}
 	if s.paper == nil {
 		s.paper = providers.NewPaper()
 	}
@@ -272,6 +282,7 @@ func New(d Deps) (http.Handler, error) {
 			})
 
 			priv.Get("/mods/game-versions", s.handleGameVersions)
+			priv.Get("/system/sftp", s.handleSFTPInfo)
 
 			priv.Route("/alerts", func(ar chi.Router) {
 				ar.Use(s.requireRole(auth.RoleAdmin))
