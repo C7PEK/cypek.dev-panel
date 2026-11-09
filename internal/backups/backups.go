@@ -20,6 +20,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 
 	"github.com/C7PEK/cypek.dev-panel/internal/archive"
+	"github.com/C7PEK/cypek.dev-panel/internal/files"
 )
 
 // Settings are per-server backup preferences.
@@ -237,7 +238,7 @@ func Restore(ctx context.Context, archivePath, serverDir string) error {
 	if err := os.MkdirAll(staging, 0o750); err != nil {
 		return err
 	}
-	if err := archive.Extract(archivePath, staging, archive.Options{}); err != nil {
+	if err := archive.Extract(archivePath, staging, archive.Options{Resolve: files.ResolveSafe}); err != nil {
 		os.RemoveAll(staging)
 		return fmt.Errorf("extract backup: %w", err)
 	}

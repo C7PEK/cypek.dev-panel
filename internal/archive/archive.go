@@ -28,6 +28,24 @@ type Options struct {
 	// Progress, when set, is called with the running entry count every few
 	// hundred entries (big archives take a while with pure-Go xz).
 	Progress func(entries int)
+	// Resolve, when set, must accept the folder of every entry (callers pass
+	// files.ResolveSafe so archives go through the same path check as the
+	// file manager; this package cannot import files).
+	Resolve func(root, userPath string) (string, error)
+}
+
+func (o Options) check(root, rel string) error {
+	if o.Resolve == nil {
+		return nil
+	}
+	dir := filepath.Dir(rel)
+	if dir == "." {
+		return nil
+	}
+	if _, err := o.Resolve(root, filepath.ToSlash(dir)); err != nil {
+		return fmt.Errorf("unsafe path %q in archive: %w", rel, err)
+	}
+	return nil
 }
 
 func (o Options) tick(n int) {
@@ -181,6 +199,9 @@ func extractTar(archivePath, dest string, opts Options, wrap func(io.Reader) (io
 		if err != nil {
 			return err
 		}
+		if err := opts.check(destAbs, rel); err != nil {
+			return err
+		}
 		switch h.Typeflag {
 		case tar.TypeDir:
 			if err := safeDir(destAbs, target); err != nil {
@@ -242,6 +263,9 @@ func extractZip(archivePath, dest string, opts Options) error {
 		}
 		target, err := Within(destAbs, rel)
 		if err != nil {
+			return err
+		}
+		if err := opts.check(destAbs, rel); err != nil {
 			return err
 		}
 		mode := zf.Mode()

@@ -398,7 +398,7 @@ func (m *Manager) Extract(archivePath, dirPath string) error {
 	if err := os.MkdirAll(dst, 0o750); err != nil {
 		return err
 	}
-	return archive.Extract(src, dst, archive.Options{})
+	return archive.Extract(src, dst, archive.Options{Resolve: ResolveSafe})
 }
 
 // DiskUsage sums the sizes of regular files under the root (best effort).
