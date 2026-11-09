@@ -17,9 +17,29 @@ func runUpdate(args []string) error {
 	fs := flag.NewFlagSet("update", flag.ContinueOnError)
 	check := fs.Bool("check", false, "only report whether an update is available")
 	noRestart := fs.Bool("no-restart", false, "do not restart homepanel.service afterwards")
+	statusFile := fs.String("status-file", "", "write the outcome as JSON here (read by the panel's update button)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	st := &selfupdate.Status{From: version, StartedAt: time.Now().UTC().Format(time.RFC3339)}
+	if *statusFile != "" {
+		st.State = "running"
+		_ = selfupdate.WriteStatus(*statusFile, st)
+	}
+	err := doUpdate(*check, *noRestart, st)
+	if *statusFile != "" {
+		st.FinishedAt = time.Now().UTC().Format(time.RFC3339)
+		if err != nil {
+			st.State, st.Error = "failed", err.Error()
+		} else if st.State == "running" {
+			st.State = "done"
+		}
+		_ = selfupdate.WriteStatus(*statusFile, st)
+	}
+	return err
+}
+
+func doUpdate(check, noRestart bool, st *selfupdate.Status) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	client := selfupdate.New()
@@ -28,11 +48,13 @@ func runUpdate(args []string) error {
 		return err
 	}
 	fmt.Printf("installed: %s\nlatest:    %s\n", version, rel.Tag)
+	st.To = rel.Tag
 	if !selfupdate.Newer(version, rel.Tag) {
 		fmt.Println("already up to date")
+		st.State = "uptodate"
 		return nil
 	}
-	if *check {
+	if check {
 		fmt.Println("update available; run: sudo homepanel update")
 		return nil
 	}
@@ -43,11 +65,13 @@ func runUpdate(args []string) error {
 	if err := client.Apply(ctx, rel, self, func(f string, a ...any) { fmt.Printf(f+"\n", a...) }); err != nil {
 		return err
 	}
-	if *noRestart {
+	if noRestart {
 		fmt.Println("restart the panel with: systemctl restart homepanel")
 		return nil
 	}
 	// systemctl here is fine: this runs as root from a terminal, not inside the panel.
+	st.State = "done"
+	// The status is final before the restart: the panel reads it on boot.
 	if out, err := exec.CommandContext(ctx, "systemctl", "restart", "homepanel").CombinedOutput(); err != nil {
 		return fmt.Errorf("restart homepanel.service: %v: %s", err, out)
 	}

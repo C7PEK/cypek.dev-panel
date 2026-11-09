@@ -233,6 +233,8 @@ func New(d Deps) (http.Handler, error) {
 			priv.Get("/system/cron/preview", s.handleCronPreview)
 			priv.With(s.requireRole(auth.RoleAdmin)).Get("/system/database", s.handleDatabaseStatus)
 			priv.With(s.requireRole(auth.RoleOwner)).Post("/system/database/install", s.handleDatabaseInstall)
+			priv.With(s.requireRole(auth.RoleOwner)).Get("/system/update", s.handleUpdateInfo)
+			priv.With(s.requireRole(auth.RoleOwner)).Post("/system/update", s.handleStartUpdate)
 			priv.With(s.requireRole(auth.RoleAdmin)).Post("/system/database/phpmyadmin/restart", s.handleRestartPhpMyAdmin)
 			priv.Route("/system/database/root", func(rr chi.Router) {
 				rr.Use(s.requireRole(auth.RoleOwner))

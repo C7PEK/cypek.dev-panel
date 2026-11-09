@@ -11,6 +11,7 @@ import (
 var addonUnits = map[string]bool{
 	"homepanel-database-install.service": true,
 	"homepanel-phpmyadmin.service":       true,
+	"homepanel-update.service":           true,
 }
 
 // ErrUnitNotAllowed guards StartAddon/AddonState against arbitrary units.

@@ -1,0 +1,12 @@
+[Unit]
+Description=panel.cypek.dev self-update
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Started by the panel's owner from the UI (polkit allows exactly this unit).
+# Root is needed to replace /usr/local/bin/homepanel; afterwards only
+# homepanel.service is restarted, game servers keep running.
+Type=oneshot
+ExecStart=/usr/local/bin/homepanel update --status-file /var/lib/homepanel/update-status.json
+TimeoutStartSec=15min

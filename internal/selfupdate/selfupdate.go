@@ -175,3 +175,40 @@ func (c *Client) checksum(ctx context.Context, sumsURL, name string) (string, er
 	}
 	return "", fmt.Errorf("%s not listed in SHA256SUMS", name)
 }
+
+// Status is the outcome of an update run, written by `homepanel update
+// --status-file` (as root) and read by the panel.
+type Status struct {
+	State      string `json:"state"` // running | done | uptodate | failed
+	From       string `json:"from"`
+	To         string `json:"to,omitempty"`
+	Error      string `json:"error,omitempty"`
+	StartedAt  string `json:"startedAt"`
+	FinishedAt string `json:"finishedAt,omitempty"`
+}
+
+// WriteStatus stores st atomically (world-readable: it holds no secrets).
+func WriteStatus(path string, st *Status) error {
+	b, err := json.Marshal(st)
+	if err != nil {
+		return err
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, b, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
+// ReadStatus returns nil when no update has run yet.
+func ReadStatus(path string) *Status {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var st Status
+	if json.Unmarshal(b, &st) != nil {
+		return nil
+	}
+	return &st
+}

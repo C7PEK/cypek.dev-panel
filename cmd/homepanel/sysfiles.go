@@ -28,6 +28,7 @@ func runInstallFiles(args []string) error {
 		"systemfiles/homepanel-server@.service":          "/etc/systemd/system/homepanel-server@.service",
 		"systemfiles/50-homepanel.rules":                 "/etc/polkit-1/rules.d/50-homepanel.rules",
 		"systemfiles/homepanel-database-install.service": "/etc/systemd/system/homepanel-database-install.service",
+		"systemfiles/homepanel-update.service":           "/etc/systemd/system/homepanel-update.service",
 	}
 	for src, dst := range targets {
 		b, err := systemFiles.ReadFile(src)
