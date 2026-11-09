@@ -39,3 +39,21 @@ func TestBranding(t *testing.T) {
 		t.Fatalf("user may not change branding: %d", resp.StatusCode)
 	}
 }
+
+func TestSameClient(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want bool
+	}{
+		{"192.168.8.13", "192.168.8.13", true},
+		{"192.168.8.13", "192.168.8.111", false},
+		{"2001:db8:1:2::10", "2001:db8:1:2:aaaa::1", true},
+		{"2001:db8:1:2::10", "2001:db8:1:3::10", false},
+		{"192.168.8.13", "::ffff:192.168.8.14", false},
+	}
+	for _, c := range cases {
+		if got := sameClient(c.a, c.b); got != c.want {
+			t.Errorf("%s vs %s = %v", c.a, c.b, got)
+		}
+	}
+}

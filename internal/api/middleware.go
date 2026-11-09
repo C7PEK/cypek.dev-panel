@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/C7PEK/cypek.dev-panel/internal/audit"
 	"github.com/C7PEK/cypek.dev-panel/internal/auth"
 )
 
@@ -52,7 +53,7 @@ func (s *Server) loadSession(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
-		c, err := r.Cookie(sessionCookie)
+		c, err := r.Cookie(s.cookieName(r))
 		if err != nil || c.Value == "" {
 			next.ServeHTTP(w, r)
 			return
@@ -60,6 +61,17 @@ func (s *Server) loadSession(next http.Handler) http.Handler {
 		sess, user, err := s.store.LookupSession(r.Context(), c.Value)
 		if err != nil {
 			s.clearSessionCookie(w, r)
+			next.ServeHTTP(w, r)
+			return
+		}
+		// Cookies are not port-scoped: any other service on this host (a
+		// bot's web page, a game's HTTP endpoint) receives the panel cookie
+		// when the user opens it. A session therefore only works from the
+		// address it was created from.
+		if ip := clientIP(r); sess.IP != "" && !sameClient(sess.IP, ip) {
+			_ = s.store.DeleteSession(r.Context(), sess.ID)
+			s.clearSessionCookie(w, r)
+			s.audit.Log(r.Context(), audit.Entry{UserID: &user.ID, Username: user.Username, Action: "auth.session_ip_mismatch", IP: ip, Details: map[string]any{"sessionIp": sess.IP}})
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -132,9 +144,28 @@ func limitBody(next http.Handler) http.Handler {
 	})
 }
 
+// contentSecurityPolicy: only the panel's own scripts, no inline scripts,
+// images from the panel and Modrinth's CDN, API/WebSockets only to the
+// panel itself, never framed.
+func contentSecurityPolicy(r *http.Request) string {
+	ws := "ws://" + r.Host
+	if r.TLS != nil {
+		ws = "wss://" + r.Host
+	}
+	return "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cdn.modrinth.com; " +
+		"font-src 'self' data:; connect-src 'self' " + ws + "; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
+}
+
 func securityHeaders(next http.Handler) http.Handler {
+	return securityHeadersWith(next, true)
+}
+
+func securityHeadersWith(next http.Handler, csp bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
+		if csp {
+			h.Set("Content-Security-Policy", contentSecurityPolicy(r))
+		}
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "same-origin")
@@ -189,9 +220,32 @@ func isSafeMethod(m string) bool {
 	return m == http.MethodGet || m == http.MethodHead || m == http.MethodOptions
 }
 
+// cookieName adds the __Host- prefix over HTTPS: the browser then only
+// accepts the cookie as Secure, host-only and for path "/".
+func (s *Server) cookieName(r *http.Request) string {
+	if r.TLS != nil || s.cfg.TLS.Enabled {
+		return "__Host-" + sessionCookie
+	}
+	return sessionCookie
+}
+
+// sameClient compares IPv4 addresses exactly and IPv6 by /64, because
+// IPv6 privacy addresses rotate within the same network.
+func sameClient(a, b string) bool {
+	if a == b {
+		return true
+	}
+	ia, ib := net.ParseIP(a), net.ParseIP(b)
+	if ia == nil || ib == nil || ia.To4() != nil || ib.To4() != nil {
+		return false
+	}
+	m := net.CIDRMask(64, 128)
+	return ia.Mask(m).Equal(ib.Mask(m))
+}
+
 func (s *Server) setSessionCookie(w http.ResponseWriter, r *http.Request, token string) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookie,
+		Name:     s.cookieName(r),
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
@@ -203,7 +257,7 @@ func (s *Server) setSessionCookie(w http.ResponseWriter, r *http.Request, token 
 
 func (s *Server) clearSessionCookie(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookie,
+		Name:     s.cookieName(r),
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,

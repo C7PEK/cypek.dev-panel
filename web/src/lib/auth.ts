@@ -54,9 +54,22 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => api<void>("POST", "/auth/logout"),
     onSettled: () => {
+      clearConsoleHistory()
       setCsrfToken("")
       qc.setQueryData(meKey, null)
       void qc.invalidateQueries()
     },
   })
+}
+
+/** Console histories may hold passwords (rcon_password, /login ...): drop them on logout. */
+function clearConsoleHistory() {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i)
+      if (k?.startsWith("homepanel-history-")) localStorage.removeItem(k)
+    }
+  } catch {
+    // storage unavailable (private mode): nothing stored either
+  }
 }

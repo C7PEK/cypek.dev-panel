@@ -215,7 +215,7 @@ func New(d Deps) (http.Handler, error) {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recoverer)
-	r.Use(securityHeaders)
+	r.Use(func(next http.Handler) http.Handler { return securityHeadersWith(next, d.DevProxy == "") })
 	r.Use(requestLogger(d.Log))
 
 	r.Route("/api/v1", func(api chi.Router) {

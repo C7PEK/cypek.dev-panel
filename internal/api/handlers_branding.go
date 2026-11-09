@@ -28,7 +28,7 @@ func (b *branding) validate() (field, msg string) {
 		return "name", "The name can have at most 40 characters."
 	}
 	for _, r := range b.Name {
-		if unicode.IsControl(r) {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
 			return "name", "The name cannot contain control characters."
 		}
 	}
