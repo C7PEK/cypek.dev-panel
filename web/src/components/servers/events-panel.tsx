@@ -27,7 +27,7 @@ const ICONS: Record<ServerEvent["kind"], { icon: typeof PlayIcon; className: str
   exit: { icon: CircleStopIcon, className: "text-amber-300 bg-amber-500/10" },
   crash: { icon: SkullIcon, className: "text-red-400 bg-red-500/15" },
   error: { icon: AlertTriangleIcon, className: "text-amber-300 bg-amber-500/10" },
-  action: { icon: UserIcon, className: "text-[#8b95ff] bg-[#5865f2]/10" },
+  action: { icon: UserIcon, className: "text-primary bg-primary/10" },
 }
 
 // Server history: starts, crashes, error bursts from the console and who

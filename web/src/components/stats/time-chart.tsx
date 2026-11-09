@@ -92,8 +92,8 @@ export function TimeChart({ points, windowMs, yMax, limit, limitLabel, formatY, 
         <svg width={width} height={height} onPointerMove={onMove} onPointerLeave={() => setHover(null)} className="touch-none">
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity="0.35" />
-              <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+              <stop offset="0%" style={{ stopColor: color }} stopOpacity="0.35" />
+              <stop offset="100%" style={{ stopColor: color }} stopOpacity="0.02" />
             </linearGradient>
           </defs>
           {grid.map((g) => (
@@ -117,8 +117,8 @@ export function TimeChart({ points, windowMs, yMax, limit, limitLabel, formatY, 
           {segments.map((seg, i) => (
             <g key={i}>
               {seg.length > 1 && <path d={area(seg)} fill={`url(#${gradientId})`} />}
-              <path d={line(seg)} fill="none" stroke={color} strokeWidth="1.75" strokeLinejoin="round" />
-              {seg.length === 1 && <circle cx={x(seg[0].t)} cy={y(seg[0].v!)} r="2" fill={color} />}
+              <path d={line(seg)} fill="none" style={{ stroke: color }} strokeWidth="1.75" strokeLinejoin="round" />
+              {seg.length === 1 && <circle cx={x(seg[0].t)} cy={y(seg[0].v!)} r="2" style={{ fill: color }} />}
             </g>
           ))}
           {[start, start + windowMs / 2, now].map((t, i) => (
@@ -129,7 +129,7 @@ export function TimeChart({ points, windowMs, yMax, limit, limitLabel, formatY, 
           {hovered && (
             <g>
               <line x1={x(hovered.t)} x2={x(hovered.t)} y1={PAD.top} y2={PAD.top + h} className="stroke-foreground/30" />
-              {hovered.v !== null && <circle cx={x(hovered.t)} cy={y(hovered.v)} r="3.5" fill={color} className="stroke-background" strokeWidth="2" />}
+              {hovered.v !== null && <circle cx={x(hovered.t)} cy={y(hovered.v)} r="3.5" style={{ fill: color }} className="stroke-background" strokeWidth="2" />}
             </g>
           )}
         </svg>

@@ -42,8 +42,8 @@ export function languageFor(name: string): Extension {
 const darkTheme = EditorView.theme(
   {
     "&": { backgroundColor: "#050506", color: "#f4f4f6", fontSize: "13px", height: "100%" },
-    ".cm-content": { caretColor: "#5865f2", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" },
-    ".cm-cursor, .cm-dropCursor": { borderLeftColor: "#5865f2" },
+    ".cm-content": { caretColor: "var(--primary)", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" },
+    ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--primary)" },
     "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, ::selection": {
       backgroundColor: "rgba(88, 101, 242, 0.35)",
     },

@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
 const RANGES = [5, 15, 60] as const
 
 const COLORS = {
-  ram: "#5865f2",
+  ram: "var(--primary)",
   cpu: "#00d8e6",
   players: "#34d399",
 }

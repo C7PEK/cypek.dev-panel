@@ -1,8 +1,12 @@
 import { BrandMark } from "@/components/brand/mark"
+import { splitName, useBranding } from "@/lib/branding"
 import { cn } from "@/lib/utils"
 
-// Wordmark: "panel" in the display face, ".cypek.dev" muted, after the brand mark.
-export function Logo({ className, size = "md" }: { className?: string; size?: "md" | "lg" }) {
+// Wordmark: the part before the first dot in the display face, the rest
+// muted ("panel" + ".cypek.dev" by default, or the name from Settings).
+export function Logo({ className, size = "md", name }: { className?: string; size?: "md" | "lg"; name?: string }) {
+  const b = useBranding()
+  const [bold, rest] = splitName(name ?? b.data?.name ?? "")
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <BrandMark className={size === "lg" ? "size-10" : "size-7"} />
@@ -12,8 +16,8 @@ export function Logo({ className, size = "md" }: { className?: string; size?: "m
           size === "lg" ? "text-2xl" : "text-lg",
         )}
       >
-        <span className="font-semibold text-foreground">panel</span>
-        <span className="font-light text-muted-foreground">.cypek.dev</span>
+        <span className="font-semibold text-foreground">{bold}</span>
+        {rest && <span className="font-light text-muted-foreground">{rest}</span>}
       </span>
     </span>
   )

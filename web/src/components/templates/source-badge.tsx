@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 
 const STYLES: Record<string, string> = {
   builtin: "text-muted-foreground",
-  custom: "border-[#5865f2]/40 bg-[#5865f2]/10 text-[#a3abff]",
+  custom: "border-primary/40 bg-primary/10 text-primary",
   pterodactyl: "border-sky-500/40 bg-sky-500/10 text-sky-300",
   pelican: "border-teal-500/40 bg-teal-500/10 text-teal-300",
   pufferpanel: "border-orange-500/40 bg-orange-500/10 text-orange-300",

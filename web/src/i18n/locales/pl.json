@@ -1235,7 +1235,8 @@
     "tabs": {
       "general": "Ogólne",
       "security": "Bezpieczeństwo",
-      "alerts": "Powiadomienia"
+      "alerts": "Powiadomienia",
+      "appearance": "Wygląd"
     }
   },
   "sftp": {
@@ -1250,5 +1251,21 @@
     "openHint": "Działa, gdy WinSCP lub FileZilla obsługuje linki sftp://.",
     "fingerprint": "Odcisk klucza serwera",
     "fingerprintHint": "Przy pierwszym połączeniu program pokaże ten odcisk. Jeśli się zgadza, zaakceptuj go."
+  },
+  "appearance": {
+    "title": "Wygląd panelu",
+    "description": "Nazwa i kolor akcentu dla wszystkich użytkowników, także na ekranie logowania.",
+    "name": "Nazwa panelu",
+    "nameHint": "Pokazywana w logo i w tytule karty przeglądarki. Część po pierwszej kropce jest jaśniejsza, np. „mojhost.pl”. Puste = panel.cypek.dev.",
+    "accent": "Kolor akcentu",
+    "custom": "Własny kolor",
+    "hex": "Kolor w zapisie HEX",
+    "preview": "Podgląd",
+    "sampleButton": "Uruchom",
+    "sampleOutline": "Zatrzymaj",
+    "sampleBadge": "Działa",
+    "save": "Zapisz",
+    "reset": "Przywróć domyślne",
+    "saved": "Wygląd zapisany"
   }
 }

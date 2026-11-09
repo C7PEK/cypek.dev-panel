@@ -1199,7 +1199,8 @@
     "tabs": {
       "general": "General",
       "security": "Security",
-      "alerts": "Alerts"
+      "alerts": "Alerts",
+      "appearance": "Appearance"
     }
   },
   "sftp": {
@@ -1214,5 +1215,21 @@
     "openHint": "Works when WinSCP or FileZilla handles sftp:// links.",
     "fingerprint": "Server key fingerprint",
     "fingerprintHint": "Your app shows this fingerprint on the first connection. Accept it if it matches."
+  },
+  "appearance": {
+    "title": "Panel appearance",
+    "description": "Name and accent colour for every user, including the login screen.",
+    "name": "Panel name",
+    "nameHint": "Shown in the logo and the browser tab title. The part after the first dot is lighter, e.g. “myhost.net”. Empty = panel.cypek.dev.",
+    "accent": "Accent colour",
+    "custom": "Custom colour",
+    "hex": "Colour as HEX",
+    "preview": "Preview",
+    "sampleButton": "Start",
+    "sampleOutline": "Stop",
+    "sampleBadge": "Running",
+    "save": "Save",
+    "reset": "Reset to default",
+    "saved": "Appearance saved"
   }
 }

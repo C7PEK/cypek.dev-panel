@@ -2,6 +2,7 @@ import { SettingsIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { useNavigate, useParams } from "react-router"
 
+import { AppearanceCard } from "@/components/admin/appearance-card"
 import { MachineInfoCard } from "@/components/admin/machine-info-card"
 import { PanelUpdateCard } from "@/components/admin/panel-update-card"
 import { AppShell } from "@/components/layout/app-shell"
@@ -11,7 +12,7 @@ import { SecurityCard } from "@/pages/admin-users-page"
 import { usePanelUpdate } from "@/lib/system"
 import type { User } from "@/lib/types"
 
-const TABS = ["general", "security", "alerts"] as const
+const TABS = ["general", "appearance", "security", "alerts"] as const
 type Tab = (typeof TABS)[number]
 
 // Panel-wide settings (admin and owner): machine info and updates, login
@@ -46,6 +47,9 @@ export function SettingsPage({ user }: { user: User }) {
           <TabsContent value="general" className="flex flex-col gap-6 pt-3">
             {owner && <PanelUpdateCard />}
             <MachineInfoCard />
+          </TabsContent>
+          <TabsContent value="appearance" className="pt-3">
+            <AppearanceCard />
           </TabsContent>
           {owner && (
             <TabsContent value="security" className="pt-3">

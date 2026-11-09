@@ -13,6 +13,7 @@ import { DashboardPage } from "@/pages/dashboard-page"
 import { LoginPage } from "@/pages/login-page"
 import { NewServerPage } from "@/pages/new-server-page"
 import { ProfilePage } from "@/pages/profile-page"
+import { BrandingEffect } from "@/components/layout/branding-effect"
 import { SettingsPage } from "@/pages/settings-page"
 import { ServerPage } from "@/pages/server-page"
 import { SetupPage } from "@/pages/setup-page"
@@ -75,8 +76,11 @@ function AuthedRoutes({ user }: { user: User }) {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="*" element={<Gate />} />
-    </Routes>
+    <>
+      <BrandingEffect />
+      <Routes>
+        <Route path="*" element={<Gate />} />
+      </Routes>
+    </>
   )
 }

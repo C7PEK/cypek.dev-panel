@@ -59,7 +59,7 @@ export function RootLoginCard({ phpMyAdminUrl }: { phpMyAdminUrl?: string }) {
         </Alert>
 
         {shown && (
-          <div className="flex flex-col gap-2 rounded-lg border border-[#5865f2]/40 bg-[#5865f2]/5 p-3">
+          <div className="flex flex-col gap-2 rounded-lg border border-primary/40 bg-primary/5 p-3">
             <CopyField label={t("database.root.user")} value="root" />
             <CopyField label={t("database.root.password")} value={shown} secret />
             {phpMyAdminUrl && (
