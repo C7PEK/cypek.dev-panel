@@ -564,3 +564,32 @@ export interface ServerAlertsInput {
   webhook?: string
   mention: string
 }
+
+// --- Firewall hints / panel update --------------------------------------------
+
+export interface FirewallInfo {
+  firewall: { kind: "ufw" | "firewalld" | "none" | "unknown"; active: boolean }
+  ports: { port: number; protocol: string; commands: string[] }[]
+}
+
+export interface PanelUpdateRun {
+  state: "running" | "done" | "uptodate" | "failed"
+  from: string
+  to?: string
+  error?: string
+  startedAt: string
+  finishedAt?: string
+}
+
+export interface PanelUpdateInfo {
+  current: string
+  repo: string
+  latest?: string
+  notes?: string
+  publishedAt?: string
+  available?: boolean
+  error?: string
+  canUpdate: boolean
+  running?: boolean
+  last?: PanelUpdateRun
+}

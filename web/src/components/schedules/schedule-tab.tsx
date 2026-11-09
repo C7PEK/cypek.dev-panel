@@ -25,9 +25,10 @@ import type { Schedule } from "@/lib/types"
 interface Props {
   serverId: string
   isCustom: boolean
+  templateId?: string
 }
 
-export function ScheduleTab({ serverId, isCustom }: Props) {
+export function ScheduleTab({ serverId, isCustom, templateId }: Props) {
   const { t } = useTranslation()
   const list = useSchedules(serverId)
   const [editing, setEditing] = useState<Schedule | null | "new">(null)
@@ -50,6 +51,11 @@ export function ScheduleTab({ serverId, isCustom }: Props) {
       {isCustom && (
         <Alert>
           <AlertDescription>{t("schedules.customNote")}</AlertDescription>
+        </Alert>
+      )}
+      {templateId === "fivem-txadmin" && (
+        <Alert className="border-amber-500/40 bg-amber-500/10">
+          <AlertDescription className="text-amber-200">{t("schedules.txAdminNote")}</AlertDescription>
         </Alert>
       )}
       {list.error ? (

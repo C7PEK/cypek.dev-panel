@@ -48,6 +48,16 @@ export function ModsTab({ server, canWrite }: { server: Server; canWrite: boolea
   const { platform, installed } = mods.data
   const kind = platform.kind === "mods" ? "mods" : "plugins"
 
+  // Vanilla has no loader at all: explain instead of asking to pick one.
+  if (server.templateId === "minecraft-vanilla" && !platform.loader && installed.length === 0) {
+    return (
+      <Alert>
+        <AlertTitle>{t("mods.vanilla.title")}</AlertTitle>
+        <AlertDescription>{t("mods.vanilla.body")}</AlertDescription>
+      </Alert>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-5">
       {needsRestart && running && (

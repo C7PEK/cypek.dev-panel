@@ -1,7 +1,7 @@
 import { FitAddon } from "@xterm/addon-fit"
 import { Terminal } from "@xterm/xterm"
 import "@xterm/xterm/css/xterm.css"
-import { ArrowDownIcon, SendHorizontalIcon, UsersIcon } from "lucide-react"
+import { ArrowDownIcon, ChevronDownIcon, ChevronUpIcon, SearchIcon, SendHorizontalIcon, UsersIcon, XIcon } from "lucide-react"
 import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -67,6 +67,38 @@ function stateMessage(state: ServerState, exitCode?: number, message?: string): 
 
 const isLive = (s: ServerState) => s === "running" || s === "starting"
 
+interface Match {
+  row: number
+  col: number
+  len: number
+}
+
+const MAX_MATCHES = 2000
+
+/** Scrolls the match to the middle of the viewport and selects it. */
+function revealMatch(term: Terminal, m: Match) {
+  term.scrollToLine(Math.max(0, m.row - Math.floor(term.rows / 2)))
+  term.select(m.col, m.row, m.len)
+}
+
+/** Case-insensitive search over the whole buffer (scrollback included). */
+function findMatches(term: Terminal, query: string): Match[] {
+  const needle = query.toLowerCase()
+  if (!needle) return []
+  const buf = term.buffer.active
+  const out: Match[] = []
+  for (let row = 0; row < buf.length && out.length < MAX_MATCHES; row++) {
+    const line = buf.getLine(row)?.translateToString(true).toLowerCase()
+    if (!line) continue
+    let i = line.indexOf(needle)
+    while (i !== -1 && out.length < MAX_MATCHES) {
+      out.push({ row, col: i, len: needle.length })
+      i = line.indexOf(needle, i + needle.length)
+    }
+  }
+  return out
+}
+
 interface Props {
   serverId: string
   /** State known from the REST API; the socket's own state frames take over once connected. */
@@ -89,6 +121,14 @@ export function Console({ serverId, initialState, className }: Props) {
   const histIdx = useRef(-1)
   const draft = useRef("")
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Search in the console output (Ctrl+F / Cmd+F while the console is focused).
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const [matches, setMatches] = useState<Match[]>([])
+  const [matchIdx, setMatchIdx] = useState(-1)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const searchState = useRef({ open: false, query: "", current: null as Match | null })
 
   // Autocompletion: template commands + online players, polled while the server runs.
   const hints = useConsoleHints(serverId, isLive(state))
@@ -255,6 +295,80 @@ export function Console({ serverId, initialState, className }: Props) {
     setInput("")
   }, [serverId])
 
+  function showMatch(m: Match | undefined) {
+    if (!termRef.current || !m) return
+    revealMatch(termRef.current, m)
+    searchState.current.current = m
+  }
+
+  /** Recomputes matches; keepPlace keeps the selected match when output arrives. */
+  const runSearch = useCallback((q: string, keepPlace: boolean) => {
+    const term = termRef.current
+    if (!term) return
+    const found = findMatches(term, q)
+    setMatches(found)
+    if (found.length === 0) {
+      setMatchIdx(-1)
+      term.clearSelection()
+      searchState.current.current = null
+      return
+    }
+    const cur = searchState.current.current
+    let idx = found.length - 1 // newest first: most useful in a log
+    if (keepPlace && cur) {
+      const same = found.findIndex((m) => m.row === cur.row && m.col === cur.col)
+      if (same >= 0) idx = same
+    }
+    setMatchIdx(idx)
+    if (!keepPlace || !cur) {
+      revealMatch(term, found[idx])
+      searchState.current.current = found[idx]
+    }
+  }, [])
+
+  function step(delta: number) {
+    if (matches.length === 0) return
+    const next = (matchIdx + delta + matches.length) % matches.length
+    setMatchIdx(next)
+    showMatch(matches[next])
+  }
+
+  function openSearch() {
+    setSearchOpen(true)
+    searchState.current.open = true
+    requestAnimationFrame(() => {
+      searchRef.current?.focus()
+      searchRef.current?.select()
+    })
+  }
+
+  function closeSearch() {
+    setSearchOpen(false)
+    searchState.current = { open: false, query: "", current: null }
+    setQuery("")
+    setMatches([])
+    setMatchIdx(-1)
+    const term = termRef.current
+    term?.clearSelection()
+    term?.scrollToBottom() // resume following the output
+  }
+
+  // New output while searching: refresh the counts (debounced).
+  useEffect(() => {
+    const term = termRef.current
+    if (!term) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const sub = term.onWriteParsed(() => {
+      if (!searchState.current.open || !searchState.current.query) return
+      clearTimeout(timer)
+      timer = setTimeout(() => runSearch(searchState.current.query, true), 300)
+    })
+    return () => {
+      clearTimeout(timer)
+      sub.dispose()
+    }
+  }, [runSearch])
+
   const canSend = conn === "connected" && isLive(state)
 
   function setText(next: string) {
@@ -375,9 +489,71 @@ export function Console({ serverId, initialState, className }: Props) {
   })()
 
   return (
-    <div className={cn("flex min-w-0 flex-col gap-2", className)}>
+    <div
+      className={cn("flex min-w-0 flex-col gap-2", className)}
+      onKeyDownCapture={(e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+          e.preventDefault()
+          openSearch()
+        }
+      }}
+    >
       <div className="relative min-h-64 flex-1 overflow-hidden rounded-lg border border-white/10 bg-[#050506] p-2">
         <div ref={hostRef} className="h-full w-full" />
+        {searchOpen ? (
+          <div className="absolute top-2 right-3 left-3 z-20 flex items-center gap-1 rounded-md border border-white/15 bg-black/85 p-1 shadow-lg backdrop-blur-sm sm:left-auto sm:w-96">
+            <SearchIcon className="ml-1 size-3.5 shrink-0 text-zinc-400" />
+            <input
+              ref={searchRef}
+              value={query}
+              onChange={(e) => {
+                const q = e.target.value
+                setQuery(q)
+                searchState.current.query = q
+                searchState.current.current = null
+                runSearch(q, false)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.preventDefault()
+                  closeSearch()
+                  inputRef.current?.focus()
+                } else if (e.key === "Enter") {
+                  e.preventDefault()
+                  step(e.shiftKey ? 1 : -1)
+                }
+              }}
+              placeholder={t("console.search.placeholder")}
+              aria-label={t("console.search.placeholder")}
+              className="min-w-0 flex-1 bg-transparent px-1 py-1 font-mono text-xs text-zinc-100 outline-none placeholder:text-zinc-500"
+              spellCheck={false}
+            />
+            <span className="shrink-0 px-1 font-mono text-[0.68rem] text-zinc-400" aria-live="polite">
+              {query ? (matches.length > 0 ? `${matchIdx + 1} / ${matches.length}${matches.length >= MAX_MATCHES ? "+" : ""}` : t("console.search.none")) : ""}
+            </span>
+            <Button type="button" size="icon-sm" variant="ghost" className="text-zinc-300" disabled={matches.length === 0} onClick={() => step(-1)} aria-label={t("console.search.prev")} title={t("console.search.prev")}>
+              <ChevronUpIcon />
+            </Button>
+            <Button type="button" size="icon-sm" variant="ghost" className="text-zinc-300" disabled={matches.length === 0} onClick={() => step(1)} aria-label={t("console.search.next")} title={t("console.search.next")}>
+              <ChevronDownIcon />
+            </Button>
+            <Button type="button" size="icon-sm" variant="ghost" className="text-zinc-300" onClick={closeSearch} aria-label={t("console.search.close")} title={t("console.search.close")}>
+              <XIcon />
+            </Button>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            className="absolute top-1.5 left-3 z-10 text-zinc-400 hover:text-zinc-100"
+            onClick={openSearch}
+            aria-label={t("console.search.open")}
+            title={t("console.search.open")}
+          >
+            <SearchIcon />
+          </Button>
+        )}
         {!atBottom && (
           <Button
             size="sm"
@@ -390,6 +566,7 @@ export function Console({ serverId, initialState, className }: Props) {
           </Button>
         )}
         <span
+          hidden={searchOpen}
           className="label-caps absolute top-2 right-3 z-10 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-black/60 px-2 py-0.5 text-[0.62rem] text-zinc-300 backdrop-blur-sm"
           role="status"
         >

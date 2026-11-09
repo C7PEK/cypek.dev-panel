@@ -150,7 +150,8 @@
     "port_in_use_running": "Ten serwer teraz działa — zatrzymaj go albo zmień port.",
     "port_in_use_host": "Port {{port}} jest już zajęty przez inny program na tym komputerze.",
     "port_suggestion": "Wolny port: {{suggestion}}.",
-    "no_git_source": "Ten serwer nie pobiera kodu z gita."
+    "no_git_source": "Ten serwer nie pobiera kodu z gita.",
+    "self_update_unavailable": "Tego panelu nie da się zaktualizować z przeglądarki. Użyj w terminalu: sudo homepanel update"
   },
   "servers": {
     "create": "Utwórz serwer",
@@ -297,6 +298,14 @@
       "noPlayers": "Brak graczy online do uzupełnienia",
       "hint": "Tab uzupełnia · ↑↓ wybór · Esc zamyka",
       "choose": "wybierz"
+    },
+    "search": {
+      "open": "Szukaj w konsoli (Ctrl+F)",
+      "placeholder": "Szukaj w konsoli…",
+      "none": "brak",
+      "prev": "Poprzednie (Enter)",
+      "next": "Następne (Shift+Enter)",
+      "close": "Zamknij wyszukiwanie (Esc)"
     }
   },
   "templates": {
@@ -521,7 +530,8 @@
       "commandText": "Każda komenda potrzebuje treści.",
       "wait": "Oczekiwanie musi trwać od 1 do 3600 sekund.",
       "totalWait": "Oczekiwania sumują się do ponad 2 godzin."
-    }
+    },
+    "txAdminNote": "Ten serwer używa txAdmin, który ma własny harmonogram restartów. Ustaw restarty tylko w jednym miejscu (tutaj albo w txAdmin), inaczej serwer będzie restartowany podwójnie."
   },
   "backups": {
     "title": "Backupy",
@@ -1073,6 +1083,10 @@
       "now": "Zrestartuj teraz",
       "later": "Później",
       "started": "Restartuję serwer…"
+    },
+    "vanilla": {
+      "title": "Vanilla nie obsługuje dodatków",
+      "body": "Vanilla nie obsługuje pluginów ani modów. Do pluginów użyj szablonu Paper lub Purpur, do modów Fabric."
     }
   },
   "alerts": {
@@ -1181,5 +1195,38 @@
     "run": "Aktualizuj",
     "started": "Aktualizacja rozpoczęta",
     "progressTitle": "Aktualizacja z gita"
+  },
+  "portHelp": {
+    "cardTitle": "Porty i zapora",
+    "firewallActive": "Zapora ({{kind}}) jest włączona — otwórz porty tą komendą na serwerze:",
+    "commands": "Komendy (wklej w terminalu jako root)",
+    "notAutomatic": "Panel nie zmienia zapory sam. Wykonaj komendę raz, zostaje na stałe.",
+    "noFirewall": "Nie wykryto włączonej zapory (ufw/firewalld) na tym komputerze — tutaj nic nie trzeba otwierać.",
+    "howToTitle": "Jak sprawdzić, czy port jest otwarty z internetu?",
+    "step1": "Na routerze przekieruj port {{ports}} na ten komputer.",
+    "lanAddress": "Adres tego komputera w sieci:",
+    "step2": "Uruchom serwer w panelu.",
+    "step3": "Z telefonu na danych komórkowych (nie przez Wi-Fi) połącz się z grą albo wpisz publiczne IP i port na stronie typu „port checker”.",
+    "step4": "Jeśli publiczne IP routera różni się od tego, które pokazuje strona „jakie mam IP”, masz CGNAT i przekierowanie nie zadziała. Wtedy użyj Tailscale albo playit.gg."
+  },
+  "panelUpdate": {
+    "title": "Aktualizacja panelu",
+    "description": "Nowa wersja panelu z GitHuba. Serwery gier działają dalej, restartuje się tylko panel.",
+    "current": "Zainstalowana",
+    "latest": "Najnowsza",
+    "noReleases": "Brak opublikowanych wydań na GitHubie (repo {{repo}}).",
+    "checkFailed": "Nie udało się sprawdzić aktualizacji: {{message}}",
+    "available": "Dostępna nowa wersja {{version}}",
+    "upToDate": "Masz najnowszą wersję.",
+    "notes": "Co nowego",
+    "lastFailed": "Ostatnia aktualizacja ({{when}}) nie powiodła się: {{message}}",
+    "updating": "Aktualizuję panel… serwery gier działają dalej. Strona odświeży się sama.",
+    "checkNow": "Sprawdź teraz",
+    "updateTo": "Zaktualizuj do {{version}}",
+    "terminalOnly": "Ten panel działa bez systemd — zaktualizuj go z terminala: sudo homepanel update",
+    "done": "Panel zaktualizowany do {{version}}",
+    "failed": "Aktualizacja nie powiodła się: {{message}}",
+    "timeout": "Panel nie wrócił po aktualizacji w ciągu 5 minut. Sprawdź: journalctl -u homepanel-update",
+    "navHint": "Dostępna aktualizacja panelu"
   }
 }

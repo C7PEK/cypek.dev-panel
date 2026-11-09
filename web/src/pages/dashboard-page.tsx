@@ -3,6 +3,7 @@ import { PlusIcon, ServerIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 
+import { PanelUpdateCard } from "@/components/admin/panel-update-card"
 import { AppShell } from "@/components/layout/app-shell"
 import { ServerTile } from "@/components/servers/server-tile"
 import { HostBar } from "@/components/stats/host-bar"
@@ -82,6 +83,8 @@ export function DashboardPage({ user }: { user: User }) {
             ))}
           </section>
         )}
+
+        {user.role === "owner" && <PanelUpdateCard />}
 
         {info.data && (
           <Card>

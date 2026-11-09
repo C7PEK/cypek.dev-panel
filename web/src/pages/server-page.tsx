@@ -12,6 +12,7 @@ import { InstallBadge } from "@/components/servers/install-badge"
 import { InstallPanel } from "@/components/servers/install-panel"
 import { TemplateSettings } from "@/components/servers/template-settings"
 import { ServerAlertsCard } from "@/components/alerts/server-alerts-card"
+import { PortHelpCard } from "@/components/servers/port-help"
 import { GitUpdateButton } from "@/components/servers/git-update-button"
 import { PowerButtons } from "@/components/servers/power-buttons"
 import { ServerForm, valuesFromServer } from "@/components/servers/server-form"
@@ -162,7 +163,7 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
             </TabsContent>
           )}
           <TabsContent value="schedule" className="pt-3">
-            <ScheduleTab serverId={s.id} isCustom={s.templateId === "custom"} />
+            <ScheduleTab serverId={s.id} isCustom={s.templateId === "custom"} templateId={s.templateId} />
           </TabsContent>
           <TabsContent value="backups" className="pt-3">
             <BackupsTab server={s} />
@@ -205,6 +206,7 @@ function SettingsTab({ server, admin }: { server: Server; admin: boolean }) {
     return (
       <div className="flex flex-col gap-6">
         <TemplateSettings server={server} />
+        <PortHelpCard ports={server.ports ?? []} />
         <ServerAlertsCard serverId={server.id} admin={admin} />
         <DangerZone server={server} />
       </div>
@@ -237,6 +239,7 @@ function SettingsTab({ server, admin }: { server: Server; admin: boolean }) {
           />
         </CardContent>
       </Card>
+      <PortHelpCard ports={server.ports ?? []} />
       <ServerAlertsCard serverId={server.id} admin={admin} />
       <DangerZone server={server} />
     </div>

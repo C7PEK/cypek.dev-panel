@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { isApiError } from "@/lib/api"
 import { describeError, describePortConflict, portConflictOf } from "@/lib/errors"
+import { PortHelp } from "@/components/servers/port-help"
 import { describeLiveConflict, portVariable, resolvePorts, usePortCheck } from "@/lib/ports"
 import { useCreateServer } from "@/lib/servers"
 import { isImported, localized, renderPort, sourceKind, useTemplates } from "@/lib/templates"
@@ -454,6 +455,11 @@ export function NewServerPage({ user }: { user: User }) {
                   <p className="text-sm text-muted-foreground">{t("templates.noPorts")}</p>
                 )}
                 <p className="mt-2 text-xs text-muted-foreground">{t("templates.portsHelp")}</p>
+                {livePorts.length > 0 && (
+                  <div className="mt-3">
+                    <PortHelp ports={livePorts} />
+                  </div>
+                )}
               </div>
               {!createConflict &&
                 liveConflicts.map((c) => (

@@ -16,25 +16,34 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useLogout } from "@/lib/auth"
+import { usePanelUpdate } from "@/lib/system"
 import type { User } from "@/lib/types"
 
 // Main application frame: top bar with navigation and the user menu.
 export function AppShell({ user, children }: { user: User; children: ReactNode }) {
   const { t } = useTranslation()
   const logout = useLogout()
+  const update = usePanelUpdate(user.role === "owner")
+  const updateDot = update.data?.available ? (
+    <span className="ml-1.5 inline-block size-1.5 rounded-full bg-brand-cyan shadow-[0_0_8px_var(--brand-cyan)]" title={t("panelUpdate.navHint")} />
+  ) : null
   return (
     <div className="flex min-h-svh flex-col bg-background text-foreground">
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <nav className="flex items-center gap-6">
-            <Link to="/" className="shrink-0">
+            <Link to="/" className="relative shrink-0" aria-label={update.data?.available ? t("panelUpdate.navHint") : undefined}>
               <Logo />
+              {update.data?.available && (
+                <span className="absolute -top-0.5 -right-1.5 size-1.5 rounded-full bg-brand-cyan shadow-[0_0_8px_var(--brand-cyan)] sm:hidden" />
+              )}
             </Link>
             <Link
               to="/"
               className="label-caps hidden text-[0.72rem] text-muted-foreground transition-colors hover:text-foreground sm:block"
             >
               {t("nav.dashboard")}
+              {updateDot}
             </Link>
             {user.role !== "user" && (
               <>

@@ -148,7 +148,8 @@
     "port_in_use_running": "That server is running right now — stop it or change the port.",
     "port_in_use_host": "Port {{port}} is already used by another program on this machine.",
     "port_suggestion": "Free port: {{suggestion}}.",
-    "no_git_source": "This server does not get its code from git."
+    "no_git_source": "This server does not get its code from git.",
+    "self_update_unavailable": "This panel cannot be updated from the browser. In a terminal run: sudo homepanel update"
   },
   "servers": {
     "create": "Create a server",
@@ -295,6 +296,14 @@
       "noPlayers": "No players online to complete",
       "hint": "Tab completes · ↑↓ choose · Esc closes",
       "choose": "choose"
+    },
+    "search": {
+      "open": "Search the console (Ctrl+F)",
+      "placeholder": "Search the console…",
+      "none": "none",
+      "prev": "Previous (Enter)",
+      "next": "Next (Shift+Enter)",
+      "close": "Close search (Esc)"
     }
   },
   "templates": {
@@ -515,7 +524,8 @@
       "commandText": "Every command needs text.",
       "wait": "Wait must be between 1 and 3600 seconds.",
       "totalWait": "Waits add up to more than 2 hours."
-    }
+    },
+    "txAdminNote": "This server uses txAdmin, which has its own restart schedule. Set restarts in one place only (here or in txAdmin), otherwise the server restarts twice."
   },
   "backups": {
     "title": "Backups",
@@ -1037,6 +1047,10 @@
       "now": "Restart now",
       "later": "Later",
       "started": "Restarting the server…"
+    },
+    "vanilla": {
+      "title": "Vanilla has no add-on support",
+      "body": "Vanilla supports neither plugins nor mods. Use the Paper or Purpur template for plugins, Fabric for mods."
     }
   },
   "alerts": {
@@ -1145,5 +1159,38 @@
     "run": "Update",
     "started": "Update started",
     "progressTitle": "Update from git"
+  },
+  "portHelp": {
+    "cardTitle": "Ports and firewall",
+    "firewallActive": "The firewall ({{kind}}) is on — open the ports with this command on the server:",
+    "commands": "Commands (paste in a terminal as root)",
+    "notAutomatic": "The panel never changes the firewall itself. Run the command once; it stays.",
+    "noFirewall": "No active firewall (ufw/firewalld) found on this machine — nothing to open here.",
+    "howToTitle": "How do I check that the port is open from the internet?",
+    "step1": "On your router, forward port {{ports}} to this machine.",
+    "lanAddress": "This machine's LAN address:",
+    "step2": "Start the server in the panel.",
+    "step3": "From a phone on mobile data (not Wi-Fi), connect to the game, or enter your public IP and port on a “port checker” website.",
+    "step4": "If your router's public IP differs from what a “what is my IP” site shows, you are behind CGNAT and forwarding will not work. Use Tailscale or playit.gg instead."
+  },
+  "panelUpdate": {
+    "title": "Panel update",
+    "description": "A new panel version from GitHub. Game servers keep running; only the panel restarts.",
+    "current": "Installed",
+    "latest": "Latest",
+    "noReleases": "No releases published on GitHub yet (repo {{repo}}).",
+    "checkFailed": "Could not check for updates: {{message}}",
+    "available": "New version {{version}} available",
+    "upToDate": "You have the latest version.",
+    "notes": "What's new",
+    "lastFailed": "The last update ({{when}}) failed: {{message}}",
+    "updating": "Updating the panel… game servers keep running. The page reloads by itself.",
+    "checkNow": "Check now",
+    "updateTo": "Update to {{version}}",
+    "terminalOnly": "This panel runs without systemd — update it from a terminal: sudo homepanel update",
+    "done": "Panel updated to {{version}}",
+    "failed": "The update failed: {{message}}",
+    "timeout": "The panel did not come back within 5 minutes after the update. Check: journalctl -u homepanel-update",
+    "navHint": "Panel update available"
   }
 }
