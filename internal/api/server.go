@@ -223,6 +223,7 @@ func New(d Deps) (http.Handler, error) {
 
 		api.Get("/version", s.handleVersion)
 		api.Get("/setup/status", s.handleSetupStatus)
+		api.Get("/branding", s.handleGetBranding)
 		api.Post("/setup", s.handleSetup)
 		api.Post("/auth/login", s.handleLogin)
 		api.Post("/auth/login/totp", s.handleLoginTOTP)
@@ -243,6 +244,7 @@ func New(d Deps) (http.Handler, error) {
 			priv.Get("/system/cron/preview", s.handleCronPreview)
 			priv.With(s.requireRole(auth.RoleAdmin)).Get("/system/database", s.handleDatabaseStatus)
 			priv.With(s.requireRole(auth.RoleOwner)).Post("/system/database/install", s.handleDatabaseInstall)
+			priv.With(s.requireRole(auth.RoleAdmin)).Put("/settings/branding", s.handleSetBranding)
 			priv.With(s.requireRole(auth.RoleOwner)).Get("/system/update", s.handleUpdateInfo)
 			priv.With(s.requireRole(auth.RoleOwner)).Post("/system/update", s.handleStartUpdate)
 			priv.With(s.requireRole(auth.RoleAdmin)).Post("/system/database/phpmyadmin/restart", s.handleRestartPhpMyAdmin)
