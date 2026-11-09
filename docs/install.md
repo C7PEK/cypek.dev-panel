@@ -46,6 +46,43 @@ sudo homepanel update --check  # just report
 Game servers run as their own systemd units, so a panel update or restart
 never stops them; the panel reattaches to the running consoles afterwards.
 
+The owner can also update from the panel. The button starts
+`homepanel-update.service`, a root oneshot unit that runs the same
+`homepanel update` and writes the outcome to
+`/var/lib/homepanel/update-status.json`. That is the only extra unit polkit
+lets the panel start. Releases come from GitHub (`C7PEK/cypek.dev-panel`);
+while that repository is private, neither the button nor `homepanel update`
+can download anything.
+
+## HTTPS (optional)
+
+The panel serves plain HTTP on the LAN by default. Options in
+`/etc/homepanel/config.toml`:
+
+```toml
+[tls]
+enabled = true
+self_signed = true        # generate a certificate for the hostname + LAN IPs
+# or your own certificate, e.g. from `tailscale cert <machine>.<tailnet>.ts.net`:
+# cert_file = "/etc/homepanel/panel.crt"
+# key_file  = "/etc/homepanel/panel.key"
+```
+
+The self-signed certificate is stored in `/var/lib/homepanel/tls/` and
+renewed when the IPs change or it nears expiry. The browser warns once.
+Compare the SHA-256 fingerprint printed at startup (`journalctl -u homepanel`)
+with what the browser shows. With HTTPS, session cookies get the `Secure`
+flag. For a certificate browsers trust without a warning, use
+`tailscale cert` (needs MagicDNS + HTTPS enabled in the tailnet) and point
+`cert_file`/`key_file` at its output. The panel user must be able to read
+both files.
+
+## Resource use
+
+Measured on Debian 13 (amd64) with two servers configured, no browser
+connected: about 26 MB RSS for the panel process (target in the plan: under
+60 MB). Game servers are separate units and count separately.
+
 ## Useful commands
 
 ```sh
@@ -57,9 +94,12 @@ systemctl list-units 'homepanel-server@*'        # running servers
 
 ## Firewall and router
 
-The panel never changes firewall rules. The server page lists the ports to
-forward on your router, and the API (`/api/v1/system/firewall`) returns the
-`ufw` / `firewall-cmd` commands for the detected firewall.
+The panel never changes firewall rules. The new-server summary and the
+server settings list the ports to forward on your router and, when ufw or
+firewalld is active, the exact commands to open them. The API is
+`/api/v1/system/firewall`. Port conflicts with other servers or other
+programs on the machine are detected when a server is created, changed or
+started.
 
 ## Uninstall
 

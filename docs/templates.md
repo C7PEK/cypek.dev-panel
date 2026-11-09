@@ -78,6 +78,15 @@ runtime step), `message` (only in `warnCommand`).
 - `download`: fetches one file to `to`.
   - `provider: paper` resolves `version` (`latest` or e.g. `1.21.11`),
     downloads the newest stable build and verifies its SHA-256.
+  - `provider: mojang` downloads the vanilla server jar for `version`
+    (`latest` or e.g. `1.21.4`), verified with Mojang's SHA-1. It also sets
+    the Java version from the version metadata.
+  - `provider: fabric` downloads the Fabric server launcher (newest stable
+    loader + installer) for `version`. There is no checksum, so HTTPS only. Put a
+    `mojang` step after it (`version: latest` follows the version Fabric
+    picked) for the verified `server.jar` the launcher loads.
+  - `provider: purpur` downloads the newest Purpur build for `version`,
+    verified with Purpur's MD5.
   - `provider: fivem` resolves `version` (`recommended`, `latest` or a
     build number from the changelog API) to an FXServer Linux artifact.
     Cfx.re publishes no checksums; HTTPS only. x86_64 hosts only.
@@ -98,7 +107,9 @@ runtime step), `message` (only in `warnCommand`).
   a secret variable used as a GitHub-style access token for private repos.
 - `exec`: runs `command` with `args` in `dir` without a shell (no pipes or
   variable expansion), streaming output into the install log. `ifExists`
-  skips the step when that file is missing (e.g. `requirements.txt`);
+  skips the step when that file is missing (e.g. `requirements.txt`), and
+  `ifMissing` when it exists (`npm ci` with a lockfile, `npm install`
+  without);
   `timeoutSec` defaults to 900. The runtime bin folders are on PATH.
 
 Paths are relative to the server directory; `..` and absolute paths are
@@ -109,6 +120,9 @@ rejected.
 | source | provider |
 |---|---|
 | `paper-versions` | PaperMC Fill API: all Paper versions, newest first, pre-releases flagged |
+| `minecraft-versions` | Mojang manifest: release versions |
+| `fabric-versions` | Fabric meta: stable game versions Fabric supports |
+| `purpur-versions` | Purpur API: versions with builds |
 | `fivem-artifacts` | Cfx.re changelog API: recommended, latest and still-supported builds |
 
 ## Player queries
@@ -138,7 +152,9 @@ template may use them.
   with `/bin/bash -c`. Every variable is exported to the environment and
   `{{KEY}}` becomes `"${KEY}"` (`{{KEY...}}` becomes an unquoted `${KEY}`
   that bash splits into words). Values are never pasted into the code, so
-  `$(...)` or backticks in a value stay plain text.
+  `$(...)` or backticks in a value stay plain text. Secret variables the
+  shell line does not reference (e.g. a git token) are left out of the
+  environment.
 - **`script`** install step: `{content, timeoutSec}` (default timeout 30 min).
   It runs in the server's own systemd unit, `homepanel-server@<id>`, with the
   same sandbox as the game: the panel user, no root, write access only to the

@@ -15,6 +15,16 @@ the system D-Bus and needs permission for exactly these calls:
 Verified on Debian 13 (systemd 257, polkit 126) by running the supervisor
 integration test as `homepanel` (`internal/supervisor/systemd_integration_test.go`).
 
+Besides the server units, the rule allows `manage-units` for three fixed
+root units that take no parameters:
+- `homepanel-database-install.service` (MariaDB + phpMyAdmin installer),
+- `homepanel-phpmyadmin.service`,
+- `homepanel-update.service` (the owner's update button; runs
+  `homepanel update`).
+
+Starting `ssh.service` or any other unit as `homepanel` is still refused
+(checked 2026-11-09).
+
 ## Decision: no `manage-unit-files`
 
 Because systemd does not attach the unit name to `manage-unit-files`, a polkit
