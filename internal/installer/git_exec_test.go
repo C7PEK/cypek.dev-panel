@@ -136,6 +136,24 @@ func TestGitAndExecSteps(t *testing.T) {
 }
 
 func TestDiscordTemplatesParse(t *testing.T) {
+	// Git variants: an https repo is required, the Discord token is optional.
+	for _, f := range []string{"../../templates/discord-node-git.yaml", "../../templates/discord-python-git.yaml"} {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tpl, err := templates.Parse(b)
+		if err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		if _, err := tpl.ValidateValues(map[string]string{"REPO_URL": "https://github.com/x/y.git"}); err != nil {
+			t.Errorf("%s defaults: %v", f, err)
+		}
+		if _, err := tpl.ValidateValues(map[string]string{"REPO_URL": "git@github.com:x/y.git"}); err == nil {
+			t.Errorf("%s accepted an ssh url", f)
+		}
+	}
+	// File-based variants need nothing at all.
 	for _, f := range []string{"../../templates/discord-node.yaml", "../../templates/discord-python.yaml"} {
 		b, err := os.ReadFile(f)
 		if err != nil {
@@ -145,14 +163,11 @@ func TestDiscordTemplatesParse(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", f, err)
 		}
-		if _, err := tpl.ValidateValues(map[string]string{"REPO_URL": "https://github.com/x/y.git", "DISCORD_TOKEN": "abc"}); err != nil {
-			t.Errorf("%s defaults: %v", f, err)
+		if _, err := tpl.ValidateValues(map[string]string{}); err != nil {
+			t.Errorf("%s with no values: %v", f, err)
 		}
-		if _, err := tpl.ValidateValues(map[string]string{"REPO_URL": "git@github.com:x/y.git", "DISCORD_TOKEN": "abc"}); err == nil {
-			t.Errorf("%s accepted an ssh url", f)
-		}
-		if _, err := tpl.ValidateValues(map[string]string{"REPO_URL": "https://x/y", "DISCORD_TOKEN": ""}); err == nil {
-			t.Errorf("%s accepted an empty token", f)
+		if tpl.UsesGit() {
+			t.Errorf("%s still uses git", f)
 		}
 	}
 }

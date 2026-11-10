@@ -3,72 +3,59 @@ name: Discord bot (Python)
 category: discord-bot
 icon: discord
 description:
-  pl: Bot w Pythonie z repozytorium git (np. discord.py). Panel pobiera Pythona, tworzy venv w katalogu serwera i instaluje requirements.txt. Token bota trafia do zmiennej środowiskowej DISCORD_TOKEN.
-  en: A Python bot from a git repository (e.g. discord.py). The panel downloads Python, creates a venv in the server folder and installs requirements.txt. The bot token is passed as the DISCORD_TOKEN environment variable.
+  pl: Bot w Pythonie (np. discord.py) z Twoich plików. Po utworzeniu wrzuć pliki bota w zakładce Pliki (upload, SFTP albo „Pobierz z linku” z ZIP-a). Pakiety z requirements.txt instalują się same przy starcie w osobnym środowisku (.venv).
+  en: A Python bot (e.g. discord.py) from your own files. After creating it, put the bot's files in the Files tab (upload, SFTP or "Download from link" with a ZIP). Packages from requirements.txt are installed automatically on start into a private environment (.venv).
 
 variables:
-  - key: REPO_URL
-    label: { pl: Adres repozytorium git (https), en: Git repository URL (https) }
-    type: string
-    required: true
-    maxLength: 300
-    pattern: '^https://[^\s]+$'
-  - key: BRANCH
-    label: { pl: Gałąź, en: Branch }
-    type: string
-    default: main
-    maxLength: 100
-    pattern: '^[A-Za-z0-9._/-]+$'
-  - key: GIT_TOKEN
-    label: { pl: Token do prywatnego repo (opcjonalnie), en: Token for a private repo (optional) }
-    type: secret
-    maxLength: 200
-  - key: DISCORD_TOKEN
-    label: { pl: Token bota Discord, en: Discord bot token }
-    help:
-      pl: Bot odczyta go przez os.environ["DISCORD_TOKEN"].
-      en: Read it in the bot via os.environ["DISCORD_TOKEN"].
-    type: secret
-    required: true
-    maxLength: 200
   - key: START_FILE
     label: { pl: Plik startowy, en: Entry file }
-    help: { pl: "Względem katalogu repo, np. bot.py lub main.py.", en: "Relative to the repo folder, e.g. bot.py or main.py." }
+    help:
+      pl: Zostaw puste, a panel sam wykryje start (main.py, bot.py, app.py, src/main.py). Albo wpisz plik, np. src/bot.py.
+      en: Leave empty to detect it (main.py, bot.py, app.py, src/main.py). Or enter a file, e.g. src/bot.py.
     type: string
-    default: bot.py
+    default: ""
     maxLength: 200
-    pattern: '^[^\s/][^\s]*\.py$'
+    pattern: '^$|^[^\s/][^\s]*\.py$'
   - key: PY_VERSION
     label: { pl: Wersja Pythona, en: Python version }
     type: select
     options: ["3.12", "3.13"]
     default: "3.12"
+  - key: DISCORD_TOKEN
+    label: { pl: Token bota Discord (opcjonalnie), en: Discord bot token (optional) }
+    help:
+      pl: Tylko jeśli Twój bot czyta go z os.environ["DISCORD_TOKEN"]. Jeśli token jest w pliku .env albo config, zostaw puste.
+      en: Only if your bot reads it from os.environ["DISCORD_TOKEN"]. If the token is in a .env or config file, leave this empty.
+    type: secret
+    maxLength: 200
 
 runtime:
   kind: python
   version: auto
 
-install:
-  - git:
-      url: "{{REPO_URL}}"
-      branch: "{{BRANCH}}"
-      token: GIT_TOKEN
-      to: app
-  - exec:
-      command: "{{PIP}}"
-      args: ["install", "--upgrade", "pip"]
-  - exec:
-      command: "{{PIP}}"
-      args: ["install", "-r", "requirements.txt"]
-      dir: app
-      ifExists: requirements.txt
+install: []
 
 start:
-  command: "{{PYTHON}}"
-  args: ["-u", "{{START_FILE}}"]
-  dir: app
+  shell: |
+    [ -z {{DISCORD_TOKEN}} ] && unset DISCORD_TOKEN
+    if [ -f requirements.txt ] && [ requirements.txt -nt .venv/.panel-requirements ]; then
+      echo "[panel] Installing requirements.txt (pip)..."
+      pip install --disable-pip-version-check -r requirements.txt || exit 1
+      touch .venv/.panel-requirements
+    fi
+    if [ -z {{START_FILE}} ]; then
+      for f in main.py bot.py app.py src/main.py src/bot.py; do
+        [ -f "$f" ] && exec python -u "$f"
+      done
+      echo "[panel] No bot files found yet. Upload them in the Files tab (or set the entry file in Settings)."
+      exit 78
+    fi
+    if [ ! -f {{START_FILE}} ]; then
+      echo "[panel] "{{START_FILE}}" not found. Upload your bot files in the Files tab or change the entry file in Settings."
+      exit 78
+    fi
+    exec python -u {{START_FILE}}
   env:
-    DISCORD_TOKEN: "{{DISCORD_TOKEN}}"
     PYTHONUNBUFFERED: "1"
 stop:
   timeoutSec: 20

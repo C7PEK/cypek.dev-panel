@@ -1,0 +1,90 @@
+id: discord-node-git
+name: Discord bot (Node.js, git)
+category: discord-bot
+icon: discord
+description:
+  pl: Bot w JavaScript/TypeScript z repozytorium git (np. discord.js). Panel pobiera Node.js, klonuje repo i instaluje zależności przez npm. Token bota trafia do zmiennej środowiskowej DISCORD_TOKEN.
+  en: A JavaScript/TypeScript bot from a git repository (e.g. discord.js). The panel downloads Node.js, clones the repo and installs dependencies with npm. The bot token is passed as the DISCORD_TOKEN environment variable.
+
+variables:
+  - key: REPO_URL
+    label: { pl: Adres repozytorium git (https), en: Git repository URL (https) }
+    help:
+      pl: Np. https://github.com/uzytkownik/moj-bot.git. Do prywatnego repo dodaj token poniżej.
+      en: E.g. https://github.com/user/my-bot.git. Add a token below for a private repo.
+    type: string
+    required: true
+    maxLength: 300
+    pattern: '^https://[^\s]+$'
+  - key: BRANCH
+    label: { pl: Gałąź, en: Branch }
+    type: string
+    default: main
+    maxLength: 100
+    pattern: '^[A-Za-z0-9._/-]+$'
+  - key: GIT_TOKEN
+    label: { pl: Token do prywatnego repo (opcjonalnie), en: Token for a private repo (optional) }
+    help:
+      pl: GitHub "personal access token" z dostępem do odczytu repo. Zostaw puste dla publicznych.
+      en: A GitHub personal access token with read access. Leave empty for public repos.
+    type: secret
+    maxLength: 200
+  - key: DISCORD_TOKEN
+    label: { pl: Token bota Discord, en: Discord bot token }
+    help:
+      pl: Z https://discord.com/developers/applications, zakładka Bot. Bot odczyta go z process.env.DISCORD_TOKEN.
+      en: From https://discord.com/developers/applications, Bot tab. Read it in the bot via process.env.DISCORD_TOKEN.
+    type: secret
+    maxLength: 200
+  - key: START_FILE
+    label: { pl: Plik startowy, en: Entry file }
+    help:
+      pl: Względem katalogu repo, np. index.js, src/bot.js lub dist/index.js (po buildzie TypeScript). Zostaw puste, żeby uruchomić skrypt "start" z package.json (npm start).
+      en: Relative to the repo folder, e.g. index.js, src/bot.js or dist/index.js (after a TypeScript build). Leave empty to run the "start" script from package.json (npm start).
+    type: string
+    default: index.js
+    maxLength: 200
+    pattern: '^$|^[^\s/][^\s]*\.(js|mjs|cjs)$'
+  - key: NODE_VERSION
+    label: { pl: Wersja Node.js, en: Node.js version }
+    type: select
+    options: ["26", "24", "22"]
+    default: "26"
+
+runtime:
+  kind: node
+  version: auto
+
+install:
+  - git:
+      url: "{{REPO_URL}}"
+      branch: "{{BRANCH}}"
+      token: GIT_TOKEN
+      to: app
+  # npm ci installs exactly what package-lock.json pins; without a lockfile
+  # fall back to npm install.
+  - exec:
+      command: "{{NPM}}"
+      args: ["ci", "--no-fund", "--no-audit"]
+      dir: app
+      ifExists: package-lock.json
+  - exec:
+      command: "{{NPM}}"
+      args: ["install", "--no-fund", "--no-audit"]
+      dir: app
+      ifExists: package.json
+      ifMissing: package-lock.json
+  - exec:
+      command: "{{NPM}}"
+      args: ["run", "build", "--if-present"]
+      dir: app
+      ifExists: package.json
+
+start:
+  # node <file>, or "npm start" when no entry file is given.
+  shell: '[ -z {{DISCORD_TOKEN}} ] && unset DISCORD_TOKEN; if [ -n {{START_FILE}} ]; then exec node {{START_FILE}}; else exec npm start; fi'
+  dir: app
+  env:
+    NODE_ENV: production
+stop:
+  timeoutSec: 20
