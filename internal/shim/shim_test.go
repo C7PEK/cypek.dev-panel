@@ -40,6 +40,16 @@ func fakeGame() int {
 		case line == "crash":
 			fmt.Println("boom")
 			return 3
+		case line == "burst":
+			// Lots of output right before exiting: the last line must not
+			// be lost when the shim closes the terminal.
+			w := bufio.NewWriter(os.Stdout)
+			for i := 0; i < 3000; i++ {
+				fmt.Fprintf(w, "line %d\n", i)
+			}
+			fmt.Fprintln(w, "LAST-LINE")
+			w.Flush()
+			return 3
 		default:
 			fmt.Printf("> %s\n", line)
 		}
@@ -434,5 +444,37 @@ func TestShimRecordsLifecycleEvents(t *testing.T) {
 	}
 	if strings.Join(kinds, ",") != "stop,ready,start" {
 		t.Errorf("kinds = %v", kinds)
+	}
+}
+
+// The last lines a process prints right before exiting must reach clients
+// (the crash message of a game, "installed-ok" of an install script).
+func TestLastOutputBeforeExitIsDelivered(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		h := start(t, RunConfig{}, "")
+		c := h.dial()
+		waitFor(t, c, "ready", func(_ Frame, out string) bool { return strings.Contains(out, "Done") })
+		_ = c.Send(Frame{Type: TypeInput, Data: "burst\n"})
+		var out strings.Builder
+		timeout := time.After(10 * time.Second)
+	read:
+		for {
+			select {
+			case f, ok := <-c.Frames():
+				if !ok {
+					break read
+				}
+				if f.Type == TypeOutput {
+					out.WriteString(f.Data)
+				}
+			case <-timeout:
+				t.Fatal("timeout")
+			}
+		}
+		c.Close()
+		if !strings.Contains(out.String(), "LAST-LINE") {
+			t.Fatalf("run %d: final output lost (%d bytes received)", i, out.Len())
+		}
+		h.exitCode()
 	}
 }

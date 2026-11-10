@@ -155,7 +155,11 @@ func (s *Shim) Run(ctx context.Context) (int, error) {
 	if !s.cfg.Oneshot {
 		go s.acceptLoop(ln)
 	}
-	go s.readLoop()
+	readDone := make(chan struct{})
+	go func() {
+		s.readLoop()
+		close(readDone)
+	}()
 
 	var waitErr error
 	go func() {
@@ -169,6 +173,14 @@ func (s *Shim) Run(ctx context.Context) (int, error) {
 		s.gracefulStop()
 		<-s.exited
 	case <-s.exited:
+	}
+	// The process is gone but the terminal may still hold its last lines
+	// (often the error that made it exit): read them before finish closes
+	// the PTY and the clients. Bounded, because a leftover child can keep
+	// the terminal open.
+	select {
+	case <-readDone:
+	case <-time.After(2 * time.Second):
 	}
 	code := exitCodeOf(waitErr)
 	requested := s.finish(code)
