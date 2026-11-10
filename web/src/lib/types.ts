@@ -609,3 +609,33 @@ export interface PanelUpdateInfo {
   running?: boolean
   last?: PanelUpdateRun
 }
+
+// --- File jobs (download from link, background extraction) -------------------
+
+export type FileJobKind = "download" | "extract"
+export type FileJobState = "running" | "done" | "failed" | "cancelled"
+export type FileJobSource = "gdrive" | "dropbox" | "onedrive" | "github" | "direct"
+
+export interface FileJob {
+  id: string
+  kind: FileJobKind
+  state: FileJobState
+  phase: "downloading" | "extracting"
+  name: string
+  source?: FileJobSource
+  dir: string
+  file?: string
+  bytes: number
+  /** -1 when unknown. */
+  total: number
+  error?: string
+  startedAt: string
+  finishedAt?: string
+}
+
+export interface FetchInput {
+  url: string
+  path: string
+  extract: boolean
+  deleteArchive: boolean
+}

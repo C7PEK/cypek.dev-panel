@@ -1,5 +1,6 @@
 import {
   ChevronRightIcon,
+  DownloadCloudIcon,
   DownloadIcon,
   FilePlusIcon,
   FolderArchiveIcon,
@@ -16,9 +17,11 @@ import { type DragEvent, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
+import { FetchLinkDialog } from "@/components/files/fetch-link-dialog"
 import { ConfirmDialog, NameDialog } from "@/components/files/file-dialogs"
 import { FileEditor } from "@/components/files/file-editor"
 import { FileIconFor } from "@/components/files/file-icon"
+import { FileJobs } from "@/components/files/file-jobs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -68,6 +71,7 @@ export function FileBrowser({ serverId, path, onPathChange }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [uploadPct, setUploadPct] = useState<number | null>(null)
   const [dragOver, setDragOver] = useState(false)
+  const [fetchOpen, setFetchOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const listing = useFiles(serverId, path, editing === null)
@@ -131,7 +135,7 @@ export function FileBrowser({ serverId, path, onPathChange }: Props) {
     extract.mutate(
       { path: full, to: path },
       {
-        onSuccess: () => toast.success(t("files.extracted", { name: entry.name })),
+        onSuccess: () => toast.success(t("fileJobs.extractStarted", { name: entry.name })),
         onError: (err) => toast.error(describeError(t, err)),
       },
     )
@@ -209,6 +213,10 @@ export function FileBrowser({ serverId, path, onPathChange }: Props) {
           {uploadPct !== null ? <Loader2Icon className="animate-spin" /> : <UploadIcon />}
           {uploadPct !== null ? t("files.uploading", { pct: uploadPct }) : t("files.upload")}
         </Button>
+        <Button size="sm" variant="outline" onClick={() => setFetchOpen(true)}>
+          <DownloadCloudIcon />
+          {t("fetchLink.button")}
+        </Button>
         <Button size="sm" variant="outline" onClick={() => setDialog({ kind: "mkdir" })}>
           <FolderPlusIcon />
           {t("files.newFolder")}
@@ -227,6 +235,9 @@ export function FileBrowser({ serverId, path, onPathChange }: Props) {
           </Button>
         )}
       </div>
+
+      <FileJobs serverId={serverId} onOpenFolder={navigate} />
+      {fetchOpen && <FetchLinkDialog serverId={serverId} path={path} open={fetchOpen} onOpenChange={setFetchOpen} />}
 
       {uploadPct !== null && (
         <div className="h-1.5 w-full overflow-hidden rounded bg-muted">

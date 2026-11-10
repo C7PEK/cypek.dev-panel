@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { ApiError, api, apiBase, apiRaw, apiText, getCsrfToken } from "@/lib/api"
+import type { FetchInput, FileJob } from "@/lib/types"
 
 export type FileType = "file" | "dir" | "symlink" | "other"
 
@@ -94,12 +95,61 @@ export function useDeleteFiles(id: string) {
   })
 }
 
+/** Starts a background extraction; progress comes from useFileJobs. */
 export function useExtract(id: string) {
-  const invalidate = useInvalidateDir(id)
+  const qc = useQueryClient()
   return useMutation({
-    mutationFn: (v: { path: string; to?: string }) => api<void>("POST", `${base(id)}/extract`, v),
-    onSuccess: (_d, v) => void invalidate(v.to ?? parentPath(v.path)),
+    mutationFn: (v: { path: string; to?: string }) => api<{ job: FileJob }>("POST", `${base(id)}/extract`, v),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: fileJobsKey(id) }),
   })
+}
+
+export const fileJobsKey = (id: string) => ["servers", id, "file-jobs"] as const
+
+/** Downloads and extractions; polls every second while one is running. */
+export function useFileJobs(id: string) {
+  return useQuery({
+    queryKey: fileJobsKey(id),
+    queryFn: async () => (await api<{ jobs: FileJob[] }>("GET", `${base(id)}/jobs`)).jobs ?? [],
+    refetchInterval: (query) => ((query.state.data ?? []).some((j) => j.state === "running") ? 1000 : 10_000),
+  })
+}
+
+export function useFetchLink(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: FetchInput) => api<{ job: FileJob }>("POST", `${base(id)}/fetch`, v),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: fileJobsKey(id) }),
+  })
+}
+
+export function useCancelFileJob(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (jobId: string) => api<void>("DELETE", `${base(id)}/jobs/${encodeURIComponent(jobId)}`),
+    onSettled: () => void qc.invalidateQueries({ queryKey: fileJobsKey(id) }),
+  })
+}
+
+export type LinkKind = "gdrive" | "dropbox" | "onedrive" | "github" | "mega" | "wetransfer" | "direct" | "invalid"
+
+/** Client-side guess of where a pasted link points (the server decides). */
+export function detectLink(raw: string): LinkKind {
+  let u: URL
+  try {
+    u = new URL(raw.trim())
+  } catch {
+    return "invalid"
+  }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return "invalid"
+  const h = u.hostname.toLowerCase()
+  if (h === "drive.google.com" || h === "docs.google.com" || h === "drive.usercontent.google.com") return "gdrive"
+  if (h === "dropbox.com" || h === "www.dropbox.com" || h === "dl.dropboxusercontent.com") return "dropbox"
+  if (h === "1drv.ms" || h === "onedrive.live.com" || h.endsWith(".sharepoint.com")) return "onedrive"
+  if (h === "github.com" || h === "raw.githubusercontent.com" || h === "objects.githubusercontent.com") return "github"
+  if (h === "mega.nz" || h === "mega.co.nz") return "mega"
+  if (h === "we.tl" || h.endsWith("wetransfer.com")) return "wetransfer"
+  return "direct"
 }
 
 export function useWriteFile(id: string) {
@@ -110,7 +160,7 @@ export function useWriteFile(id: string) {
   })
 }
 
-export const ARCHIVE_RE = /\.(zip|tar\.gz|tgz|tar\.xz|txz|tar)$/i
+export const ARCHIVE_RE = /\.(zip|tar\.gz|tgz|tar\.xz|txz|tar\.zst|tzst|tar)$/i
 
 export function isArchive(name: string) {
   return ARCHIVE_RE.test(name)

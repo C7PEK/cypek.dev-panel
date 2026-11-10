@@ -153,7 +153,9 @@
     "port_suggestion": "Wolny port: {{suggestion}}.",
     "no_git_source": "Ten serwer nie pobiera kodu z gita.",
     "self_update_unavailable": "Tego panelu nie da się zaktualizować z przeglądarki. Użyj w terminalu: sudo homepanel update",
-    "server_expired": "Ten serwer wygasł. Admin musi go przedłużyć, zanim znów się uruchomi."
+    "server_expired": "Ten serwer wygasł. Admin musi go przedłużyć, zanim znów się uruchomi.",
+    "bad_link": "Ten link nie zadziała. Sprawdź, czy prowadzi do pliku.",
+    "too_many_jobs": "Za dużo pobierań naraz. Poczekaj, aż któreś się skończy."
   },
   "servers": {
     "create": "Utwórz serwer",
@@ -1332,5 +1334,63 @@
       "summary_other": "Wygasa po {{count}} dniach",
       "invalid": "Podaj od 1 do 3650 dni."
     }
+  },
+  "fetchLink": {
+    "button": "Pobierz z linku",
+    "title": "Pobierz z linku",
+    "description": "Wklej link do pliku. Pobierze go serwer, więc nie musisz go wysyłać ze swojego komputera.",
+    "url": "Link do pliku",
+    "saveTo": "Zapisz w:",
+    "extract": "Rozpakuj po pobraniu",
+    "extractHint": "Działa, jeśli to archiwum (.zip, .tar.gz, .tar.xz, .tar.zst).",
+    "deleteArchive": "Usuń archiwum po rozpakowaniu",
+    "submit": "Pobierz",
+    "started": "Pobieranie rozpoczęte",
+    "helpTitle": "Skąd najlepiej?",
+    "sources": {
+      "gdrive": "Google Drive",
+      "dropbox": "Dropbox",
+      "onedrive": "OneDrive",
+      "github": "GitHub",
+      "mega": "MEGA",
+      "wetransfer": "WeTransfer",
+      "direct": "Bezpośredni link",
+      "invalid": "Nieprawidłowy link"
+    },
+    "tips": {
+      "gdrive": "Ustaw udostępnianie: Każda osoba mająca link.",
+      "dropbox": "Wklej link z „Udostępnij → Kopiuj link”.",
+      "onedrive": "Użyj linku „Każda osoba z linkiem może wyświetlać”.",
+      "github": "Linki do plików i wydań (Releases) działają.",
+      "mega": "Ten serwis nie działa: użyj Google Drive lub Dropbox.",
+      "wetransfer": "Ten serwis nie działa: użyj Google Drive lub Dropbox.",
+      "direct": "Link musi prowadzić bezpośrednio do pliku.",
+      "invalid": "Wklej link zaczynający się od https://"
+    },
+    "help": {
+      "dropbox": "Dropbox: najprostszy, link z „Kopiuj link” działa od razu.",
+      "gdrive": "Google Drive: plik musi być udostępniony dla „Każdej osoby mającej link”.",
+      "onedrive": "OneDrive: link „Każda osoba z linkiem”.",
+      "github": "GitHub Releases i pliki z repozytorium.",
+      "direct": "Własny serwer albo dowolny bezpośredni link do pliku.",
+      "broken": "MEGA i WeTransfer nie działają (pliki są dostępne tylko w przeglądarce).",
+      "speed": "Plik pobiera serwer, nie Twój komputer: szybkość zależy od łącza w domu, nie od Twojego uploadu."
+    }
+  },
+  "fileJobs": {
+    "title": "Pobieranie i rozpakowywanie",
+    "downloading": "pobieranie",
+    "extracting": "rozpakowywanie",
+    "done": "Gotowe",
+    "failed": "Nie udało się",
+    "cancelled": "Anulowano",
+    "cancel": "Anuluj",
+    "clear": "Wyczyść",
+    "openFolder": "Otwórz folder",
+    "eta": "ok. {{time}}",
+    "downloaded": "Pobrano {{name}}",
+    "extracted": "Rozpakowano {{name}}",
+    "failedToast": "Nie udało się: {{name}}",
+    "extractStarted": "Rozpakowywanie {{name}} rozpoczęte"
   }
 }

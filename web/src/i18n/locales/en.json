@@ -151,7 +151,9 @@
     "port_suggestion": "Free port: {{suggestion}}.",
     "no_git_source": "This server does not get its code from git.",
     "self_update_unavailable": "This panel cannot be updated from the browser. In a terminal run: sudo homepanel update",
-    "server_expired": "This server has expired. An admin has to extend it before it can start again."
+    "server_expired": "This server has expired. An admin has to extend it before it can start again.",
+    "bad_link": "This link will not work. Check that it points to a file.",
+    "too_many_jobs": "Too many downloads at once. Wait for one to finish."
   },
   "servers": {
     "create": "Create a server",
@@ -1286,5 +1288,63 @@
       "summary_other": "Expires after {{count}} days",
       "invalid": "Enter 1 to 3650 days."
     }
+  },
+  "fetchLink": {
+    "button": "Download from link",
+    "title": "Download from link",
+    "description": "Paste a link to a file. The server downloads it, so it does not have to go through your computer.",
+    "url": "Link to the file",
+    "saveTo": "Save to:",
+    "extract": "Extract after download",
+    "extractHint": "Works if it is an archive (.zip, .tar.gz, .tar.xz, .tar.zst).",
+    "deleteArchive": "Delete the archive after extracting",
+    "submit": "Download",
+    "started": "Download started",
+    "helpTitle": "Where from?",
+    "sources": {
+      "gdrive": "Google Drive",
+      "dropbox": "Dropbox",
+      "onedrive": "OneDrive",
+      "github": "GitHub",
+      "mega": "MEGA",
+      "wetransfer": "WeTransfer",
+      "direct": "Direct link",
+      "invalid": "Invalid link"
+    },
+    "tips": {
+      "gdrive": "Set sharing to: Anyone with the link.",
+      "dropbox": "Paste the link from “Share → Copy link”.",
+      "onedrive": "Use an “Anyone with the link can view” link.",
+      "github": "Links to files and Releases work.",
+      "mega": "This service does not work: use Google Drive or Dropbox.",
+      "wetransfer": "This service does not work: use Google Drive or Dropbox.",
+      "direct": "The link must point directly to the file.",
+      "invalid": "Paste a link that starts with https://"
+    },
+    "help": {
+      "dropbox": "Dropbox: the simplest, a “Copy link” link works right away.",
+      "gdrive": "Google Drive: the file must be shared with “Anyone with the link”.",
+      "onedrive": "OneDrive: an “Anyone with the link” link.",
+      "github": "GitHub Releases and files in a repository.",
+      "direct": "Your own server or any direct link to a file.",
+      "broken": "MEGA and WeTransfer do not work (their files are only available in a browser).",
+      "speed": "The server downloads the file, not your computer: speed depends on your home connection, not on your upload."
+    }
+  },
+  "fileJobs": {
+    "title": "Downloads and extractions",
+    "downloading": "downloading",
+    "extracting": "extracting",
+    "done": "Done",
+    "failed": "Failed",
+    "cancelled": "Cancelled",
+    "cancel": "Cancel",
+    "clear": "Clear",
+    "openFolder": "Open folder",
+    "eta": "about {{time}}",
+    "downloaded": "Downloaded {{name}}",
+    "extracted": "Extracted {{name}}",
+    "failedToast": "Failed: {{name}}",
+    "extractStarted": "Extracting {{name}} started"
   }
 }
