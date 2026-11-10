@@ -168,8 +168,9 @@ func TestLocalCrashAndKill(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = c.Input("crash\n")
-	c.Close()
+	// Closing right away can drop the frame before the shim reads it.
 	st := waitState(t, sup, id, StateCrashed)
+	c.Close()
 	if st.ExitCode == nil || *st.ExitCode != 7 {
 		t.Errorf("crashed status = %+v", st)
 	}

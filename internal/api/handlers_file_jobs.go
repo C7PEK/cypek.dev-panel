@@ -187,6 +187,7 @@ func (s *Server) handleFilesFetch(w http.ResponseWriter, r *http.Request) {
 	// The query string may carry access tokens: log host and path only.
 	s.auditFile(r, "files.fetch", in.Path, map[string]any{"host": u.Host, "path": u.EscapedPath(), "source": src.Kind, "extract": in.Extract})
 	serverDir := s.servers.Dir(srv.ID)
+	snapshot := *job // the goroutine below updates job; answer with a copy
 	go func() {
 		defer cancel()
 		incoming, err := m.NewIncoming(in.Path)
@@ -211,7 +212,7 @@ func (s *Server) handleFilesFetch(w http.ResponseWriter, r *http.Request) {
 		}
 		s.finishJob(job.ID, err, ctx)
 	}()
-	writeJSON(w, http.StatusAccepted, map[string]any{"job": job})
+	writeJSON(w, http.StatusAccepted, map[string]any{"job": snapshot})
 }
 
 func (s *Server) extractJob(ctx context.Context, m *files.Manager, jobID, archivePath, to, serverDir string) error {
@@ -250,11 +251,12 @@ func (s *Server) handleFilesExtract(w http.ResponseWriter, r *http.Request) {
 	}
 	s.auditFile(r, "files.extract", req.Path, map[string]any{"to": req.To})
 	serverDir := s.servers.Dir(srv.ID)
+	snapshot := *job
 	go func() {
 		defer cancel()
 		s.finishJob(job.ID, s.extractJob(ctx, m, job.ID, req.Path, req.To, serverDir), ctx)
 	}()
-	writeJSON(w, http.StatusAccepted, map[string]any{"job": job})
+	writeJSON(w, http.StatusAccepted, map[string]any{"job": snapshot})
 }
 
 func (s *Server) handleFileJobs(w http.ResponseWriter, r *http.Request) {

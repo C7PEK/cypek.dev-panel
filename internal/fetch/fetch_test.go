@@ -15,9 +15,9 @@ func TestResolve(t *testing.T) {
 	cases := map[string]string{
 		"https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view?usp=sharing": "https://drive.usercontent.google.com/download?id=1AbCdEfGhIjKlMnOp&export=download&confirm=t",
 		"https://drive.google.com/open?id=1AbCdEfGhIjKlMnOp":                 "https://drive.usercontent.google.com/download?id=1AbCdEfGhIjKlMnOp&export=download&confirm=t",
-		"https://www.dropbox.com/scl/fi/xyz/world.zip?rlkey=abc&dl=0":         "https://www.dropbox.com/scl/fi/xyz/world.zip?dl=1&rlkey=abc",
-		"https://github.com/o/r/blob/main/pack.zip":                           "https://raw.githubusercontent.com/o/r/main/pack.zip",
-		"https://cdn.example.com/files/server.zip":                            "https://cdn.example.com/files/server.zip",
+		"https://www.dropbox.com/scl/fi/xyz/world.zip?rlkey=abc&dl=0":        "https://www.dropbox.com/scl/fi/xyz/world.zip?dl=1&rlkey=abc",
+		"https://github.com/o/r/blob/main/pack.zip":                          "https://raw.githubusercontent.com/o/r/main/pack.zip",
+		"https://cdn.example.com/files/server.zip":                           "https://cdn.example.com/files/server.zip",
 	}
 	for in, want := range cases {
 		got, err := Resolve(in)
@@ -41,7 +41,7 @@ type memSink struct {
 	aborted   bool
 }
 
-func (m *memSink) Create() (io.Writer, error)          { return &m.buf, nil }
+func (m *memSink) Create() (io.Writer, error)         { return &m.buf, nil }
 func (m *memSink) Commit(name string) (string, error) { m.committed = name; return name, nil }
 func (m *memSink) Abort()                             { m.aborted = true }
 

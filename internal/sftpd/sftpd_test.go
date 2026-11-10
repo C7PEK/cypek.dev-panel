@@ -76,6 +76,9 @@ func startServer(t *testing.T) *env {
 	addr := ln.Addr().String()
 	ln.Close()
 	srv := &Server{Listen: addr, HostKeyPath: filepath.Join(root, "hostkey"), Backend: b}
+	if err := srv.LoadHostKey(); err != nil { // as serve.go does, before Run
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go srv.Run(ctx)
