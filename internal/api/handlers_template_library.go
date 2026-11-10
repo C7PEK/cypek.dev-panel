@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/C7PEK/cypek.dev-panel/internal/netguard"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -290,53 +289,4 @@ func fetchTemplateURL(ctx context.Context, raw string) (string, []byte, error) {
 
 // publicHTTPClient refuses to connect to loopback, private and link-local
 // addresses so a template link cannot be used to probe the LAN.
-var publicHTTPClient = &http.Client{
-	Timeout: 20 * time.Second,
-	Transport: &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout: 10 * time.Second,
-			Control: func(_, address string, _ syscall.RawConn) error {
-				host, _, err := net.SplitHostPort(address)
-				if err != nil {
-					return err
-				}
-				ip := net.ParseIP(host)
-				if ip == nil || ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.IsMulticast() || inBlocked(ip) {
-					return fmt.Errorf("refusing to connect to %s (not a public address)", host)
-				}
-				return nil
-			},
-		}).DialContext,
-		TLSHandshakeTimeout: 10 * time.Second,
-	},
-	CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if req.URL.Scheme != "https" {
-			return errors.New("redirect to a non-https link")
-		}
-		if len(via) >= 5 {
-			return errors.New("too many redirects")
-		}
-		return nil
-	},
-}
-
-// blockedNets: shared/CGNAT (Tailscale 100.64/10), benchmarking, "this"
-// network and NAT64, none of which a public template host uses.
-var blockedNets = func() []*net.IPNet {
-	var out []*net.IPNet
-	for _, c := range []string{"100.64.0.0/10", "198.18.0.0/15", "0.0.0.0/8", "64:ff9b::/96", "64:ff9b:1::/48"} {
-		_, n, _ := net.ParseCIDR(c)
-		out = append(out, n)
-	}
-	return out
-}()
-
-func inBlocked(ip net.IP) bool {
-	for _, n := range blockedNets {
-		if n.Contains(ip) {
-			return true
-		}
-	}
-	return false
-}
+var publicHTTPClient = netguard.Client(netguard.Options{Timeout: 20 * time.Second, HTTPSOnly: true, MaxRedirects: 5})

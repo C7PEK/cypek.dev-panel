@@ -190,22 +190,6 @@ type extractRequest struct {
 	To   string `json:"to"`
 }
 
-func (s *Server) handleFilesExtract(w http.ResponseWriter, r *http.Request) {
-	var req extractRequest
-	if !decodeJSON(w, r, &req) {
-		return
-	}
-	if req.To == "" {
-		req.To = path.Dir("/" + req.Path)
-	}
-	if err := s.filesFor(r).Extract(req.Path, req.To); err != nil {
-		s.writeFileError(w, r, err)
-		return
-	}
-	s.auditFile(r, "files.extract", req.Path, map[string]any{"to": req.To})
-	w.WriteHeader(http.StatusNoContent)
-}
-
 // handleFilesUpload accepts multipart/form-data with one or more "files"
 // parts into ?path=<dir>. Each part is capped at max_upload_mb.
 func (s *Server) handleFilesUpload(w http.ResponseWriter, r *http.Request) {

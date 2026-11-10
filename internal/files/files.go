@@ -426,11 +426,15 @@ func (m *Manager) Extract(archivePath, dirPath string) error {
 	if err := os.MkdirAll(dst, 0o750); err != nil {
 		return err
 	}
-	// Uploaded archives may not create links (a link to "/" or to another
-	// server would turn later panel operations against the host) nor write
-	// into .homepanel (run.json decides what the server executes).
+	return archive.Extract(src, dst, m.extractOptions())
+}
+
+// extractOptions: uploaded archives may not create links (a link to "/" or
+// to another server would turn later panel operations against the host)
+// nor write into .homepanel (run.json decides what the server executes).
+func (m *Manager) extractOptions() archive.Options {
 	rootReal, _ := filepath.EvalSymlinks(m.Root)
-	return archive.Extract(src, dst, archive.Options{NoLinks: true, Resolve: func(root, p string) (string, error) {
+	return archive.Options{NoLinks: true, Resolve: func(root, p string) (string, error) {
 		abs, err := ResolveSafe(root, p)
 		if err != nil {
 			return "", err
@@ -439,7 +443,7 @@ func (m *Manager) Extract(archivePath, dirPath string) error {
 			return "", ErrProtected
 		}
 		return abs, nil
-	}})
+	}}
 }
 
 // DiskUsage sums the sizes of regular files under the root (best effort).

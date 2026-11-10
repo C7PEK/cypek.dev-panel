@@ -47,3 +47,33 @@ To turn it off:
 [sftp]
 enabled = false
 ```
+
+## Big files: download from a link instead
+
+SFTP itself is fast (about 170–230 MB/s upload and 400 MB/s download
+measured locally). When uploads take ages, the bottleneck is the path from
+your computer to the server: home upload speed, Wi-Fi, or a Tailscale relay.
+For big worlds or modpacks use **Files → Download from link**. The server
+downloads the file itself, at the home connection's download speed (about
+10 MB/s measured on the dev machine).
+
+| Source | Works | Notes |
+|---|---|---|
+| Dropbox | yes | the normal share link (`dl=0` is changed to `dl=1`) |
+| Google Drive | yes | share as "Anyone with the link"; single files only, not folders; large files skip the virus-scan page |
+| OneDrive | yes | public share links (TODO(verify): shares API) |
+| GitHub | yes | `blob` links become raw links; release assets are direct |
+| Direct links | yes | any `https://` or `http://` link that serves the file itself |
+| MEGA | no | files are decrypted in the browser |
+| WeTransfer, MediaFire | no | they show a web page first; for MediaFire copy the address of the download button instead |
+
+- **Safety:** only public internet addresses are allowed, so the panel can
+  never be told to fetch from the LAN or localhost.
+- **Size:** a file may use the free disk space minus 1 GB.
+- **No overwriting:** an existing name gets " (2)" and so on.
+- **Jobs:** at most 2 jobs per server and 4 in total, each cut off after 6
+  hours. Jobs can be cancelled.
+- **Extraction:** "Extract after download" unpacks .zip, .tar(.gz/.xz/.zst)
+  in the background, with the same rules as the file manager (no links, never
+  into `.homepanel`, stops when the disk would fill). Extracting an existing
+  archive also runs in the background now.

@@ -60,7 +60,7 @@ func TestTemplateLibraryImportInstallAndDelete(t *testing.T) {
 		t.Fatalf("import http url: %d %v", resp.StatusCode, body)
 	}
 	resp, body = e.do(http.MethodPost, "/api/v1/templates/import", map[string]any{"url": "https://127.0.0.1:1/egg.json"})
-	if resp.StatusCode != 422 || !strings.Contains(body["error"].(map[string]any)["message"].(string), "not a public address") {
+	if resp.StatusCode != 422 || !strings.Contains(body["error"].(map[string]any)["message"].(string), "not a public internet address") {
 		t.Fatalf("import loopback url: %d %v", resp.StatusCode, body)
 	}
 

@@ -108,6 +108,7 @@ type Server struct {
 	alertMon       *alerts.Monitor
 	alertSender    alerts.Sender
 	sftpInfo       SFTPInfo
+	fileJobs       fileJobs
 
 	loginLimitIP   *auth.RateLimiter
 	loginLimitUser *auth.RateLimiter
@@ -382,6 +383,9 @@ func New(d Deps) (http.Handler, error) {
 					fr.With(s.withServer(auth.PermFilesWrite)).Post("/delete", s.handleFilesDelete)
 					fr.With(s.withServer(auth.PermFilesWrite)).Post("/extract", s.handleFilesExtract)
 					fr.With(s.withServer(auth.PermFilesWrite)).Post("/upload", s.handleFilesUpload)
+					fr.With(s.withServer(auth.PermFilesWrite)).Post("/fetch", s.handleFilesFetch)
+					fr.With(s.withServer(auth.PermFilesRead)).Get("/jobs", s.handleFileJobs)
+					fr.With(s.withServer(auth.PermFilesWrite)).Delete("/jobs/{jid}", s.handleCancelFileJob)
 				})
 			})
 		})

@@ -29,6 +29,13 @@ type Options struct {
 	// Progress, when set, is called with the running entry count every few
 	// hundred entries (big archives take a while with pure-Go xz).
 	Progress func(entries int)
+	// MaxBytes stops extraction once this many bytes were written (zip
+	// bombs, a full disk); 0 = unlimited.
+	MaxBytes int64
+	// Cancel is polled between entries; returning true aborts.
+	Cancel func() bool
+	// Written, when set, receives the running byte count.
+	Written func(n int64)
 	// NoLinks refuses symlink and hardlink entries (user uploads). Game
 	// artifacts (FXServer's alpine/) need their symlinks.
 	NoLinks bool
@@ -56,6 +63,39 @@ func (o Options) tick(n int) {
 	if o.Progress != nil && n%200 == 0 {
 		o.Progress(n)
 	}
+}
+
+// ErrCancelled is returned when Options.Cancel asked to stop.
+var ErrCancelled = errors.New("extraction cancelled")
+
+// ErrTooLarge is returned when Options.MaxBytes is exceeded.
+var ErrTooLarge = errors.New("the archive unpacks to more than the allowed size")
+
+func (o Options) cancelled() bool { return o.Cancel != nil && o.Cancel() }
+
+// budget counts written bytes across entries.
+type budget struct {
+	opts Options
+	n    int64
+}
+
+func (b *budget) reader(r io.Reader) io.Reader { return &budgetReader{b: b, r: r} }
+
+type budgetReader struct {
+	b *budget
+	r io.Reader
+}
+
+func (br *budgetReader) Read(p []byte) (int, error) {
+	n, err := br.r.Read(p)
+	br.b.n += int64(n)
+	if br.b.opts.MaxBytes > 0 && br.b.n > br.b.opts.MaxBytes {
+		return n, ErrTooLarge
+	}
+	if br.b.opts.Written != nil && n > 0 {
+		br.b.opts.Written(br.b.n)
+	}
+	return n, err
 }
 
 // Extract unpacks archivePath into dest, picking the format from the file name.
@@ -181,6 +221,7 @@ func extractTar(archivePath, dest string, opts Options, wrap func(io.Reader) (io
 		return err
 	}
 	tr := tar.NewReader(r)
+	bud := &budget{opts: opts}
 	n := 0
 	for {
 		h, err := tr.Next()
@@ -192,6 +233,9 @@ func extractTar(archivePath, dest string, opts Options, wrap func(io.Reader) (io
 		}
 		n++
 		opts.tick(n)
+		if opts.cancelled() {
+			return ErrCancelled
+		}
 		rel, ok, err := stripped(h.Name, opts.Strip)
 		if err != nil {
 			return err
@@ -213,7 +257,7 @@ func extractTar(archivePath, dest string, opts Options, wrap func(io.Reader) (io
 			}
 			_ = os.Chmod(target, dirMode(h.Mode))
 		case tar.TypeReg:
-			if err := writeFile(destAbs, target, tr, fileMode(h.Mode)); err != nil {
+			if err := writeFile(destAbs, target, bud.reader(tr), fileMode(h.Mode)); err != nil {
 				return err
 			}
 		case tar.TypeSymlink:
@@ -260,8 +304,12 @@ func extractZip(archivePath, dest string, opts Options) error {
 	if err := os.MkdirAll(destAbs, 0o755); err != nil {
 		return err
 	}
+	bud := &budget{opts: opts}
 	for i, zf := range zr.File {
 		opts.tick(i + 1)
+		if opts.cancelled() {
+			return ErrCancelled
+		}
 		rel, ok, err := stripped(zf.Name, opts.Strip)
 		if err != nil {
 			return err
@@ -303,7 +351,7 @@ func extractZip(archivePath, dest string, opts Options) error {
 			if err != nil {
 				return err
 			}
-			err = writeFile(destAbs, target, rc, fileMode(int64(mode.Perm())))
+			err = writeFile(destAbs, target, bud.reader(rc), fileMode(int64(mode.Perm())))
 			rc.Close()
 			if err != nil {
 				return err
