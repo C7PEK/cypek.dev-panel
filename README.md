@@ -9,9 +9,17 @@ run as systemd units so they survive panel restarts and updates.
 
 ## Install (Debian 12+ / Ubuntu 22.04+, amd64/arm64)
 
+One command (as root or with sudo):
+
 ```sh
-curl -sSL https://panel.cypek.dev/install.sh | sudo bash
+curl -fsSL https://github.com/C7PEK/cypek.dev-panel/releases/latest/download/install.sh | sudo bash
 ```
+
+It downloads the binary for your CPU (checksum-verified), creates the `homepanel`
+user, systemd units and polkit rule, starts the panel and prints the address and the
+one-time setup token. Open the address in a browser and create the owner account.
+Run the same command again to repair or upgrade; `... | sudo bash -s -- --uninstall`
+removes it.
 
 See `docs/install.md` for paths, updates (`sudo homepanel update`) and uninstall.
 

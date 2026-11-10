@@ -9,7 +9,7 @@
 ## Install
 
 ```sh
-curl -sSL https://panel.cypek.dev/install.sh | sudo bash
+curl -fsSL https://github.com/C7PEK/cypek.dev-panel/releases/latest/download/install.sh | sudo bash
 ```
 
 Options: `--port 8420`, `--version vX.Y.Z` (default: latest release). The

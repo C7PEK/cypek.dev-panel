@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # panel.cypek.dev installer. Usage:
-#   curl -sSL https://panel.cypek.dev/install.sh | sudo bash
+#   curl -fsSL https://github.com/C7PEK/cypek.dev-panel/releases/latest/download/install.sh | sudo bash
 #   sudo bash install.sh [--port 8420] [--version vX.Y.Z] [--uninstall [--purge]]
 # Idempotent: run it again to repair an installation or to upgrade.
 set -euo pipefail
@@ -63,7 +63,11 @@ if [ "$UNINSTALL" -eq 1 ]; then
   for u in $(systemctl list-units --plain --no-legend 'homepanel-server@*' 2>/dev/null | awk '{print $1}'); do
     systemctl stop "$u" || true
   done
-  rm -f /etc/systemd/system/homepanel.service /etc/systemd/system/homepanel-server@.service /etc/polkit-1/rules.d/50-homepanel.rules
+  systemctl stop homepanel-phpmyadmin 2>/dev/null || true
+  systemctl disable homepanel-phpmyadmin 2>/dev/null || true
+  rm -f /etc/systemd/system/homepanel.service /etc/systemd/system/homepanel-server@.service \
+    /etc/systemd/system/homepanel-update.service /etc/systemd/system/homepanel-database-install.service \
+    /etc/systemd/system/homepanel-phpmyadmin.service /etc/polkit-1/rules.d/50-homepanel.rules
   rm -rf /etc/systemd/system.control/homepanel-server@*.service.d
   systemctl daemon-reload
   rm -f "$BIN" "$BIN.bak"
@@ -152,5 +156,8 @@ if [ -f "$DATA/setup-token" ]; then
   echo "    Setup token:  $(cat "$DATA/setup-token")"
   echo "    (needed once to create the owner account)"
 fi
+echo "    SFTP:         port 2022 (login and password as in the panel)"
 echo "    Logs:         journalctl -u homepanel -f"
-echo "    Update:       sudo homepanel update"
+echo "    Update:       in the panel (Settings) or: sudo homepanel update"
+echo
+echo "    Open the URL in a browser and create the owner account with the setup token."
