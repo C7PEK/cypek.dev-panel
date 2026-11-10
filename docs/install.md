@@ -12,6 +12,13 @@
 curl -fsSL https://github.com/C7PEK/cypek.dev-panel/releases/latest/download/install.sh | sudo bash
 ```
 
+On a minimal Debian/Ubuntu (for example a fresh Proxmox LXC) logged in as
+root, where `curl` and `sudo` are missing:
+
+```sh
+apt update && apt install -y curl && curl -fsSL https://github.com/C7PEK/cypek.dev-panel/releases/latest/download/install.sh | bash
+```
+
 Options: `--port 8420`, `--version vX.Y.Z` (default: latest release). The
 script is idempotent: running it again repairs files and upgrades the binary
 without touching your data.

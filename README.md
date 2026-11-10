@@ -15,6 +15,13 @@ One command (as root or with sudo):
 curl -fsSL https://github.com/C7PEK/cypek.dev-panel/releases/latest/download/install.sh | sudo bash
 ```
 
+On a minimal Debian/Ubuntu (for example a fresh Proxmox LXC) logged in as
+root, where `curl` and `sudo` are missing:
+
+```sh
+apt update && apt install -y curl && curl -fsSL https://github.com/C7PEK/cypek.dev-panel/releases/latest/download/install.sh | bash
+```
+
 It downloads the binary for your CPU (checksum-verified), creates the `homepanel`
 user, systemd units and polkit rule, starts the panel and prints the address and the
 one-time setup token. Open the address in a browser and create the owner account.

@@ -14,8 +14,8 @@ jobs:
       - uses: actions/setup-go@v5
         with: { go-version-file: go.mod }
       # Full tests run in ci.yml on every push; a release only needs a build.
-      - run: go vet ./...
       - run: make release VERSION=${GITHUB_REF_NAME}
+      - run: go vet ./...
       - run: cp packaging/install.sh dist/install.sh
       - uses: softprops/action-gh-release@v2
         with:
