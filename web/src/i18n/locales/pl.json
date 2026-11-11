@@ -1233,7 +1233,9 @@
     "done": "Panel zaktualizowany do {{version}}",
     "failed": "Aktualizacja nie powiodła się: {{message}}",
     "timeout": "Panel nie wrócił po aktualizacji w ciągu 5 minut. Sprawdź: journalctl -u homepanel-update",
-    "navHint": "Dostępna aktualizacja panelu"
+    "navHint": "Dostępna aktualizacja panelu",
+    "checkedLatest": "Sprawdzono — masz najnowszą wersję.",
+    "checkedAvailable": "Dostępna nowa wersja: {{version}}"
   },
   "settings": {
     "title": "Ustawienia",

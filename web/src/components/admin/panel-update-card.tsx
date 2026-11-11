@@ -144,7 +144,16 @@ export function PanelUpdateCard() {
               </Alert>
             ) : (
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" disabled={refresh.isPending} onClick={() => refresh.mutate(undefined, { onError: (e) => toast.error(describeError(t, e)) })}>
+                <Button variant="outline" size="sm" disabled={refresh.isPending} onClick={() =>
+                    refresh.mutate(undefined, {
+                      onSuccess: (info) => {
+                        if (info?.available && info.latest) toast.success(t("panelUpdate.checkedAvailable", { version: info.latest }))
+                        else if (info?.error) toast.error(info.error)
+                        else toast.success(t("panelUpdate.checkedLatest"))
+                      },
+                      onError: (e) => toast.error(describeError(t, e)),
+                    })
+                  }>
                   {refresh.isPending ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />}
                   {t("panelUpdate.checkNow")}
                 </Button>
