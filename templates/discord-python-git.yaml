@@ -1,6 +1,8 @@
 id: discord-python-git
 name: Discord bot (Python, git)
 category: discord-bot
+group: python
+order: 20
 icon: discord
 description:
   pl: Bot w Pythonie z repozytorium git (np. discord.py). Panel pobiera Pythona, tworzy venv w katalogu serwera i instaluje requirements.txt. Token bota trafia do zmiennej środowiskowej DISCORD_TOKEN.

@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { isApiError } from "@/lib/api"
 import { describeError } from "@/lib/errors"
-import { duplicateYaml, fetchTemplateYaml, isImported, localized, sourceKind, useDeleteTemplate, useTemplates } from "@/lib/templates"
+import { compareTemplates, duplicateYaml, fetchTemplateYaml, isImported, localized, sourceKind, useDeleteTemplate, useTemplates } from "@/lib/templates"
 import type { Template, User } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -40,7 +40,7 @@ export function AdminTemplatesPage({ user }: { user: User }) {
       if (filter === "imported") return isImported(tpl)
       return true
     })
-    return [...f].sort((a, b) => a.name.localeCompare(b.name))
+    return [...f].sort(compareTemplates)
   }, [templates.data, filter])
 
   async function openEditor(tpl: Template) {

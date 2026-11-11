@@ -351,7 +351,47 @@
     "reinstallTitle": "Zainstaluj ponownie",
     "reinstallDescription": "Pobiera pliki serwera jeszcze raz (i aktualizuje do najnowszego builda wybranej wersji). Świat, pluginy i konfiguracja zostają. Serwer musi być zatrzymany.",
     "reinstall": "Uruchom instalację ponownie",
-    "reinstallStarted": "Instalacja ruszyła."
+    "reinstallStarted": "Instalacja ruszyła.",
+    "categoriesLabel": "Kategorie",
+    "allCategories": "Wszystkie",
+    "searchPlaceholder": "Szukaj, np. forge",
+    "noMatch": "Nic nie pasuje do wyszukiwania.",
+    "groups": {
+      "plugins": {
+        "title": "Pluginy",
+        "hint": "Paper i pochodne: pluginy Bukkit/Spigot, gra bez modów po stronie gracza"
+      },
+      "mods": {
+        "title": "Mody",
+        "hint": "Forge, NeoForge, Fabric, Quilt: paczki modów, gracze potrzebują tych samych modów"
+      },
+      "vanilla": {
+        "title": "Czysty Minecraft",
+        "hint": "Oficjalny serwer Mojang, bez dodatków"
+      },
+      "proxy": {
+        "title": "Proxy",
+        "hint": "Kilka serwerów pod jednym adresem (lobby, survival...)"
+      },
+      "bedrock": {
+        "title": "Bedrock",
+        "hint": "Telefony, konsole i Windows 10/11"
+      },
+      "fxserver": {
+        "title": "FXServer",
+        "hint": "Serwer GTA V roleplay i nie tylko"
+      },
+      "node": {
+        "title": "Node.js",
+        "hint": "discord.js i inne biblioteki JavaScript/TypeScript"
+      },
+      "python": {
+        "title": "Python",
+        "hint": "discord.py, nextcord, py-cord"
+      },
+      "imported": "Zaimportowane i własne szablony",
+      "custom": "Coś innego"
+    }
   },
   "install": {
     "title": "Instalowanie",

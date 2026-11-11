@@ -1,6 +1,8 @@
 id: minecraft-paper
 name: Minecraft (Paper)
 category: minecraft
+group: plugins
+order: 10
 icon: minecraft
 description:
   pl: Najpopularniejszy serwer Minecraft Java Edition z obsługą pluginów. Java jest pobierana automatycznie.

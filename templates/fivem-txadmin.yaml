@@ -1,6 +1,8 @@
 id: fivem-txadmin
 name: FiveM z txAdmin
 category: fivem
+group: fxserver
+order: 20
 icon: fivem
 description:
   pl: FXServer uruchamiany przez txAdmin, czyli własny panel FiveM na porcie 40120 (konfiguracja, zasoby, bany). Do przepisów ESX/QBCore najpierw utwórz bazę w zakładce Bazy danych panelu i wpisz jej użytkownika, hasło i nazwę w kreatorze txAdmin (host 127.0.0.1). UWAGA, txAdmin ma własny harmonogram restartów, który dubluje harmonogram tego panelu; włącz tylko jeden. Przy pierwszym starcie PIN logowania pojawi się w konsoli. Tylko hosty x86_64.

@@ -1,0 +1,115 @@
+id: minecraft-bedrock
+name: Minecraft Bedrock
+category: minecraft
+group: bedrock
+order: 10
+icon: minecraft
+description:
+  pl: Oficjalny serwer Bedrock Dedicated Server dla graczy z telefonów, konsol i Windows 10/11. Bez Javy i bez pluginów. Tylko hosty x86_64.
+  en: The official Bedrock Dedicated Server for players on phones, consoles and Windows 10/11. No Java and no plugins. x86_64 hosts only.
+
+variables:
+  - key: CHANNEL
+    label: { pl: Wersja, en: Version }
+    help:
+      pl: Gracze muszą mieć tę samą wersję gry co serwer. „Preview” to wersja testowa dla graczy z Minecraft Preview.
+      en: Players need the same game version as the server. "Preview" is the test version for Minecraft Preview players.
+    type: select
+    options: [release, preview]
+    default: release
+  - key: SERVER_NAME
+    label: { pl: Nazwa serwera, en: Server name }
+    type: string
+    default: Dedicated Server
+    maxLength: 60
+  - key: PORT
+    label: { pl: Port gry (UDP), en: Game port (UDP) }
+    help:
+      pl: Domyślnie 19132. Bedrock używa UDP, więc na routerze przekieruj port UDP.
+      en: Default 19132. Bedrock uses UDP, so forward a UDP port on your router.
+    type: number
+    default: 19132
+    min: 1024
+    max: 65534
+  - key: PORT_V6
+    label: { pl: Port IPv6 (UDP), en: IPv6 port (UDP) }
+    help:
+      pl: Musi być inny niż port gry. Domyślnie 19133.
+      en: Must differ from the game port. Default 19133.
+    type: number
+    default: 19133
+    min: 1024
+    max: 65535
+  - key: MAX_PLAYERS
+    label: { pl: Maksymalna liczba graczy, en: Max players }
+    type: number
+    default: 10
+    min: 1
+    max: 200
+  - key: EULA
+    label:
+      pl: Akceptuję Minecraft EULA i Politykę prywatności Microsoft (https://aka.ms/MinecraftEULA)
+      en: I accept the Minecraft EULA and the Microsoft Privacy Policy (https://aka.ms/MinecraftEULA)
+    help:
+      pl: Mojang wymaga akceptacji przed pobraniem serwera. Panel nie akceptuje jej za Ciebie.
+      en: Mojang requires it before downloading the server. The panel does not accept it on your behalf.
+    type: bool
+    default: false
+    consent: true
+
+runtime:
+  kind: none
+
+install:
+  # Written first so the download only happens after the user accepted.
+  - write:
+      path: .panel-eula-accepted
+      content: "accepted in the panel's create wizard\n"
+      requireConsent: EULA
+  - download:
+      provider: bedrock
+      version: "{{CHANNEL}}"
+      to: bedrock-server.zip
+  # A reinstall (update) keeps the world list, permissions and settings.
+  - extract:
+      from: bedrock-server.zip
+      to: "."
+      keep: [server.properties, permissions.json, allowlist.json, packetlimitconfig.json]
+  - properties:
+      path: server.properties
+      set:
+        server-name: "{{SERVER_NAME}}"
+        server-port: "{{PORT}}"
+        server-portv6: "{{PORT_V6}}"
+        max-players: "{{MAX_PLAYERS}}"
+
+start:
+  command: ./bedrock_server
+  env:
+    LD_LIBRARY_PATH: "."
+stop:
+  command: stop
+  timeoutSec: 30
+readyRegex: 'Server started\.'
+
+ports:
+  - { name: game, port: "{{PORT}}", protocol: udp }
+  - { name: game-v6, port: "{{PORT_V6}}", protocol: udp }
+
+warnCommand: "say {{message}}"
+
+console:
+  commands:
+    - { name: list, help: { pl: Pokaż graczy online, en: Show online players } }
+    - { name: say, args: "<message...>", help: { pl: Wiadomość do wszystkich graczy, en: Message to all players } }
+    - { name: kick, args: "<player> [reason...]", help: { pl: Wyrzuć gracza, en: Kick a player } }
+    - { name: op, args: "<player>", help: { pl: Nadaj uprawnienia operatora, en: Grant operator rights } }
+    - { name: deop, args: "<player>", help: { pl: Odbierz uprawnienia operatora, en: Revoke operator rights } }
+    - { name: allowlist, args: "<on|off|list|add|remove|reload> [player]", help: { pl: Biała lista, en: Allowlist } }
+    - { name: gamerule, args: "<rule> [value]", help: { pl: Zasady świata, en: World rules } }
+    - { name: difficulty, args: "<peaceful|easy|normal|hard>", help: { pl: Poziom trudności, en: Difficulty } }
+    - { name: weather, args: "<clear|rain|thunder>", help: { pl: Pogoda, en: Weather } }
+    - { name: time, args: "<set|add> <day|night|number>", help: { pl: Pora dnia, en: Time of day } }
+    - { name: save, args: "<hold|query|resume>", help: { pl: Wstrzymaj zapis świata do backupu, en: Pause world saving for a backup } }
+    - { name: reload, help: { pl: Przeładuj paczki zachowań, en: Reload behavior packs } }
+    - { name: stop, help: { pl: Zatrzymaj serwer, en: Stop the server } }

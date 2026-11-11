@@ -16,6 +16,8 @@ and `;` in a value are just characters.
 id: minecraft-paper            # lowercase letters, digits, dashes
 name: Minecraft (Paper)
 category: minecraft            # fivem | minecraft | discord-bot | other
+group: plugins                 # optional section inside the category in the wizard
+order: 10                      # optional rank inside the group (lower first, default 100)
 description: { pl: "...", en: "..." }
 
 variables:                     # shown in the wizard, validated by the panel
@@ -71,7 +73,33 @@ Builtins you can use but must not declare: `JAVA` (path to the java binary
 prepared by the runtime step), `JVM_FLAGS...` (the flag list PaperMC
 recommends; spread into separate arguments), `NODE`, `NPM`, `NPX` (Node.js
 runtime), `PYTHON`, `PIP` (the server's own `.venv`, created by the python
-runtime step), `message` (only in `warnCommand`).
+runtime step), `message` (only in `warnCommand`), `MC_VERSION_RESOLVED`
+(the concrete Minecraft version a `paper`, `mojang`, `fabric`, `purpur`,
+`forge`, `neoforge` or `quilt` download picked for `latest`) and
+`LOADER_VERSION` (the Forge/NeoForge/Quilt build, e.g. `1.21.11-61.2.4`).
+
+## Categories and groups
+
+The wizard shows templates in category tabs (`minecraft`, `fivem`,
+`discord-bot`, `other`) and, inside a category, in sections by `group`.
+The panel names these groups (in Polish and English): `plugins`, `mods`,
+`vanilla`, `proxy`, `bedrock` (Minecraft), `fxserver` (FiveM), `node`,
+`python` (Discord bots). Any other group (lowercase letters, digits,
+dashes) is shown as written, e.g. `group: survival-games` becomes
+"Survival games". Imported and custom templates get their own section.
+
+Built-in templates:
+
+| category | group | templates |
+|---|---|---|
+| minecraft | plugins | Paper, Purpur, Folia |
+| minecraft | mods | Forge, NeoForge, Fabric, Quilt |
+| minecraft | vanilla | Vanilla |
+| minecraft | proxy | Velocity |
+| minecraft | bedrock | Bedrock Dedicated Server |
+| fivem | fxserver | FXServer, FXServer + txAdmin |
+| discord-bot | node | Node.js bot (your files), Node.js bot from git |
+| discord-bot | python | Python bot (your files), Python bot from git |
 
 ## Install steps
 
@@ -87,6 +115,21 @@ runtime step), `message` (only in `warnCommand`).
     picked) for the verified `server.jar` the launcher loads.
   - `provider: purpur` downloads the newest Purpur build for `version`,
     verified with Purpur's MD5.
+  - `provider: folia` and `provider: velocity` work like `paper` for
+    PaperMC's other projects (SHA-256 verified). Velocity sets
+    `PROXY_VERSION` instead of a Minecraft version.
+  - `provider: forge` downloads the recommended (else latest) Forge
+    installer for the Minecraft `version` (`latest` or e.g. `1.20.1`,
+    oldest 1.12.2); `provider: neoforge` the newest stable (else beta)
+    NeoForge installer; both verified with the maven's SHA-256 (SHA-1 for
+    old Forge builds). Run it next with an `exec` step:
+    `{{JAVA}} -jar forge-installer.jar --installServer`. It writes
+    `libraries/<loader>/<LOADER_VERSION>/unix_args.txt` for the start line.
+  - `provider: quilt` downloads the newest Quilt installer; run it with
+    `install server {{MC_VERSION_RESOLVED}} --download-server --install-dir=.`.
+  - `provider: bedrock` downloads the Bedrock Dedicated Server zip for
+    Linux (`version: release` or `preview`). No checksum is published,
+    HTTPS only. x86_64 hosts only.
   - `provider: fivem` resolves `version` (`recommended`, `latest` or a
     build number from the changelog API) to an FXServer Linux artifact.
     Cfx.re publishes no checksums; HTTPS only. x86_64 hosts only.
@@ -95,7 +138,10 @@ runtime step), `message` (only in `warnCommand`).
 - `extract`: unpacks `from` (tar.gz, tar.xz, zip) into `to` (`.` = server
   directory), dropping `strip` leading folders (GitHub zips have one). Paths
   that try to escape the destination abort the install. The archive is
-  deleted afterwards unless `delete: false`.
+  deleted afterwards unless `delete: false`. `keep: [server.properties,
+  "*.json"]` (globs relative to `to`) leaves those files alone when they
+  already exist, so reinstalling over a new server archive keeps the
+  user's settings.
 - `write`: writes a small text file. With `requireConsent: VAR` the step
   fails unless the user switched that bool on.
 - `properties`: sets keys in a `key=value` file, keeping other lines and
@@ -110,7 +156,10 @@ runtime step), `message` (only in `warnCommand`).
   skips the step when that file is missing (e.g. `requirements.txt`), and
   `ifMissing` when it exists (`npm ci` with a lockfile, `npm install`
   without);
-  `timeoutSec` defaults to 900. The runtime bin folders are on PATH.
+  `timeoutSec` defaults to 900. The runtime bin folders are on PATH. With
+  `runtime: {kind: java, version: auto}` Java is prepared right before the
+  first `exec` or `script` step (after the downloads reported which Java
+  the server needs), so a mod loader installer can use `{{JAVA}}`.
 
 Paths are relative to the server directory; `..` and absolute paths are
 rejected.
@@ -123,6 +172,10 @@ rejected.
 | `minecraft-versions` | Mojang manifest: release versions |
 | `fabric-versions` | Fabric meta: stable game versions Fabric supports |
 | `purpur-versions` | Purpur API: versions with builds |
+| `folia-versions`, `velocity-versions` | PaperMC Fill API for Folia / Velocity |
+| `forge-versions` | Forge promotions: Minecraft versions with a Forge build (1.12.2+) |
+| `neoforge-versions` | NeoForged maven: Minecraft versions with a NeoForge build |
+| `quilt-versions` | Quilt meta: stable game versions Quilt supports |
 | `fivem-artifacts` | Cfx.re changelog API: recommended, latest and still-supported builds |
 
 ## Player queries

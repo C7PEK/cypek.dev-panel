@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, ChevronDownIcon, Loader2Icon, ScrollTextIcon, TerminalIcon } from "lucide-react"
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, ChevronDownIcon, Loader2Icon, ScrollTextIcon } from "lucide-react"
 import { type FormEvent, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useNavigate } from "react-router"
@@ -10,7 +10,8 @@ import { CategoryIcon } from "@/components/servers/category-icon"
 import { CreateServerDialog } from "@/components/servers/create-server-dialog"
 import { PortConflictNotice } from "@/components/servers/port-conflict-notice"
 import { VariableFields } from "@/components/servers/variable-fields"
-import { ScriptBadge, SourceBadge } from "@/components/templates/source-badge"
+import { SourceBadge } from "@/components/templates/source-badge"
+import { TemplatePicker } from "@/components/templates/template-picker"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,7 +23,7 @@ import { describeError, describePortConflict, portConflictOf } from "@/lib/error
 import { PortHelp } from "@/components/servers/port-help"
 import { describeLiveConflict, portVariable, resolvePorts, usePortCheck } from "@/lib/ports"
 import { type ExpiryChoice, expiryDays, useCreateServer } from "@/lib/servers"
-import { isImported, localized, renderPort, sourceKind, useTemplates } from "@/lib/templates"
+import { localized, renderPort, sourceKind, useTemplates } from "@/lib/templates"
 import type { CreateServerInput, Template, User } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -163,7 +164,7 @@ export function NewServerPage({ user }: { user: User }) {
 
   return (
     <AppShell user={user}>
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+      <div className={cn("mx-auto flex w-full flex-col gap-6", step === 1 ? "max-w-5xl" : "max-w-3xl")}>
         <Link to="/" className="label-caps inline-flex items-center gap-1.5 text-[0.66rem] text-muted-foreground hover:text-foreground">
           <ArrowLeftIcon className="size-3" />
           {t("serverPage.back")}
@@ -222,49 +223,7 @@ export function NewServerPage({ user }: { user: User }) {
                 </AlertDescription>
               </Alert>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {templates.data.map((tpl) => (
-                  <button
-                    key={tpl.id}
-                    type="button"
-                    onClick={() => pick(tpl)}
-                    className="group flex flex-col gap-3 rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:text-foreground">
-                        <CategoryIcon category={tpl.category} templateId={tpl.id} className="size-5" />
-                      </span>
-                      <div className="min-w-0">
-                        <div className="font-heading text-lg font-medium tracking-[0.03em]">{tpl.name}</div>
-                        <div className="label-caps text-[0.62rem] text-muted-foreground">{t(`servers.category.${tpl.category}`)}</div>
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{localized(tpl.description, i18n.resolvedLanguage)}</p>
-                    {(isImported(tpl) || sourceKind(tpl) === "custom" || tpl.usesScript) && (
-                      <div className="mt-auto flex flex-wrap gap-1.5">
-                        {sourceKind(tpl) !== "builtin" && <SourceBadge template={tpl} />}
-                        {tpl.usesScript && <ScriptBadge />}
-                      </div>
-                    )}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setCustomOpen(true)}
-                  className="group flex flex-col gap-3 rounded-xl border border-dashed bg-card/50 p-4 text-left transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:text-foreground">
-                      <TerminalIcon className="size-5" />
-                    </span>
-                    <div>
-                      <div className="font-heading text-lg font-medium tracking-[0.03em]">{t("templates.customTitle")}</div>
-                      <div className="label-caps text-[0.62rem] text-muted-foreground">{t("servers.category.other")}</div>
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{t("templates.customDescription")}</p>
-                </button>
-              </div>
+              <TemplatePicker templates={templates.data} onPick={pick} onCustom={() => setCustomOpen(true)} />
             )}
             <CreateServerDialog open={customOpen} onOpenChange={setCustomOpen} />
           </section>

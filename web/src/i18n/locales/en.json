@@ -349,7 +349,47 @@
     "reinstallTitle": "Reinstall",
     "reinstallDescription": "Downloads the server files again (and updates to the newest build of the chosen version). Your world, plugins and configuration stay in place. The server must be stopped.",
     "reinstall": "Run installation again",
-    "reinstallStarted": "Installation started."
+    "reinstallStarted": "Installation started.",
+    "categoriesLabel": "Categories",
+    "allCategories": "All",
+    "searchPlaceholder": "Search, e.g. forge",
+    "noMatch": "Nothing matches your search.",
+    "groups": {
+      "plugins": {
+        "title": "Plugins",
+        "hint": "Paper and its forks: Bukkit/Spigot plugins, no client mods needed"
+      },
+      "mods": {
+        "title": "Mods",
+        "hint": "Forge, NeoForge, Fabric, Quilt: modpacks, players need the same mods"
+      },
+      "vanilla": {
+        "title": "Vanilla",
+        "hint": "The official Mojang server, nothing added"
+      },
+      "proxy": {
+        "title": "Proxy",
+        "hint": "Several servers under one address (lobby, survival...)"
+      },
+      "bedrock": {
+        "title": "Bedrock",
+        "hint": "Phones, consoles and Windows 10/11"
+      },
+      "fxserver": {
+        "title": "FXServer",
+        "hint": "GTA V roleplay servers and more"
+      },
+      "node": {
+        "title": "Node.js",
+        "hint": "discord.js and other JavaScript/TypeScript libraries"
+      },
+      "python": {
+        "title": "Python",
+        "hint": "discord.py, nextcord, py-cord"
+      },
+      "imported": "Imported and custom templates",
+      "custom": "Something else"
+    }
   },
   "install": {
     "title": "Installing",

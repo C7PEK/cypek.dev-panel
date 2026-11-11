@@ -10,7 +10,6 @@ import (
 	"context"
 	"crypto/md5"
 	"crypto/sha1"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/C7PEK/cypek.dev-panel/internal/safefs"
@@ -47,9 +46,14 @@ type Deps struct {
 	Mojang *providers.Mojang
 	Fabric *providers.Fabric
 	Purpur *providers.Purpur
-	Java   *runtimes.Java
-	Node   *runtimes.Node
-	Python *runtimes.Python
+	// Mod loaders and Bedrock; nil means the public default.
+	Forge    *providers.Forge
+	NeoForge *providers.NeoForge
+	Quilt    *providers.Quilt
+	Bedrock  *providers.Bedrock
+	Java     *runtimes.Java
+	Node     *runtimes.Node
+	Python   *runtimes.Python
 	// Scripts runs `script` steps inside the server's sandbox.
 	Scripts ScriptRunner
 	Log     *slog.Logger
@@ -265,8 +269,8 @@ func (m *Manager) run(ctx context.Context, job *Job, dir string, tpl *templates.
 	// The runtime is prepared before the install steps when they may need it
 	// (npm, pip, java -jar installer.jar in egg scripts). Only Java "auto"
 	// waits: it depends on what the download step reports as the minimum.
-	runtimeFirst := runtimeBeforeSteps(tpl.Runtime)
-	if runtimeFirst {
+	runtimeReady := runtimeBeforeSteps(tpl.Runtime)
+	if runtimeReady {
 		if err := c.runtime(ctx, 0, tpl.Runtime); err != nil {
 			return nil, err
 		}
@@ -274,6 +278,15 @@ func (m *Manager) run(ctx context.Context, job *Job, dir string, tpl *templates.
 	for i, st := range tpl.Install {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
+		}
+		// Java "auto" is prepared once the download steps reported the
+		// minimum, but before the first program that may need it (a mod
+		// loader installer: java -jar installer.jar --installServer).
+		if !runtimeReady && (st.Exec != nil || st.Script != nil) {
+			if err := c.runtime(ctx, i+1, tpl.Runtime); err != nil {
+				return nil, err
+			}
+			runtimeReady = true
 		}
 		var err error
 		switch {
@@ -296,7 +309,7 @@ func (m *Manager) run(ctx context.Context, job *Job, dir string, tpl *templates.
 			return nil, err
 		}
 	}
-	if !runtimeFirst {
+	if !runtimeReady {
 		if err := c.runtime(ctx, len(tpl.Install)+1, tpl.Runtime); err != nil {
 			return nil, err
 		}
@@ -339,25 +352,28 @@ func (c *stepCtx) download(ctx context.Context, n int, st *templates.DownloadSte
 		return err
 	}
 	switch st.Provider {
-	case "paper":
-		c.begin(n, "Downloading Paper")
-		if c.m.deps.Paper == nil {
-			return errors.New("paper provider not configured")
+	case "paper", "folia", "velocity":
+		return c.downloadPaper(ctx, n, st.Provider, version, dest)
+	case "forge", "neoforge", "quilt":
+		return c.downloadLoader(ctx, n, st.Provider, version, dest)
+	case "bedrock":
+		c.begin(n, "Downloading the Bedrock Dedicated Server")
+		bd := c.m.deps.Bedrock
+		if bd == nil {
+			bd = providers.NewBedrock()
 		}
-		info, err := c.m.deps.Paper.Resolve(ctx, version)
+		srv, err := bd.Resolve(ctx, version)
 		if err != nil {
-			return fmt.Errorf("resolve Paper %s: %w", version, err)
-		}
-		c.logf("Paper %s build %d (%s), needs Java %d", info.Version, info.LatestBuild, info.DownloadName, info.JavaMinimum)
-		if err := providers.Download(ctx, info.DownloadURL, dest, info.SHA256, c.progress); err != nil {
 			return err
 		}
-		c.logf("Downloaded and verified %s", filepath.Base(dest))
-		c.vars["MC_VERSION_RESOLVED"] = info.Version
-		c.vars["MC_BUILD"] = strconv.Itoa(info.LatestBuild)
-		c.vars["JAVA_MIN"] = strconv.Itoa(info.JavaMinimum)
-		flags, _ := json.Marshal(info.JVMFlags)
-		c.vars[templates.KeyJVMFlags] = string(flags)
+		c.logf("Bedrock Dedicated Server %s", srv.Version)
+		c.logf("Mojang publishes no checksum for it; downloading over HTTPS only")
+		// minecraft.net's CDN resets requests whose agent carries a URL.
+		// TODO(verify): checked 2026-11-11; the plain product name passes.
+		if err := providers.Download(providers.WithUserAgent(ctx, "homepanel/0.1"), srv.URL, dest, "", c.progress); err != nil {
+			return err
+		}
+		c.vars["BEDROCK_VERSION"] = srv.Version
 		return nil
 	case "mojang":
 		if version == "latest" && c.vars["MC_VERSION_RESOLVED"] != "" {
@@ -512,7 +528,11 @@ func (c *stepCtx) extract(n int, st *templates.ExtractStep) error {
 			last = time.Now()
 		}
 	}
-	if err := archive.Extract(src, dest, archive.Options{Strip: st.Strip, Progress: progress, Resolve: files.ResolveSafe}); err != nil {
+	opts := archive.Options{Strip: st.Strip, Progress: progress, Resolve: files.ResolveSafe}
+	if len(st.Keep) > 0 {
+		opts.Keep = func(rel string) bool { return st.Keeps(rel) }
+	}
+	if err := archive.Extract(src, dest, opts); err != nil {
 		return fmt.Errorf("extract %s: %w", from, err)
 	}
 	if st.Delete == nil || *st.Delete {

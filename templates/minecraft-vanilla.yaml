@@ -1,6 +1,8 @@
 id: minecraft-vanilla
 name: Minecraft (Vanilla)
 category: minecraft
+group: vanilla
+order: 10
 icon: minecraft
 description:
   pl: Oficjalny serwer Mojang bez modyfikacji. Bez pluginów i modów, najbliżej „czystej” gry. Java jest pobierana automatycznie.

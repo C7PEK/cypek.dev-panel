@@ -195,6 +195,10 @@ export interface Template {
   name: string
   category: ServerCategory
   icon?: string
+  /** Sub-section inside the category (minecraft: plugins, mods, vanilla, proxy, bedrock). */
+  group?: string
+  /** Rank inside the group, lower first. */
+  order?: number
   description?: LocalizedText
   variables: TemplateVariable[]
   runtime: { kind: string; version?: string }

@@ -26,6 +26,26 @@ type Paper struct {
 	mu       sync.Mutex
 	versions []string
 	fetched  time.Time
+	siblings map[string]*Paper
+}
+
+// ForProject returns the client for another PaperMC project on the same
+// API (folia, velocity), keeping one per project so its cache survives.
+func (p *Paper) ForProject(name string) *Paper {
+	if name == p.Project {
+		return p
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.siblings == nil {
+		p.siblings = map[string]*Paper{}
+	}
+	if s, ok := p.siblings[name]; ok {
+		return s
+	}
+	s := &Paper{BaseURL: p.BaseURL, Project: name}
+	p.siblings[name] = s
+	return s
 }
 
 // NewPaper returns a client for the paper project.
@@ -106,7 +126,7 @@ func (p *Paper) Resolve(ctx context.Context, version string) (*PaperVersionInfo,
 		}
 		stable := StableVersions(all)
 		if len(stable) == 0 {
-			return nil, fmt.Errorf("paper: no stable versions published")
+			return nil, fmt.Errorf("%s: no stable versions published", p.Project)
 		}
 		version = stable[0]
 	}

@@ -43,6 +43,17 @@ type Options struct {
 	// files.ResolveSafe so archives go through the same path check as the
 	// file manager; this package cannot import files).
 	Resolve func(root, userPath string) (string, error)
+	// Keep, when set, names entries (slash-separated, after Strip) that are
+	// skipped when the target already exists.
+	Keep func(rel string) bool
+}
+
+func (o Options) kept(target, rel string) bool {
+	if o.Keep == nil || !o.Keep(filepath.ToSlash(rel)) {
+		return false
+	}
+	_, err := os.Lstat(target)
+	return err == nil
 }
 
 func (o Options) check(root, rel string) error {
@@ -250,6 +261,9 @@ func extractTar(archivePath, dest string, opts Options, wrap func(io.Reader) (io
 		if err := opts.check(destAbs, rel); err != nil {
 			return err
 		}
+		if opts.kept(target, rel) {
+			continue
+		}
 		switch h.Typeflag {
 		case tar.TypeDir:
 			if err := safeDir(destAbs, target); err != nil {
@@ -323,6 +337,9 @@ func extractZip(archivePath, dest string, opts Options) error {
 		}
 		if err := opts.check(destAbs, rel); err != nil {
 			return err
+		}
+		if opts.kept(target, rel) {
+			continue
 		}
 		mode := zf.Mode()
 		switch {

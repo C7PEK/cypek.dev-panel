@@ -41,6 +41,20 @@ func Download(ctx context.Context, rawURL, dest, sha256hex string, progress Prog
 	return DownloadVerified(ctx, rawURL, dest, sha256.New(), sha256hex, 0, progress)
 }
 
+type userAgentKey struct{}
+
+// WithUserAgent makes downloads under ctx send ua instead of UserAgent.
+func WithUserAgent(ctx context.Context, ua string) context.Context {
+	return context.WithValue(ctx, userAgentKey{}, ua)
+}
+
+func userAgentFor(ctx context.Context) string {
+	if ua, ok := ctx.Value(userAgentKey{}).(string); ok && ua != "" {
+		return ua
+	}
+	return UserAgent
+}
+
 // ErrTooLarge means the download exceeded its size limit.
 var ErrTooLarge = errors.New("file is too large")
 
@@ -55,7 +69,7 @@ func DownloadVerified(ctx context.Context, rawURL, dest string, h hash.Hash, wan
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", UserAgent)
+	req.Header.Set("User-Agent", userAgentFor(ctx))
 	resp, err := DownloadClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("download %s: %w", rawURL, err)

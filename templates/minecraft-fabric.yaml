@@ -1,6 +1,8 @@
 id: minecraft-fabric
 name: Minecraft (Fabric)
 category: minecraft
+group: mods
+order: 30
 icon: minecraft
 description:
   pl: Serwer z loaderem Fabric na mody (np. Lithium, Fabric API). Mody dodasz w zakładce Mody. Java jest pobierana automatycznie.

@@ -1,6 +1,8 @@
 id: fivem
 name: FiveM (FXServer)
 category: fivem
+group: fxserver
+order: 10
 icon: fivem
 description:
   pl: Czysty FXServer z podstawowymi zasobami (cfx-server-data). Konfigurację robisz w server.cfg, serwer startuje od razu. Wymaga klucza z keymaster.fivem.net. Tylko hosty x86_64.

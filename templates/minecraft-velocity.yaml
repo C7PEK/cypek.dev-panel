@@ -1,0 +1,76 @@
+id: minecraft-velocity
+name: Velocity (proxy)
+category: minecraft
+group: proxy
+order: 10
+icon: minecraft
+description:
+  pl: Proxy od PaperMC, które łączy kilka serwerów Minecraft (np. lobby i survival) pod jednym adresem. Serwery dodajesz w velocity.toml. Java jest pobierana automatycznie.
+  en: PaperMC's proxy that joins several Minecraft servers (e.g. lobby and survival) under one address. Add servers in velocity.toml. Java is downloaded automatically.
+
+variables:
+  - key: VELOCITY_VERSION
+    label: { pl: Wersja Velocity, en: Velocity version }
+    help:
+      pl: Wersje SNAPSHOT to wersje testowe. Velocity obsługuje wiele wersji Minecrafta naraz.
+      en: SNAPSHOT versions are test builds. Velocity supports many Minecraft versions at once.
+    type: select
+    source: velocity-versions
+    default: latest
+  - key: RAM_MB
+    label: { pl: Pamięć RAM (MB), en: Memory (MB) }
+    help:
+      pl: Proxy potrzebuje mało pamięci. 512 MB wystarcza na kilkudziesięciu graczy.
+      en: A proxy needs little memory. 512 MB is enough for dozens of players.
+    type: number
+    default: 512
+    min: 256
+    max: 65536
+  - key: PORT
+    label: { pl: Port proxy, en: Proxy port }
+    help:
+      pl: Gracze łączą się na ten port. Serwery za proxy ustaw na inne porty i najlepiej nie przekierowuj ich na routerze.
+      en: Players connect to this port. Give the servers behind the proxy other ports and preferably do not forward those on your router.
+    type: number
+    default: 25577
+    min: 1024
+    max: 65535
+
+runtime:
+  kind: java
+  version: auto
+
+install:
+  - download:
+      provider: velocity
+      version: "{{VELOCITY_VERSION}}"
+      to: velocity.jar
+
+start:
+  command: "{{JAVA}}"
+  args:
+    - "-Xms{{RAM_MB}}M"
+    - "-Xmx{{RAM_MB}}M"
+    - "{{JVM_FLAGS...}}"
+    - "-jar"
+    - "velocity.jar"
+    # Overrides the bind port from velocity.toml.
+    - "--port"
+    - "{{PORT}}"
+stop:
+  command: shutdown
+  timeoutSec: 30
+readyRegex: 'Done \(\d+[.,]\d+s\)!'
+
+ports:
+  - { name: proxy, port: "{{PORT}}", protocol: tcp }
+
+query: { kind: minecraft-ping, port: "{{PORT}}" }
+
+console:
+  commands:
+    - { name: velocity, args: "<version|plugins|dump|heap|info>", help: { pl: Informacje o proxy, en: Proxy information } }
+    - { name: server, args: "[server]", help: { pl: Lista serwerów za proxy, en: Servers behind the proxy } }
+    - { name: glist, args: "[all|server]", help: { pl: Gracze na wszystkich serwerach, en: Players on all servers } }
+    - { name: send, args: "<player|all|current> <server>", help: { pl: Przenieś gracza na inny serwer, en: Move a player to another server } }
+    - { name: shutdown, args: "[reason...]", help: { pl: Zatrzymaj proxy, en: Stop the proxy } }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -76,6 +77,12 @@ func (s *Server) handleTemplateSource(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"options": opts})
 }
 
+// Loader clients keep their version lists cached between requests.
+var (
+	forgeClient    = providers.NewForge()
+	neoForgeClient = providers.NewNeoForge()
+)
+
 func (s *Server) sourceOptions(ctx context.Context, source string) ([]sourceOption, error) {
 	switch source {
 	case "paper-versions":
@@ -92,7 +99,22 @@ func (s *Server) sourceOptions(ctx context.Context, source string) ([]sourceOpti
 			opts = append(opts, sourceOption{Value: v, Label: v, Prerelease: providers.IsPrerelease(v)})
 		}
 		return opts, nil
-	case "minecraft-versions", "fabric-versions", "purpur-versions":
+	case "folia-versions", "velocity-versions":
+		project := strings.TrimSuffix(source, "-versions")
+		all, err := s.paper.ForProject(project).Versions(ctx)
+		if err != nil {
+			return nil, err
+		}
+		stable := providers.StableVersions(all)
+		opts := []sourceOption{{Value: "latest", Label: "latest"}}
+		if len(stable) > 0 {
+			opts[0].Label = "latest (" + stable[0] + ")"
+		}
+		for _, v := range all {
+			opts = append(opts, sourceOption{Value: v, Label: v, Prerelease: providers.IsPrerelease(v)})
+		}
+		return opts, nil
+	case "minecraft-versions", "fabric-versions", "purpur-versions", "forge-versions", "neoforge-versions", "quilt-versions":
 		var (
 			list []string
 			err  error
@@ -102,6 +124,12 @@ func (s *Server) sourceOptions(ctx context.Context, source string) ([]sourceOpti
 			list, err = providers.NewMojang().Releases(ctx)
 		case "fabric-versions":
 			list, err = providers.NewFabric().GameVersions(ctx)
+		case "forge-versions":
+			list, err = forgeClient.GameVersions(ctx)
+		case "neoforge-versions":
+			list, err = neoForgeClient.GameVersions(ctx)
+		case "quilt-versions":
+			list, err = providers.NewQuilt().GameVersions(ctx)
 		default:
 			list, err = providers.NewPurpur().Versions(ctx)
 		}

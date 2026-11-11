@@ -27,8 +27,12 @@ type Block = { top: string; topEdge: string; left: string; right: string; speck?
 
 const GRASS: Block = { top: "#62B246", topEdge: "#7CCB5B", left: "#8D5B32", right: "#6F4425", speck: "#5A3518", fringeL: "#4E9A31", fringeR: "#3E8125" }
 const PURPUR: Block = { top: "#C99BD0", topEdge: "#DDB7E2", left: "#A77BAE", right: "#8A6191", tiles: "#7A5482" }
+const BEDROCK: Block = { top: "#8E8E8E", topEdge: "#ABABAB", left: "#6B6B6B", right: "#555555", speck: "#353535" }
+const CRAFTING: Block = { top: "#B98E58", topEdge: "#D2A86E", left: "#8C6136", right: "#714C28", tiles: "#4E321A" }
+const PROXY: Block = { top: "#62C3EE", topEdge: "#8AD5F5", left: "#2F89B0", right: "#226C8D", tiles: "#17526C" }
 
-// An isometric pixel block (grass for Minecraft, purpur for Purpur).
+// An isometric pixel block: grass for Minecraft, purpur for Purpur, a
+// crafting table for mod loaders, bedrock for Bedrock, blue for the proxy.
 function BlockIcon({ b, className, title }: { b: Block; className?: string; title: string }) {
   return (
     <svg viewBox="0 0 16 16" className={className} role="img" aria-label={title}>
@@ -66,6 +70,9 @@ function BlockIcon({ b, className, title }: { b: Block; className?: string; titl
 export function CategoryIcon({ category, templateId, className }: { category: ServerCategory; templateId?: string; className?: string }) {
   const id = templateId ?? ""
   if (id.includes("purpur")) return <BlockIcon b={PURPUR} className={className} title="Purpur" />
+  if (id.includes("bedrock")) return <BlockIcon b={BEDROCK} className={className} title="Minecraft Bedrock" />
+  if (id.includes("velocity")) return <BlockIcon b={PROXY} className={className} title="Velocity" />
+  if (/forge|fabric|quilt/.test(id)) return <BlockIcon b={CRAFTING} className={className} title="Minecraft (mods)" />
   switch (category) {
     case "minecraft":
       return <BlockIcon b={GRASS} className={className} title="Minecraft" />

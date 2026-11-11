@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -147,6 +148,20 @@ type ExtractStep struct {
 	Strip int `yaml:"strip,omitempty" json:"strip,omitempty"`
 	// Delete removes the archive afterwards (default true).
 	Delete *bool `yaml:"delete,omitempty" json:"delete,omitempty"`
+	// Keep lists files (path.Match globs, relative to To) that are not
+	// overwritten when they already exist: the user's config survives a
+	// reinstall over a fresh server archive.
+	Keep []string `yaml:"keep,omitempty" json:"keep,omitempty"`
+}
+
+// Keeps reports whether rel (slash-separated, relative to To) is kept.
+func (e *ExtractStep) Keeps(rel string) bool {
+	for _, k := range e.Keep {
+		if ok, _ := path.Match(k, rel); ok {
+			return true
+		}
+	}
+	return false
 }
 
 // WriteStep writes a small text file; with RequireConsent naming a bool
@@ -243,21 +258,26 @@ type Console struct {
 
 // Template is a parsed template file.
 type Template struct {
-	ID          string           `yaml:"id" json:"id"`
-	Name        string           `yaml:"name" json:"name"`
-	Category    servers.Category `yaml:"category" json:"category"`
-	Icon        string           `yaml:"icon,omitempty" json:"icon,omitempty"`
-	Description Text             `yaml:"description,omitempty" json:"description,omitempty"`
-	Variables   []Variable       `yaml:"variables" json:"variables"`
-	Runtime     Runtime          `yaml:"runtime" json:"runtime"`
-	Install     []Step           `yaml:"install" json:"install"`
-	Start       Start            `yaml:"start" json:"start"`
-	Stop        Stop             `yaml:"stop" json:"stop"`
-	ReadyRegex  string           `yaml:"readyRegex,omitempty" json:"readyRegex,omitempty"`
-	Ports       []Port           `yaml:"ports,omitempty" json:"ports,omitempty"`
-	WarnCommand string           `yaml:"warnCommand,omitempty" json:"warnCommand,omitempty"`
-	Query       *Query           `yaml:"query,omitempty" json:"query,omitempty"`
-	Console     Console          `yaml:"console,omitempty" json:"console"`
+	ID       string           `yaml:"id" json:"id"`
+	Name     string           `yaml:"name" json:"name"`
+	Category servers.Category `yaml:"category" json:"category"`
+	Icon     string           `yaml:"icon,omitempty" json:"icon,omitempty"`
+	// Group sorts templates inside a category in the wizard (minecraft:
+	// plugins, mods, vanilla, proxy, bedrock; discord-bot: node, python).
+	Group string `yaml:"group,omitempty" json:"group,omitempty"`
+	// Order ranks templates inside a group (lower first, default 100).
+	Order       int        `yaml:"order,omitempty" json:"order,omitempty"`
+	Description Text       `yaml:"description,omitempty" json:"description,omitempty"`
+	Variables   []Variable `yaml:"variables" json:"variables"`
+	Runtime     Runtime    `yaml:"runtime" json:"runtime"`
+	Install     []Step     `yaml:"install" json:"install"`
+	Start       Start      `yaml:"start" json:"start"`
+	Stop        Stop       `yaml:"stop" json:"stop"`
+	ReadyRegex  string     `yaml:"readyRegex,omitempty" json:"readyRegex,omitempty"`
+	Ports       []Port     `yaml:"ports,omitempty" json:"ports,omitempty"`
+	WarnCommand string     `yaml:"warnCommand,omitempty" json:"warnCommand,omitempty"`
+	Query       *Query     `yaml:"query,omitempty" json:"query,omitempty"`
+	Console     Console    `yaml:"console,omitempty" json:"console"`
 	// ConfigDefaults are applied before every start (see ConfigDefault).
 	ConfigDefaults []ConfigDefault `yaml:"configDefaults,omitempty" json:"configDefaults,omitempty"`
 	// ConfigFiles are applied before every start (see ConfigFile).
@@ -271,8 +291,9 @@ type Template struct {
 }
 
 var (
-	idRe  = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,63}$`)
-	keyRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,63}$`)
+	idRe    = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,63}$`)
+	keyRe   = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,63}$`)
+	groupRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
 )
 
 // Parse decodes and validates one template.
@@ -300,6 +321,12 @@ func (t *Template) Validate() error {
 	}
 	if !t.Category.Valid() {
 		return fmt.Errorf("template %s: invalid category %q", t.ID, t.Category)
+	}
+	if t.Group != "" && !groupRe.MatchString(t.Group) {
+		return fmt.Errorf("template %s: group %q must be lowercase letters, digits and dashes", t.ID, t.Group)
+	}
+	if t.Order < 0 || t.Order > 10000 {
+		return fmt.Errorf("template %s: order must be 0-10000", t.ID)
 	}
 	seen := map[string]bool{}
 	for i := range t.Variables {
@@ -356,6 +383,11 @@ func (t *Template) Validate() error {
 			if s.Extract.To != "." {
 				if err := safeRelPath(s.Extract.To); err != nil {
 					return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
+				}
+			}
+			for _, k := range s.Extract.Keep {
+				if _, err := path.Match(k, ""); err != nil || safeRelPath(k) != nil {
+					return fmt.Errorf("template %s: install step %d: keep pattern %q is not a relative glob", t.ID, i+1, k)
 				}
 			}
 			if s.Extract.Strip < 0 || s.Extract.Strip > 8 {
@@ -551,11 +583,14 @@ const (
 	KeyServerDir  = "SERVER_DIR"
 	KeyRuntimeBin = "RUNTIME_BIN"
 	KeyJavaHome   = "JAVA_HOME"
+	// Set by version-resolving download steps (paper, forge, neoforge, ...).
+	KeyMCVersion     = "MC_VERSION_RESOLVED"
+	KeyLoaderVersion = "LOADER_VERSION"
 )
 
 func isBuiltinKey(k string) bool {
 	switch k {
-	case KeyJava, KeyJVMFlags, KeyNode, KeyNPM, KeyNPX, KeyPython, KeyPip, KeyMessage, KeyQueryKind, KeyQueryPort, KeyServerDir, KeyRuntimeBin, KeyJavaHome:
+	case KeyJava, KeyJVMFlags, KeyNode, KeyNPM, KeyNPX, KeyPython, KeyPip, KeyMessage, KeyQueryKind, KeyQueryPort, KeyServerDir, KeyRuntimeBin, KeyJavaHome, KeyMCVersion, KeyLoaderVersion:
 		return true
 	}
 	return false

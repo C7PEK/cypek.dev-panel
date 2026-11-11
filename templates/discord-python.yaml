@@ -1,6 +1,8 @@
 id: discord-python
 name: Discord bot (Python)
 category: discord-bot
+group: python
+order: 10
 icon: discord
 description:
   pl: Bot w Pythonie (np. discord.py) z Twoich plików. Po utworzeniu wrzuć pliki bota w zakładce Pliki (upload, SFTP albo „Pobierz z linku” z ZIP-a). Pakiety z requirements.txt instalują się same przy starcie w osobnym środowisku (.venv).

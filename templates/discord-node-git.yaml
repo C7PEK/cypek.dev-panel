@@ -1,6 +1,8 @@
 id: discord-node-git
 name: Discord bot (Node.js, git)
 category: discord-bot
+group: node
+order: 20
 icon: discord
 description:
   pl: Bot w JavaScript/TypeScript z repozytorium git (np. discord.js). Panel pobiera Node.js, klonuje repo i instaluje zależności przez npm. Token bota trafia do zmiennej środowiskowej DISCORD_TOKEN.

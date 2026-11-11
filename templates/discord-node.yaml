@@ -1,6 +1,8 @@
 id: discord-node
 name: Discord bot (Node.js)
 category: discord-bot
+group: node
+order: 10
 icon: discord
 description:
   pl: Bot w JavaScript/TypeScript (np. discord.js) z Twoich plików. Po utworzeniu wrzuć pliki bota w zakładce Pliki (upload, SFTP albo „Pobierz z linku” z ZIP-a). Zależności z package.json instalują się same przy starcie.

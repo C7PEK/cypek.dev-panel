@@ -117,3 +117,56 @@ func TestValidateValues(t *testing.T) {
 func writeFile(path, content string) error {
 	return osWriteFile(path, []byte(content))
 }
+
+// Every built-in template loads, sits in a group of its category and builds
+// a start command from its defaults (with the builtins an install sets).
+func TestBuiltinTemplatesComplete(t *testing.T) {
+	r, err := Load(builtin.Builtin, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"minecraft-paper", "minecraft-purpur", "minecraft-folia",
+		"minecraft-forge", "minecraft-neoforge", "minecraft-fabric", "minecraft-quilt",
+		"minecraft-vanilla", "minecraft-velocity", "minecraft-bedrock",
+		"fivem", "fivem-txadmin",
+		"discord-node", "discord-node-git", "discord-python", "discord-python-git",
+	}
+	for _, id := range want {
+		if _, ok := r.Get(id); !ok {
+			t.Errorf("built-in template %s missing", id)
+		}
+	}
+	for _, tp := range r.List() {
+		if tp.Group == "" || tp.Order == 0 {
+			t.Errorf("%s: group %q order %d", tp.ID, tp.Group, tp.Order)
+		}
+		vars := map[string]string{
+			KeyJava: "/opt/java/bin/java", KeyJVMFlags: "[]", KeyNode: "node", KeyNPM: "npm", KeyNPX: "npx",
+			KeyPython: "python3", KeyPip: "pip", KeyServerDir: "/srv/x", KeyRuntimeBin: "/opt/java/bin", KeyJavaHome: "/opt/java",
+			KeyMCVersion: "1.21.11", KeyLoaderVersion: "1.21.11-61.2.4", "LICENSE_KEY": "cfxk_abcdefghijklmnopqrstuvwxyz",
+		}
+		for _, v := range tp.Variables {
+			if _, ok := vars[v.Key]; !ok {
+				vars[v.Key] = v.Default
+			}
+		}
+		if _, _, err := BuildRun(tp, vars); err != nil {
+			t.Errorf("%s: %v", tp.ID, err)
+		}
+		for _, st := range tp.Install {
+			if st.Exec != nil {
+				if _, err := RenderArgs(st.Exec.Args, vars); err != nil {
+					t.Errorf("%s exec args: %v", tp.ID, err)
+				}
+			}
+			if st.Properties != nil {
+				for k, v := range st.Properties.Set {
+					if _, err := Render(v, vars); err != nil {
+						t.Errorf("%s properties %s: %v", tp.ID, k, err)
+					}
+				}
+			}
+		}
+	}
+}

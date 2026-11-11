@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import i18n from "i18next"
 
 import { api } from "@/lib/api"
-import type { LocalizedText, SourceOption, Template, TemplateImportResult, TemplatePort, TemplateSourceKind, TemplateYaml } from "@/lib/types"
+import type { LocalizedText, ServerCategory, SourceOption, Template, TemplateImportResult, TemplatePort, TemplateSourceKind, TemplateYaml } from "@/lib/types"
 
 export const templatesKey = ["templates"] as const
 
@@ -113,4 +113,23 @@ export function duplicateYaml(yaml: string, newId: string): string {
     return `name: ${JSON.stringify(name + " (copy)")}`
   })
   return out
+}
+
+/** Wizard order of categories and of the groups the panel names. */
+export const CATEGORY_ORDER: ServerCategory[] = ["minecraft", "fivem", "discord-bot", "other"]
+export const GROUP_ORDER = ["plugins", "mods", "vanilla", "proxy", "bedrock", "fxserver", "node", "python"]
+
+function rankOf(list: readonly string[], v: string) {
+  const i = list.indexOf(v)
+  return i === -1 ? list.length : i
+}
+
+/** Sorts templates by category, group, order and name (built-ins before imports). */
+export function compareTemplates(a: Template, b: Template) {
+  return (
+    rankOf(CATEGORY_ORDER, a.category) - rankOf(CATEGORY_ORDER, b.category) ||
+    rankOf(GROUP_ORDER, a.group ?? "") - rankOf(GROUP_ORDER, b.group ?? "") ||
+    (a.order ?? 100) - (b.order ?? 100) ||
+    a.name.localeCompare(b.name)
+  )
 }

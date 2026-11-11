@@ -1,6 +1,8 @@
 id: minecraft-purpur
 name: Minecraft (Purpur)
 category: minecraft
+group: plugins
+order: 20
 icon: minecraft
 description:
   pl: Fork Paper z dodatkowymi opcjami rozgrywki. Działają na nim pluginy Paper, Spigot i Bukkit. Java jest pobierana automatycznie.

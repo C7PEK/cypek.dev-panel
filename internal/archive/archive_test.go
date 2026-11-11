@@ -166,3 +166,39 @@ func TestExtractRejectsEscapes(t *testing.T) {
 		t.Error("zip slip wrote outside")
 	}
 }
+
+// Keep leaves existing files alone (a server update over the user's
+// settings) but still creates them on a fresh install.
+func TestExtractKeepsExistingFiles(t *testing.T) {
+	var zb bytes.Buffer
+	zw := zip.NewWriter(&zb)
+	for name, body := range map[string]string{"server.properties": "fresh", "bedrock_server": "new binary", "config/default/permissions.json": "[]"} {
+		w, _ := zw.Create(name)
+		_, _ = w.Write([]byte(body))
+	}
+	zw.Close()
+	src := filepath.Join(t.TempDir(), "bds.zip")
+	_ = os.WriteFile(src, zb.Bytes(), 0o644)
+	keep := func(rel string) bool { return rel == "server.properties" }
+
+	fresh := t.TempDir()
+	if err := Extract(src, fresh, Options{Keep: keep}); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(fresh, "server.properties")); string(b) != "fresh" {
+		t.Errorf("fresh install: server.properties = %q", b)
+	}
+
+	update := t.TempDir()
+	_ = os.WriteFile(filepath.Join(update, "server.properties"), []byte("mine"), 0o644)
+	_ = os.WriteFile(filepath.Join(update, "bedrock_server"), []byte("old binary"), 0o755)
+	if err := Extract(src, update, Options{Keep: keep}); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(update, "server.properties")); string(b) != "mine" {
+		t.Errorf("update overwrote server.properties: %q", b)
+	}
+	if b, _ := os.ReadFile(filepath.Join(update, "bedrock_server")); string(b) != "new binary" {
+		t.Errorf("update did not replace the binary: %q", b)
+	}
+}
