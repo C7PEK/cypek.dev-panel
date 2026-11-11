@@ -7,46 +7,50 @@ icon: fivem
 description:
   pl: Czysty FXServer z podstawowymi zasobami (cfx-server-data). Konfigurację robisz w server.cfg, serwer startuje od razu. Wymaga klucza z keymaster.fivem.net. Tylko hosty x86_64.
   en: Plain FXServer with the default resources (cfx-server-data). You configure server.cfg yourself and the server starts right away. Needs a key from keymaster.fivem.net. x86_64 hosts only.
+  de: Reiner FXServer mit den Standard-Ressourcen (cfx-server-data). Du konfigurierst die server.cfg selbst, und der Server startet sofort. Braucht einen Schlüssel von keymaster.fivem.net. Nur für x86_64-Hosts.
 
 variables:
   - key: LICENSE_KEY
-    label: { pl: Klucz licencyjny (sv_licenseKey), en: License key (sv_licenseKey) }
+    label: { pl: Klucz licencyjny (sv_licenseKey), en: License key (sv_licenseKey), de: Lizenzschlüssel (sv_licenseKey) }
     help:
       pl: Wygeneruj go na https://keymaster.fivem.net dla IP tej maszyny. Panel zapisuje go w server.cfg i w bazie w postaci zaszyfrowanej.
       en: Generate it at https://keymaster.fivem.net for this machine's IP. The panel writes it to server.cfg and stores it encrypted.
+      de: Erstelle ihn auf https://keymaster.fivem.net für die IP dieses Rechners. Das Panel schreibt ihn in die server.cfg und speichert ihn verschlüsselt.
     type: secret
     required: true
     pattern: '^[A-Za-z0-9_-]{20,128}$'
   - key: SERVER_NAME
-    label: { pl: Nazwa serwera (sv_hostname), en: Server name (sv_hostname) }
+    label: { pl: Nazwa serwera (sv_hostname), en: Server name (sv_hostname), de: Servername (sv_hostname) }
     type: string
     default: My FiveM Server
     maxLength: 120
   - key: MAX_CLIENTS
-    label: { pl: Maksymalna liczba graczy, en: Max players }
+    label: { pl: Maksymalna liczba graczy, en: Max players, de: Max. Spieler }
     help:
       pl: Powyżej 48 wymaga odpowiedniego poziomu subskrypcji Cfx.re.
       en: More than 48 needs the matching Cfx.re subscription tier.
+      de: Mehr als 48 braucht die passende Cfx.re-Abostufe.
     type: number
     default: 32
     min: 1
     max: 2048
   - key: PORT
-    label: { pl: Port gry (TCP+UDP), en: Game port (TCP+UDP) }
+    label: { pl: Port gry (TCP+UDP), en: Game port (TCP+UDP), de: Spielport (TCP+UDP) }
     type: number
     default: 30120
     min: 1024
     max: 65535
   - key: ARTIFACT
-    label: { pl: Wersja FXServer (artefakt), en: FXServer version (artifact) }
+    label: { pl: Wersja FXServer (artefakt), en: FXServer version (artifact), de: FXServer-Version (Artifact) }
     help:
       pl: '„recommended” to wersja zalecana przez Cfx.re, „latest” najnowsza.'
       en: '"recommended" is what Cfx.re suggests, "latest" the newest build.' 
+      de: '„recommended“ ist die Empfehlung von Cfx.re, „latest“ der neueste Build.'
     type: select
     source: fivem-artifacts
     default: recommended
   - key: LOCALE
-    label: { pl: Język serwera (locale), en: Server locale }
+    label: { pl: Język serwera (locale), en: Server locale, de: Server-Sprache }
     type: string
     default: pl-PL
     maxLength: 16
@@ -106,7 +110,6 @@ start:
 stop:
   command: quit
   timeoutSec: 60
-# TODO(verify): confirm the exact line FXServer prints once the license check passed.
 readyRegex: '(?i)(license key authentication succeeded|Authenticated with cfx\.re|server thread hitch|Started resource)'
 
 ports:
@@ -114,9 +117,6 @@ ports:
 
 query: { kind: fivem-http, port: "{{PORT}}" }
 
-# Kept present before every start (never overrides your own value). oxmysql
-# measures query time inside FXServer, so any server hitch (slow disk, heavy
-# resource start) shows up as a "slow query" at its 200 ms default.
 configDefaults:
   - files: ["server.cfg", "txData/*/server.cfg"]
     key: mysql_slow_query_warning
@@ -124,16 +124,16 @@ configDefaults:
 
 console:
   commands:
-    - { name: status, help: { pl: Lista graczy z ID i pingiem, en: Player list with ids and ping } }
-    - { name: say, args: "<message...>", help: { pl: Wiadomość do wszystkich (wymaga zasobu chat), en: Message to everyone (needs the chat resource) } }
-    - { name: ensure, args: "<resource>", help: { pl: Uruchom zasób (lub zrestartuj, gdy działa), en: Start a resource (restart if running) } }
-    - { name: start, args: "<resource>", help: { pl: Uruchom zasób, en: Start a resource } }
-    - { name: stop, args: "<resource>", help: { pl: Zatrzymaj zasób, en: Stop a resource } }
-    - { name: restart, args: "<resource>", help: { pl: Zrestartuj zasób, en: Restart a resource } }
-    - { name: refresh, help: { pl: Przeskanuj folder resources, en: Rescan the resources folder } }
-    - { name: clientkick, args: "<id> [reason...]", help: { pl: Wyrzuć gracza po ID (patrz status), en: Kick a player by id (see status) } }
-    - { name: sv_maxclients, args: "<number>", help: { pl: Zmień limit graczy do restartu, en: Change the player limit until restart } }
-    - { name: sv_hostname, args: "<name...>", help: { pl: Zmień nazwę serwera do restartu, en: Change the server name until restart } }
-    - { name: exec, args: "<file.cfg>", help: { pl: Wykonaj plik konfiguracyjny, en: Execute a config file } }
-    - { name: version, help: { pl: Wersja serwera, en: Server version } }
-    - { name: quit, help: { pl: Zatrzymaj serwer, en: Stop the server } }
+    - { name: status, help: { pl: Lista graczy z ID i pingiem, en: Player list with ids and ping, de: Spielerliste mit IDs und Ping } }
+    - { name: say, args: "<message...>", help: { pl: Wiadomość do wszystkich (wymaga zasobu chat), en: Message to everyone (needs the chat resource), de: Nachricht an alle (braucht die Ressource chat) } }
+    - { name: ensure, args: "<resource>", help: { pl: "Uruchom zasób (lub zrestartuj, gdy działa)", en: Start a resource (restart if running), de: "Ressource starten (oder neu starten, wenn sie läuft)" } }
+    - { name: start, args: "<resource>", help: { pl: Uruchom zasób, en: Start a resource, de: Ressource starten } }
+    - { name: stop, args: "<resource>", help: { pl: Zatrzymaj zasób, en: Stop a resource, de: Ressource stoppen } }
+    - { name: restart, args: "<resource>", help: { pl: Zrestartuj zasób, en: Restart a resource, de: Ressource neu starten } }
+    - { name: refresh, help: { pl: Przeskanuj folder resources, en: Rescan the resources folder, de: Ressourcen-Ordner neu einlesen } }
+    - { name: clientkick, args: "<id> [reason...]", help: { pl: Wyrzuć gracza po ID (patrz status), en: Kick a player by id (see status), de: Spieler per ID kicken (siehe status) } }
+    - { name: sv_maxclients, args: "<number>", help: { pl: Zmień limit graczy do restartu, en: Change the player limit until restart, de: Spielerlimit bis zum Neustart ändern } }
+    - { name: sv_hostname, args: "<name...>", help: { pl: Zmień nazwę serwera do restartu, en: Change the server name until restart, de: Servernamen bis zum Neustart ändern } }
+    - { name: exec, args: "<file.cfg>", help: { pl: Wykonaj plik konfiguracyjny, en: Execute a config file, de: Konfigurationsdatei ausführen } }
+    - { name: version, help: { pl: Wersja serwera, en: Server version, de: Serverversion } }
+    - { name: quit, help: { pl: Zatrzymaj serwer, en: Stop the server, de: Server stoppen } }

@@ -5,13 +5,12 @@ CREATE TABLE backups (
     file_name   TEXT    NOT NULL,
     size        INTEGER NOT NULL DEFAULT 0,
     note        TEXT    NOT NULL DEFAULT '',
-    trigger     TEXT    NOT NULL DEFAULT 'manual',   -- manual | schedule
+    trigger     TEXT    NOT NULL DEFAULT 'manual',
     created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at  TEXT    NOT NULL
 );
 CREATE INDEX backups_server ON backups(server_id, id);
 
--- Per-server backup settings: {"excludes":["cache/","logs/"],"keepLast":7,"keepDays":30,"flushMinecraft":true}
 ALTER TABLE servers ADD COLUMN backup_settings TEXT NOT NULL DEFAULT '{}';
 
 -- +goose Down

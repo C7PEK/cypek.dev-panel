@@ -15,11 +15,6 @@ import (
 	builtin "github.com/C7PEK/cypek.dev-panel/templates"
 )
 
-// TestRealFiveMInstall downloads the real FXServer artifact (~70 MB) and
-// cfx-server-data, boots the server through the shim and watches the console
-// for a minute. Without a valid key (HOMEPANEL_FIVEM_KEY) it only proves the
-// artifact starts on this host; with one it waits for the ready line.
-// Opt-in: HOMEPANEL_REAL_INSTALL=1, HOMEPANEL_REAL_DIR optional.
 func TestRealFiveMInstall(t *testing.T) {
 	if os.Getenv("HOMEPANEL_REAL_INSTALL") != "1" {
 		t.Skip("set HOMEPANEL_REAL_INSTALL=1 to download real artifacts")

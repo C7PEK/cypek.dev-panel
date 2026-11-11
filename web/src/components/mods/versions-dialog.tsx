@@ -18,7 +18,6 @@ interface Props {
   onInstall: (versionId: string) => void
 }
 
-/** Lets the user pick an older or pre-release version instead of the newest one. */
 export function VersionsDialog({ serverId, hit, installing, onClose, onInstall }: Props) {
   const { t, i18n } = useTranslation()
   const versions = useModVersions(serverId, hit?.projectId)
@@ -73,8 +72,7 @@ export function VersionsDialog({ serverId, hit, installing, onClose, onInstall }
   )
 }
 
-/** "1.21.1 – 1.21.4" style summary; versions are newest-first or unsorted. */
 function summarize(list: string[]): string {
   if (list.length <= 3) return list.join(", ")
-  return `${list[0]} – ${list[list.length - 1]} (${list.length})`
+  return `${list[0]} - ${list[list.length - 1]} (${list.length})`
 }

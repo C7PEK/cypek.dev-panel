@@ -12,13 +12,8 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-// hashSem serialises argon2 runs so concurrent logins cannot multiply the
-// 19 MiB working set, which also blunts login floods as a memory DoS.
 var hashSem = make(chan struct{}, 1)
 
-// deriveKey runs argon2id under hashSem and hands the freed memory back to the
-// OS right away: Go's scavenger would otherwise keep ~20 MiB resident for
-// minutes after every login, which matters for the panel's small-footprint goal.
 func deriveKey(pw string, salt []byte, iters, mem uint32, threads uint8, keyLen uint32) []byte {
 	hashSem <- struct{}{}
 	defer func() {
@@ -28,9 +23,6 @@ func deriveKey(pw string, salt []byte, iters, mem uint32, threads uint8, keyLen 
 	return argon2.IDKey([]byte(pw), salt, iters, mem, threads, keyLen)
 }
 
-// argon2id parameters, following the OWASP recommended minimum
-// (19 MiB, 2 iterations, 1 lane). Chosen over the 64 MiB variant because the
-// panel targets < 60 MB RSS on small boxes; see hashSem below.
 const (
 	argonTime    = 2
 	argonMemory  = 19 * 1024
@@ -45,8 +37,6 @@ const (
 var ErrPasswordTooShort = errors.New("password too short")
 var ErrPasswordTooLong = errors.New("password too long")
 
-// ValidatePassword enforces length limits. Complexity rules are deliberately
-// absent; length is what matters with argon2id.
 func ValidatePassword(pw string) error {
 	if len(pw) < MinPasswordLen {
 		return ErrPasswordTooShort
@@ -57,7 +47,6 @@ func ValidatePassword(pw string) error {
 	return nil
 }
 
-// HashPassword returns a PHC-formatted argon2id hash.
 func HashPassword(pw string) (string, error) {
 	salt := make([]byte, argonSaltLen)
 	if _, err := rand.Read(salt); err != nil {
@@ -70,9 +59,6 @@ func HashPassword(pw string) (string, error) {
 		base64.RawStdEncoding.EncodeToString(key)), nil
 }
 
-// VerifyPassword checks pw against a hash produced by HashPassword.
-// It returns false (not an error) for a wrong password, and an error only for
-// a malformed hash.
 func VerifyPassword(hash, pw string) (bool, error) {
 	parts := strings.Split(hash, "$")
 	if len(parts) != 6 || parts[1] != "argon2id" {

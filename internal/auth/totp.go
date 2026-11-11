@@ -18,7 +18,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/db"
 )
 
-// TOTP issuer shown in authenticator apps.
 const TOTPIssuer = "panel.cypek.dev"
 
 const backupCodeCount = 8
@@ -30,14 +29,11 @@ var (
 	ErrTOTPDisabled   = errors.New("2FA is not enabled")
 )
 
-// Sealer encrypts the TOTP secret at rest (the secrets box).
 type Sealer interface {
 	Seal(string) (string, error)
 	Open(string) (string, error)
 }
 
-// BeginTOTP generates a new secret for the user and stores it unconfirmed.
-// It returns the key so the caller can render the QR code.
 func (s *Store) BeginTOTP(ctx context.Context, u *User, sealer Sealer) (*otp.Key, error) {
 	if u.TOTPEnabled {
 		return nil, ErrTOTPEnabled
@@ -56,8 +52,6 @@ func (s *Store) BeginTOTP(ctx context.Context, u *User, sealer Sealer) (*otp.Key
 	return key, nil
 }
 
-// ConfirmTOTP enables 2FA once the user proves they have the secret, and
-// returns the one-time backup codes (plaintext, shown exactly once).
 func (s *Store) ConfirmTOTP(ctx context.Context, u *User, sealer Sealer, code string) ([]string, error) {
 	secret, enabled, err := s.totpSecret(ctx, u.ID, sealer)
 	if err != nil {
@@ -83,7 +77,6 @@ func (s *Store) ConfirmTOTP(ctx context.Context, u *User, sealer Sealer, code st
 	return codes, nil
 }
 
-// DisableTOTP turns 2FA off after a valid code (or backup code).
 func (s *Store) DisableTOTP(ctx context.Context, u *User, sealer Sealer, code string) error {
 	ok, err := s.VerifyTOTP(ctx, u.ID, sealer, code)
 	if err != nil {
@@ -99,7 +92,6 @@ func (s *Store) DisableTOTP(ctx context.Context, u *User, sealer Sealer, code st
 	return nil
 }
 
-// VerifyTOTP checks a 6-digit code or a backup code (which is consumed).
 func (s *Store) VerifyTOTP(ctx context.Context, userID int64, sealer Sealer, code string) (bool, error) {
 	secret, enabled, err := s.totpSecret(ctx, userID, sealer)
 	if err != nil {
@@ -142,7 +134,7 @@ func newBackupCodes() (codes, hashes []string, err error) {
 		if _, err := rand.Read(b); err != nil {
 			return nil, nil, err
 		}
-		c := strings.ToLower(hex.EncodeToString(b)) // 10 hex chars
+		c := strings.ToLower(hex.EncodeToString(b))
 		c = c[:5] + "-" + c[5:]
 		codes = append(codes, c)
 		hashes = append(hashes, hashBackup(c))
@@ -167,8 +159,7 @@ func (s *Store) consumeBackupCode(ctx context.Context, userID int64, code string
 		if h == want {
 			hashes = append(hashes[:i], hashes[i+1:]...)
 			hb, _ := json.Marshal(hashes)
-			// Compare-and-swap: of two concurrent requests with the same
-			// code only one sees the old list and wins.
+
 			res, err := s.db.ExecContext(ctx, `UPDATE users SET totp_backup_codes = ? WHERE id = ? AND totp_backup_codes = ?`, string(hb), userID, raw)
 			if err != nil {
 				return false, err
@@ -180,7 +171,6 @@ func (s *Store) consumeBackupCode(ctx context.Context, userID int64, code string
 	return false, nil
 }
 
-// BackupCodesLeft reports how many unused backup codes remain.
 func (s *Store) BackupCodesLeft(ctx context.Context, userID int64) int {
 	var raw string
 	if err := s.db.QueryRowContext(ctx, `SELECT totp_backup_codes FROM users WHERE id = ?`, userID).Scan(&raw); err != nil {
@@ -191,7 +181,6 @@ func (s *Store) BackupCodesLeft(ctx context.Context, userID int64) int {
 	return len(hashes)
 }
 
-// PendingLogins holds half-finished logins waiting for a one-time code.
 type PendingLogins struct {
 	ttl   time.Duration
 	items map[string]pendingLogin
@@ -203,12 +192,10 @@ type pendingLogin struct {
 	tries   int
 }
 
-// NewPendingLogins creates the store with a 5 minute window.
 func NewPendingLogins() *PendingLogins {
 	return &PendingLogins{ttl: 5 * time.Minute, items: map[string]pendingLogin{}}
 }
 
-// Add returns an opaque token for the user.
 func (p *PendingLogins) Add(userID int64) (string, error) {
 	tok, err := randomToken(24)
 	if err != nil {
@@ -224,7 +211,6 @@ func (p *PendingLogins) Add(userID int64) (string, error) {
 	return tok, nil
 }
 
-// Take looks a token up; after 5 wrong codes the token is burned.
 func (p *PendingLogins) Take(token string, success bool) (int64, bool) {
 	v, ok := p.items[token]
 	if !ok || time.Now().After(v.expires) {

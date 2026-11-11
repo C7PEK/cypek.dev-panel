@@ -6,7 +6,6 @@ import { api } from "@/lib/api"
 import { describePortConflict } from "@/lib/errors"
 import type { Port, PortConflict, Template } from "@/lib/types"
 
-/** Value that follows `value` after it stopped changing for `ms`. */
 export function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value)
   useEffect(() => {
@@ -16,7 +15,6 @@ export function useDebounced<T>(value: T, ms: number): T {
   return v
 }
 
-/** Template ports with the current values; ports that do not resolve to a number are left out. */
 export function resolvePorts(template: Template, values: Record<string, string>): Port[] {
   const out: Port[] = []
   for (const p of template.ports ?? []) {
@@ -27,14 +25,12 @@ export function resolvePorts(template: Template, values: Record<string, string>)
   return out
 }
 
-/** Variable a template port comes from, when the port is exactly "{{KEY}}". */
 export function portVariable(template: Template, portName: string): string | undefined {
   const p = template.ports?.find((x) => x.name === portName)
   const m = p?.port.match(/^\{\{([A-Za-z0-9_]+)\}\}$/)
   return m?.[1]
 }
 
-/** Live conflict check (admin endpoint), debounced by 500 ms. */
 export function usePortCheck(ports: Port[], serverId?: string, enabled = true) {
   const key = JSON.stringify(ports.map((p) => [p.port, p.protocol, p.name]))
   const debounced = useDebounced(key, 500)
@@ -50,7 +46,6 @@ export function usePortCheck(ports: Port[], serverId?: string, enabled = true) {
   })
 }
 
-/** Message for a conflict from the live /ports/check. */
 export function describeLiveConflict(t: TFunction, c: PortConflict): string {
   return describePortConflict(t, c.host ? "port_in_use_host" : "port_in_use", {
     port: c.port,

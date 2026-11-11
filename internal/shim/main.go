@@ -13,23 +13,18 @@ import (
 	"syscall"
 )
 
-// Main implements `homepanel shim <id> [--dir DIR] [--socket PATH]` and
-// returns the process exit code. It lives here so tests can run a real shim
-// from the test binary without building the CLI.
 func Main(args []string, defaultServersDir string, log *slog.Logger) int {
 	fs := flag.NewFlagSet("shim", flag.ContinueOnError)
 	dir := fs.String("dir", "", "server directory (default <servers>/<id>)")
 	socket := fs.String("socket", "", "console socket path (default /run/homepanel-<id>/console.sock)")
-	// Accept the id before or after the flags: systemd runs `shim %i`, the
-	// local supervisor passes flags too, and flag.Parse stops at the first
-	// positional argument.
+
 	var positional, flags []string
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if strings.HasPrefix(a, "-") {
 			flags = append(flags, a)
 			if !strings.Contains(a, "=") && i+1 < len(args) {
-				flags = append(flags, args[i+1]) // the flag's value
+				flags = append(flags, args[i+1])
 				i++
 			}
 			continue

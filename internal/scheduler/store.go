@@ -1,5 +1,3 @@
-// Package scheduler runs cron-triggered action chains against servers:
-// warn players, wait, run console commands, stop/start/restart, back up.
 package scheduler
 
 import (
@@ -16,13 +14,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/db"
 )
 
-// Action is one step of a chain. Fields depend on Type:
-//
-//	warn    {message}               send the template's warn command
-//	command {text}                  send a console line
-//	wait    {seconds}               sleep
-//	stop | start | restart | kill   power actions
-//	backup  {}                      create a backup (when backups are available)
 type Action struct {
 	Type    string `json:"type"`
 	Message string `json:"message,omitempty"`
@@ -30,7 +21,6 @@ type Action struct {
 	Seconds int    `json:"seconds,omitempty"`
 }
 
-// Schedule is a saved job.
 type Schedule struct {
 	ID            int64    `json:"id"`
 	ServerID      string   `json:"serverId"`
@@ -47,13 +37,12 @@ type Schedule struct {
 	NextRunAt     string   `json:"nextRunAt,omitempty"`
 }
 
-// Run is one execution record.
 type Run struct {
 	ID         int64  `json:"id"`
 	ScheduleID int64  `json:"scheduleId"`
 	StartedAt  string `json:"startedAt"`
 	FinishedAt string `json:"finishedAt,omitempty"`
-	Result     string `json:"result"` // running | ok | skipped | failed
+	Result     string `json:"result"`
 	Trigger    string `json:"trigger"`
 	Log        string `json:"log"`
 }
@@ -64,13 +53,10 @@ var (
 	ErrInvalidName = errors.New("invalid schedule name")
 )
 
-// Parser accepts standard 5-field cron plus descriptors like @daily.
 var Parser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 
-// MaxChainDuration bounds a whole chain (waits included).
 const MaxChainDuration = 2 * time.Hour
 
-// Validate checks a schedule definition.
 func (s *Schedule) Validate() error {
 	s.Name = strings.TrimSpace(s.Name)
 	if s.Name == "" || len(s.Name) > 80 || strings.ContainsAny(s.Name, "\n\r") {
@@ -98,7 +84,7 @@ func (s *Schedule) Validate() error {
 			}
 		case "wait":
 			if a.Seconds < 1 || a.Seconds > 3600 {
-				return fmt.Errorf("action %d: wait must be 1–3600 seconds", i+1)
+				return fmt.Errorf("action %d: wait must be 1-3600 seconds", i+1)
 			}
 			total += time.Duration(a.Seconds) * time.Second
 		case "stop", "start", "restart", "kill", "backup":
@@ -112,7 +98,6 @@ func (s *Schedule) Validate() error {
 	return nil
 }
 
-// NextRuns returns the next n fire times of expr in loc.
 func NextRuns(expr string, loc *time.Location, n int) ([]time.Time, error) {
 	sched, err := Parser.Parse(expr)
 	if err != nil {
@@ -130,12 +115,10 @@ func NextRuns(expr string, loc *time.Location, n int) ([]time.Time, error) {
 	return out, nil
 }
 
-// Store persists schedules and runs.
 type Store struct {
 	db *sql.DB
 }
 
-// NewStore wraps a migrated database.
 func NewStore(sqlDB *sql.DB) *Store { return &Store{db: sqlDB} }
 
 const cols = `id, server_id, name, cron_expr, enabled, actions, only_if_running, skip_if_players, created_by, created_at, updated_at, COALESCE(last_run_at,''), COALESCE(next_run_at,'')`
@@ -201,7 +184,6 @@ func (st *Store) Get(ctx context.Context, id int64) (*Schedule, error) {
 	return s, err
 }
 
-// List returns schedules of one server, or all when serverID is empty.
 func (st *Store) List(ctx context.Context, serverID string) ([]*Schedule, error) {
 	q := `SELECT ` + cols + ` FROM schedules`
 	var args []any
@@ -260,7 +242,6 @@ func (st *Store) updateRunLog(ctx context.Context, runID int64, log string) {
 	_, _ = st.db.ExecContext(ctx, `UPDATE schedule_runs SET log = ? WHERE id = ?`, log, runID)
 }
 
-// Runs returns the newest runs of a schedule.
 func (st *Store) Runs(ctx context.Context, scheduleID int64, limit int) ([]Run, error) {
 	rows, err := st.db.QueryContext(ctx, `SELECT id, schedule_id, started_at, COALESCE(finished_at,''), result, trigger, log FROM schedule_runs WHERE schedule_id = ? ORDER BY id DESC LIMIT ?`, scheduleID, limit)
 	if err != nil {
@@ -278,7 +259,6 @@ func (st *Store) Runs(ctx context.Context, scheduleID int64, limit int) ([]Run, 
 	return out, rows.Err()
 }
 
-// pruneRuns keeps the newest keep runs of a schedule.
 func (st *Store) pruneRuns(ctx context.Context, scheduleID int64, keep int) {
 	_, _ = st.db.ExecContext(ctx, `DELETE FROM schedule_runs WHERE schedule_id = ? AND id NOT IN (SELECT id FROM schedule_runs WHERE schedule_id = ? ORDER BY id DESC LIMIT ?)`, scheduleID, scheduleID, keep)
 }

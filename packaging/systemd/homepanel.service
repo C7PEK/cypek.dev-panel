@@ -11,8 +11,6 @@ Group=homepanel
 ExecStart=/usr/local/bin/homepanel serve --config /etc/homepanel/config.toml
 Restart=on-failure
 RestartSec=3
-# Hardening. Server units are controlled over D-Bus, so the panel itself
-# only needs its own directories.
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

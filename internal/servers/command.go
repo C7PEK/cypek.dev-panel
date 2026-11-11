@@ -7,9 +7,6 @@ import (
 	"strings"
 )
 
-// CommandProblem checks that the configured command can be executed before a
-// unit is started, so a typo yields a clear message instead of a crash loop.
-// Mirrors how the shim resolves it: absolute, relative to the server dir, or PATH.
 func CommandProblem(command, serverDir string) string {
 	var path string
 	switch {

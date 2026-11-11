@@ -1,7 +1,3 @@
-// Package mods manages Minecraft plugins and mods of a server from
-// Modrinth: it detects the server platform (loader + game version) from the
-// server's files, lists the installed jars and installs, updates, disables
-// and removes them with checksum verification.
 package mods
 
 import (
@@ -15,7 +11,6 @@ import (
 	"strings"
 )
 
-// Kinds of add-ons.
 const (
 	KindPlugins = "plugins"
 	KindMods    = "mods"
@@ -23,7 +18,7 @@ const (
 
 type loaderInfo struct {
 	kind   string
-	compat []string // loaders whose builds run on this one (Modrinth categories)
+	compat []string
 }
 
 var loaders = map[string]loaderInfo{
@@ -39,18 +34,15 @@ var loaders = map[string]loaderInfo{
 	"neoforge": {KindMods, []string{"neoforge"}},
 }
 
-// KnownLoader reports whether l is a supported loader id.
 func KnownLoader(l string) bool { _, ok := loaders[l]; return ok }
 
 var gameVersionRe = regexp.MustCompile(`^\d{1,3}\.\d{1,3}(\.\d{1,3})?$`)
 
-// ValidGameVersion accepts release versions such as 1.21.4 or 26.2.
 func ValidGameVersion(v string) bool { return gameVersionRe.MatchString(v) }
 
-// Platform is what the panel knows about a server's add-on support.
 type Platform struct {
-	Kind        string   `json:"kind"`   // plugins | mods | "" (unknown)
-	Loader      string   `json:"loader"` // "" when unknown
+	Kind        string   `json:"kind"`
+	Loader      string   `json:"loader"`
 	GameVersion string   `json:"gameVersion"`
 	Dir         string   `json:"dir"`
 	Detected    bool     `json:"detected"`
@@ -58,10 +50,8 @@ type Platform struct {
 	Loaders     []string `json:"loaders"`
 }
 
-// Known reports whether add-ons can be searched for and installed.
 func (p Platform) Known() bool { return p.Loader != "" }
 
-// ProjectType is the Modrinth search project type.
 func (p Platform) ProjectType() string {
 	if p.Kind == KindMods {
 		return "mod"
@@ -69,14 +59,11 @@ func (p Platform) ProjectType() string {
 	return "plugin"
 }
 
-// Hints are what the panel already knows from the template.
 type Hints struct {
 	TemplateID  string
-	GameVersion string // e.g. MC_VERSION_RESOLVED of the Paper template
+	GameVersion string
 }
 
-// Detect works out the platform from the files in dir, the template hints
-// and the admin's override (stored in .homepanel/mods.json).
 func Detect(dir string, h Hints) Platform {
 	st := loadState(dir)
 	loader := detectLoader(dir, h.TemplateID)
@@ -93,10 +80,10 @@ func Detect(dir string, h Hints) Platform {
 	}
 	if info, ok := loaders[p.Loader]; ok {
 		p.Kind, p.Loaders = info.kind, info.compat
-		p.Dir = info.kind // "plugins" or "mods" folder
+		p.Dir = info.kind
 	}
 	if p.Loader == "velocity" {
-		p.GameVersion = "" // proxies are not tied to a game version
+		p.GameVersion = ""
 	}
 	return p
 }
@@ -142,7 +129,7 @@ func detectLoader(dir, templateID string) string {
 	case exists(dir, "bukkit.yml"):
 		return "bukkit"
 	}
-	// A fresh server has no config files yet; trust the template's name.
+
 	id := strings.ToLower(templateID)
 	for _, l := range []string{"neoforge", "forge", "quilt", "fabric", "velocity", "purpur", "folia", "paper", "spigot", "bukkit"} {
 		if strings.Contains(id, l) {
@@ -152,8 +139,6 @@ func detectLoader(dir, templateID string) string {
 	return ""
 }
 
-// detectGameVersion reads version.json from the server jars (vanilla and
-// Paperclip jars carry it), then falls back to library folder names.
 func detectGameVersion(dir string) string {
 	jars, _ := filepath.Glob(filepath.Join(dir, "*.jar"))
 	sort.SliceStable(jars, func(i, j int) bool {
@@ -171,7 +156,6 @@ func detectGameVersion(dir string) string {
 		matches, _ := filepath.Glob(filepath.Join(dir, pattern))
 		var found []string
 		for _, m := range matches {
-			// Forge names folders "1.20.1-20230612.114412".
 			v, _, _ := strings.Cut(filepath.Base(m), "-")
 			if ValidGameVersion(v) {
 				found = append(found, v)

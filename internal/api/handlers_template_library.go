@@ -166,8 +166,7 @@ func (s *Server) handleDeleteTemplate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, CodeNotFound, "Unknown template.")
 		return
 	}
-	// Deleting an override falls back to the built-in, so servers keep a
-	// template; only a plain custom template can leave servers orphaned.
+
 	if !s.templates.Overrides(id) && r.URL.Query().Get("force") != "1" {
 		list, err := s.servers.List(r.Context(), nil)
 		if err != nil {
@@ -234,8 +233,6 @@ func (s *Server) handleImportTemplate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// hostToolWarnings names programs the template's scripts call that this
-// host does not have; package installs inside scripts are skipped.
 func hostToolWarnings(t *templates.Template) []string {
 	var script strings.Builder
 	for _, st := range t.Install {
@@ -250,15 +247,12 @@ func hostToolWarnings(t *templates.Template) []string {
 	return []string{fmt.Sprintf("The install script uses %s, which is not installed on this machine. Install it first: sudo apt install %s", strings.Join(missing, ", "), strings.Join(missing, " "))}
 }
 
-// fetchTemplateURL downloads a template over https from a public address
-// (GitHub "blob" links are turned into raw links).
 func fetchTemplateURL(ctx context.Context, raw string) (string, []byte, error) {
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme != "https" || u.Host == "" {
 		return "", nil, errors.New("only https:// links are supported")
 	}
 	if u.Host == "github.com" {
-		// https://github.com/o/r/blob/branch/path -> raw.githubusercontent.com/o/r/branch/path
 		parts := strings.SplitN(strings.TrimPrefix(u.Path, "/"), "/", 4)
 		if len(parts) == 4 && (parts[2] == "blob" || parts[2] == "raw") {
 			u = &url.URL{Scheme: "https", Host: "raw.githubusercontent.com", Path: "/" + parts[0] + "/" + parts[1] + "/" + parts[3]}
@@ -287,6 +281,4 @@ func fetchTemplateURL(ctx context.Context, raw string) (string, []byte, error) {
 	return u.String(), body, nil
 }
 
-// publicHTTPClient refuses to connect to loopback, private and link-local
-// addresses so a template link cannot be used to probe the LAN.
 var publicHTTPClient = netguard.Client(netguard.Options{Timeout: 20 * time.Second, HTTPSOnly: true, MaxRedirects: 5})

@@ -14,7 +14,6 @@ export function useTemplates() {
   })
 }
 
-/** Dynamic option lists (e.g. Paper versions). */
 export function useTemplateSource(templateId: string | undefined, source: string | undefined, enabled = true) {
   return useQuery({
     queryKey: ["templates", templateId, "sources", source],
@@ -31,21 +30,18 @@ export function useTemplateSource(templateId: string | undefined, source: string
   })
 }
 
-/** Picks the text for the current UI language, falling back to English, then anything. */
 export function localized(text: LocalizedText | undefined, lang = i18n.resolvedLanguage ?? i18n.language): string {
   if (!text) return ""
   const short = (lang ?? "en").split("-")[0]
   return text[short] ?? text.en ?? Object.values(text)[0] ?? ""
 }
 
-/** Replaces {{KEY}} placeholders in template ports with chosen values. */
 export function renderPort(port: TemplatePort, values: Record<string, string>): string {
   return port.port.replace(/\{\{([A-Za-z0-9_]+)\}\}/g, (_, key: string) => values[key] ?? "?")
 }
 
 const tplPath = (id: string) => `/templates/${encodeURIComponent(id)}`
 
-/** Source kind with a fallback for older responses. */
 export function sourceKind(t: Template): TemplateSourceKind {
   return t.source?.kind ?? (t.builtin ? "builtin" : "custom")
 }
@@ -99,13 +95,11 @@ export function useImportTemplate() {
   })
 }
 
-/** Reads the "id:" line of a template YAML (top-level only). */
 export function yamlId(yaml: string): string | undefined {
   const m = yaml.match(/^id:\s*["']?([A-Za-z0-9_-]+)["']?\s*$/m)
   return m?.[1]
 }
 
-/** Rewrites the top-level id (and appends a suffix to the name) for duplicates. */
 export function duplicateYaml(yaml: string, newId: string): string {
   let out = /^id:/m.test(yaml) ? yaml.replace(/^id:.*$/m, `id: ${newId}`) : `id: ${newId}\n${yaml}`
   out = out.replace(/^name:\s*(.*)$/m, (_l, n: string) => {
@@ -115,7 +109,6 @@ export function duplicateYaml(yaml: string, newId: string): string {
   return out
 }
 
-/** Wizard order of categories and of the groups the panel names. */
 export const CATEGORY_ORDER: ServerCategory[] = ["minecraft", "fivem", "discord-bot", "other"]
 export const GROUP_ORDER = ["plugins", "mods", "vanilla", "proxy", "bedrock", "fxserver", "node", "python"]
 
@@ -124,7 +117,6 @@ function rankOf(list: readonly string[], v: string) {
   return i === -1 ? list.length : i
 }
 
-/** Sorts templates by category, group, order and name (built-ins before imports). */
 export function compareTemplates(a: Template, b: Template) {
   return (
     rankOf(CATEGORY_ORDER, a.category) - rankOf(CATEGORY_ORDER, b.category) ||

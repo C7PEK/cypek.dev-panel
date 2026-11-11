@@ -15,8 +15,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/shim"
 )
 
-// The test binary plays two extra roles: `<bin> shim ...` runs a real shim
-// (what the local supervisor spawns) and HOMEPANEL_FAKE_GAME=1 is the game.
 func TestMain(m *testing.M) {
 	if os.Getenv("HOMEPANEL_FAKE_GAME") == "1" {
 		os.Exit(fakeGame())
@@ -116,7 +114,6 @@ func TestLocalLifecycle(t *testing.T) {
 		t.Errorf("stats = %+v, %v", stats, err)
 	}
 
-	// Console round trip through Attach.
 	c, err := sup.Attach(ctx, id)
 	if err != nil {
 		t.Fatal(err)
@@ -168,7 +165,7 @@ func TestLocalCrashAndKill(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = c.Input("crash\n")
-	// Closing right away can drop the frame before the shim reads it.
+
 	st := waitState(t, sup, id, StateCrashed)
 	c.Close()
 	if st.ExitCode == nil || *st.ExitCode != 7 {
@@ -182,7 +179,7 @@ func TestLocalCrashAndKill(t *testing.T) {
 	if err := sup.Kill(ctx, id); err != nil {
 		t.Fatalf("Kill: %v", err)
 	}
-	st = waitState(t, sup, id, StateStopped) // requested kill is not a crash
+	st = waitState(t, sup, id, StateStopped)
 	if st.ExitCode == nil || *st.ExitCode != 137 {
 		t.Errorf("killed status = %+v", st)
 	}

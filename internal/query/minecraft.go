@@ -1,6 +1,3 @@
-// Package query asks game servers how many players are online. Minecraft
-// uses the Server List Ping protocol on the game port; nothing extra has to
-// be enabled on the server. FiveM (info.json/players.json) comes later.
 package query
 
 import (
@@ -17,26 +14,22 @@ import (
 	"time"
 )
 
-// Players is the answer every query kind maps to.
 type Players struct {
 	Online int       `json:"online"`
 	Max    int       `json:"max"`
-	Names  []string  `json:"names,omitempty"` // best effort; Minecraft samples up to 12
+	Names  []string  `json:"names,omitempty"`
 	Kind   string    `json:"kind"`
 	At     time.Time `json:"at"`
 }
 
-// Spec says how to query one server.
 type Spec struct {
-	Kind string // minecraft-ping
-	Host string // 127.0.0.1 normally
+	Kind string
+	Host string
 	Port int
 }
 
-// ErrUnsupported is returned for unknown kinds.
 var ErrUnsupported = errors.New("unsupported query kind")
 
-// Query runs one query with a short timeout.
 func Query(ctx context.Context, spec Spec) (*Players, error) {
 	switch spec.Kind {
 	case "minecraft-ping":
@@ -48,7 +41,6 @@ func Query(ctx context.Context, spec Spec) (*Players, error) {
 	}
 }
 
-// Cache answers repeated status polls without hammering the game server.
 type Cache struct {
 	TTL     time.Duration
 	mu      sync.Mutex
@@ -61,12 +53,10 @@ type cached struct {
 	at  time.Time
 }
 
-// NewCache returns a cache with the given freshness window.
 func NewCache(ttl time.Duration) *Cache {
 	return &Cache{TTL: ttl, entries: map[string]cached{}}
 }
 
-// Get returns a fresh or cached answer for key (normally the server id).
 func (c *Cache) Get(ctx context.Context, key string, spec Spec) (*Players, error) {
 	c.mu.Lock()
 	if e, ok := c.entries[key]; ok && time.Since(e.at) < c.TTL {
@@ -81,16 +71,12 @@ func (c *Cache) Get(ctx context.Context, key string, spec Spec) (*Players, error
 	return p, err
 }
 
-// Forget drops a cached answer (after stop/start).
 func (c *Cache) Forget(key string) {
 	c.mu.Lock()
 	delete(c.entries, key)
 	c.mu.Unlock()
 }
 
-// minecraftPing implements the modern (1.7+) status handshake:
-// handshake(protocol -1, host, port, next=1) + status request, then a JSON
-// status response. See https://minecraft.wiki/w/Java_Edition_protocol/Server_List_Ping
 func minecraftPing(ctx context.Context, host string, port int) (*Players, error) {
 	d := net.Dialer{Timeout: 2 * time.Second}
 	conn, err := d.DialContext(ctx, "tcp", net.JoinHostPort(host, strconv.Itoa(port)))
@@ -101,15 +87,15 @@ func minecraftPing(ctx context.Context, host string, port int) (*Players, error)
 	_ = conn.SetDeadline(time.Now().Add(3 * time.Second))
 
 	var hs bytes.Buffer
-	writeVarInt(&hs, 0x00) // packet id: handshake
-	writeVarInt(&hs, -1)   // protocol version: -1 = "just asking"
+	writeVarInt(&hs, 0x00)
+	writeVarInt(&hs, -1)
 	writeString(&hs, host)
 	_ = binary.Write(&hs, binary.BigEndian, uint16(port))
-	writeVarInt(&hs, 1) // next state: status
+	writeVarInt(&hs, 1)
 	if err := writePacket(conn, hs.Bytes()); err != nil {
 		return nil, err
 	}
-	if err := writePacket(conn, []byte{0x00}); err != nil { // status request
+	if err := writePacket(conn, []byte{0x00}); err != nil {
 		return nil, err
 	}
 	payload, err := readPacket(conn)

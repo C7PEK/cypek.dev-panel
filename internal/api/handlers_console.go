@@ -17,7 +17,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/supervisor"
 )
 
-// consoleMsg is the browser-facing console protocol, a thin view of shim frames.
 type consoleMsg struct {
 	Type      string `json:"type"`
 	Data      string `json:"data,omitempty"`
@@ -37,11 +36,6 @@ const (
 	consoleAttachRetry = time.Second
 )
 
-// handleConsole bridges the browser WebSocket and the server's shim socket.
-// The browser connection outlives the game process: while the server is
-// stopped the handler sends a state frame and keeps trying to attach, so a
-// console tab left open follows restarts without any client logic.
-// console.read is enforced by withServer; console.write per input message.
 func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request) {
 	_, user := sessionFromContext(r.Context())
 	srv := serverFromContext(r.Context())
@@ -54,8 +48,6 @@ func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request) {
 		canWrite = false
 	}
 
-	// coder/websocket rejects cross-origin upgrades by default (Origin must
-	// match Host): that is the CSRF protection for this endpoint.
 	ws, err := websocket.Accept(w, r, &websocket.AcceptOptions{CompressionMode: websocket.CompressionContextTakeover})
 	if err != nil {
 		s.log.Debug("console websocket accept", "err", err)
@@ -72,8 +64,6 @@ func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request) {
 		return ws.Write(wctx, websocket.MessageText, b)
 	}
 
-	// The attached shim client changes across restarts; the reader goroutine
-	// always talks to the current one.
 	var (
 		mu      sync.Mutex
 		console supervisor.Console
@@ -86,7 +76,6 @@ func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request) {
 
 	s.audit.Log(ctx, audit.Entry{UserID: &user.ID, Username: user.Username, Action: "console.attach", Target: srv.ID, IP: clientIP(r)})
 
-	// Browser -> shim.
 	go func() {
 		defer cancel()
 		for {
@@ -102,8 +91,6 @@ func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request) {
 			c := current()
 			switch m.Type {
 			case "input":
-				// Re-check on every command: a revoked permission, a disabled
-				// account or a logged-out session ends write access at once.
 				if canWrite {
 					fresh, err := s.store.GetUserByID(ctx, user.ID)
 					ok, perr := s.store.Require(ctx, fresh, auth.PermConsoleWrite, srv.ID)
@@ -123,9 +110,7 @@ func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request) {
 					_ = send(consoleMsg{Type: "error", Message: "The server is not running."})
 					continue
 				}
-				// Control characters (Ctrl+C = SIGINT through the terminal,
-				// Ctrl+\ = SIGQUIT) would stop the game without the power
-				// permission: only text, tabs and line breaks reach it.
+
 				m.Data = stripControl(m.Data)
 				if err := c.Input(m.Data); err != nil {
 					_ = send(consoleMsg{Type: "error", Message: "Could not send the command: " + err.Error()})
@@ -159,7 +144,7 @@ func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request) {
 			if err := send(consoleMsg{Type: "state", State: string(st.State), ExitCode: st.ExitCode, Message: st.Message}); err != nil {
 				return
 			}
-			// Poll until the server comes up or the browser leaves.
+
 			if !s.waitForShim(ctx, srv.ID) {
 				_ = ws.Close(websocket.StatusNormalClosure, "bye")
 				return
@@ -179,7 +164,7 @@ func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request) {
 		console = nil
 		mu.Unlock()
 		c.Close()
-		// Give the supervisor a moment to record the exit before we report it.
+
 		select {
 		case <-ctx.Done():
 		case <-time.After(200 * time.Millisecond):
@@ -188,7 +173,6 @@ func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request) {
 	_ = ws.Close(websocket.StatusNormalClosure, "bye")
 }
 
-// waitForShim returns true once a shim socket answers, false if ctx ends.
 func (s *Server) waitForShim(ctx context.Context, id string) bool {
 	t := time.NewTicker(consoleAttachRetry)
 	defer t.Stop()
@@ -205,7 +189,6 @@ func (s *Server) waitForShim(ctx context.Context, id string) bool {
 	}
 }
 
-// pumpConsole forwards shim frames to the browser until the shim connection ends.
 func (s *Server) pumpConsole(ctx context.Context, c supervisor.Console, send func(consoleMsg) error) {
 	for {
 		select {
@@ -242,8 +225,6 @@ func stripControl(in string) string {
 	}, in)
 }
 
-// sessionAlive reports whether the request's session still exists (API
-// keys are checked on each request anyway).
 func (s *Server) sessionAlive(ctx context.Context, r *http.Request) bool {
 	sess, _ := sessionFromContext(r.Context())
 	if sess == nil || sess.APIKey {

@@ -16,7 +16,6 @@ import type { PanelUpdateInfo } from "@/lib/types"
 const POLL_MS = 3000
 const GIVE_UP_MS = 5 * 60_000
 
-/** Owner-only: installed vs latest release and a one-click update. */
 export function PanelUpdateCard() {
   const { t, i18n } = useTranslation()
   const qc = useQueryClient()
@@ -26,8 +25,6 @@ export function PanelUpdateCard() {
   const [updating, setUpdating] = useState(false)
   const fromVersion = useRef("")
 
-  // While updating, the panel restarts: poll until it reports a new version
-  // or a failed run. Network errors in between are expected.
   useEffect(() => {
     if (!updating) return
     const started = Date.now()
@@ -48,7 +45,6 @@ export function PanelUpdateCard() {
           return
         }
       } catch {
-        // Restarting; try again.
       }
       if (Date.now() - started > GIVE_UP_MS) {
         setUpdating(false)
@@ -99,7 +95,7 @@ export function PanelUpdateCard() {
               <dd className="font-mono">{d.current}</dd>
               <dt className="text-muted-foreground">{t("panelUpdate.latest")}</dt>
               <dd className="font-mono">
-                {d.latest ?? "—"}
+                {d.latest ?? "-"}
                 {d.publishedAt && <span className="ml-2 font-sans text-xs text-muted-foreground">{formatDateTime(d.publishedAt, i18n.language)}</span>}
               </dd>
             </dl>

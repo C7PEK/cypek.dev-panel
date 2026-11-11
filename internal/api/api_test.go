@@ -62,7 +62,7 @@ func newEnv(t *testing.T) *testEnv {
 		t.Fatal(err)
 	}
 	store := auth.NewStore(sqlDB)
-	// Short run dir: unix socket paths are limited to ~108 bytes.
+
 	runDir, err := os.MkdirTemp("", "hp-run")
 	if err != nil {
 		t.Fatal(err)
@@ -96,7 +96,6 @@ func newEnv(t *testing.T) *testEnv {
 	return &testEnv{t: t, srv: srv, client: &http.Client{Jar: jar}, store: store, cfg: cfg, paper: paper, adoptium: adoptium, sender: sender, server: captured}
 }
 
-// do sends a JSON request, attaching the CSRF header when known.
 func (e *testEnv) do(method, path string, body any, headers ...string) (*http.Response, map[string]any) {
 	e.t.Helper()
 	var rd io.Reader
@@ -216,7 +215,6 @@ func TestLoginLogoutAndCSRF(t *testing.T) {
 	e := newEnv(t)
 	e.completeSetup("owner", "password123")
 
-	// Logout without CSRF header must fail; with it, must succeed.
 	saved := e.csrf
 	e.csrf = ""
 	resp, body := e.do(http.MethodPost, "/api/v1/auth/logout", nil)
@@ -238,7 +236,6 @@ func TestLoginLogoutAndCSRF(t *testing.T) {
 		t.Fatalf("me after logout: %d", resp.StatusCode)
 	}
 
-	// Login.
 	e.csrf = ""
 	resp, body = e.do(http.MethodPost, "/api/v1/auth/login", map[string]string{"username": "owner", "password": "nope"})
 	if resp.StatusCode != 401 || errCode(body) != CodeInvalidCredentials {
@@ -263,7 +260,6 @@ func TestLoginLogoutAndCSRF(t *testing.T) {
 		t.Fatalf("cookie attrs wrong: %+v", cookie)
 	}
 
-	// Cross-site marked requests and non-JSON bodies are rejected.
 	resp, body = e.do(http.MethodPost, "/api/v1/auth/logout", nil, "Sec-Fetch-Site", "cross-site")
 	if resp.StatusCode != 403 || errCode(body) != CodeCSRF {
 		t.Fatalf("cross-site: %d %v", resp.StatusCode, body)
@@ -279,7 +275,6 @@ func TestLoginLogoutAndCSRF(t *testing.T) {
 		t.Fatalf("form login: %d", r2.StatusCode)
 	}
 
-	// Audit log is admin+ only, and recorded logins.
 	resp, body = e.do(http.MethodGet, "/api/v1/audit", nil)
 	if resp.StatusCode != 200 {
 		t.Fatalf("audit: %d %v", resp.StatusCode, body)
@@ -352,7 +347,7 @@ func TestLoginRateLimit(t *testing.T) {
 	if last != 429 {
 		t.Fatalf("never rate limited, last status %d", last)
 	}
-	// The right password is also blocked while limited (per-account lock).
+
 	resp, _ := e.do(http.MethodPost, "/api/v1/auth/login", map[string]string{"username": "owner", "password": "password123"})
 	if resp.StatusCode != 429 {
 		t.Errorf("locked account accepted login: %d", resp.StatusCode)
@@ -393,7 +388,6 @@ func TestStaticAndErrors(t *testing.T) {
 		t.Errorf("version: %d %v", resp.StatusCode, body)
 	}
 
-	// Oversize body.
 	big := strings.Repeat("a", maxJSONBody+10)
 	resp, body = e.do(http.MethodPost, "/api/v1/auth/login", map[string]string{"username": big, "password": "x"})
 	if resp.StatusCode != http.StatusRequestEntityTooLarge || errCode(body) != CodePayloadTooLarge {

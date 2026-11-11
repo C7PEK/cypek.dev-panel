@@ -82,7 +82,7 @@ func newStore(t *testing.T) *Store {
 	if err := db.Migrate(context.Background(), sqlDB, "", log); err != nil {
 		t.Fatal(err)
 	}
-	// A server row is needed for the foreign key.
+
 	if _, err := sqlDB.Exec(`INSERT INTO servers (id, name, run_config, created_at, updated_at) VALUES ('abcd1234','s','{}','x','x')`); err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestValidateAndNextRuns(t *testing.T) {
 	bad := []*Schedule{
 		{Name: "", CronExpr: "* * * * *", Actions: []Action{{Type: "stop"}}},
 		{Name: "x", CronExpr: "every day", Actions: []Action{{Type: "stop"}}},
-		{Name: "x", CronExpr: "* * * * * *", Actions: []Action{{Type: "stop"}}}, // 6 fields
+		{Name: "x", CronExpr: "* * * * * *", Actions: []Action{{Type: "stop"}}},
 		{Name: "x", CronExpr: "* * * * *", Actions: nil},
 		{Name: "x", CronExpr: "* * * * *", Actions: []Action{{Type: "explode"}}},
 		{Name: "x", CronExpr: "* * * * *", Actions: []Action{{Type: "warn"}}},
@@ -176,7 +176,6 @@ func TestEngineExecute(t *testing.T) {
 	s, _ := st.Create(ctx, &Schedule{ServerID: "abcd1234", Name: "restart", CronExpr: "0 4 * * *", Enabled: true,
 		Actions: []Action{{Type: "wait", Seconds: 1}, {Type: "restart"}}, OnlyIfRunning: true, SkipIfPlayers: true})
 
-	// Players online -> skipped.
 	players = 2
 	if err := e.RunNow(s.ID); err != nil {
 		t.Fatal(err)
@@ -186,7 +185,7 @@ func TestEngineExecute(t *testing.T) {
 	if len(runs) != 1 || runs[0].Result != "skipped" || !strings.Contains(runs[0].Log, "player") {
 		t.Fatalf("runs = %+v", runs)
 	}
-	// Nobody online -> wait + restart executed.
+
 	players = 0
 	_ = e.RunNow(s.ID)
 	time.Sleep(200 * time.Millisecond)
@@ -209,7 +208,6 @@ func TestEngineExecute(t *testing.T) {
 		t.Errorf("times not recorded: %+v", got)
 	}
 
-	// Stopped server + onlyIfRunning -> skipped; warn without attach fails gracefully.
 	sup.state = supervisor.StateStopped
 	_ = e.RunNow(s.ID)
 	waitIdle(t, e, s.ID)
@@ -225,7 +223,7 @@ func TestEngineExecute(t *testing.T) {
 	if runs[0].Result != "failed" || !strings.Contains(runs[0].Log, "failed") {
 		t.Errorf("warn run = %+v", runs[0])
 	}
-	// Cancel a long wait.
+
 	s3, _ := st.Create(ctx, &Schedule{ServerID: "abcd1234", Name: "long", CronExpr: "0 4 * * *", Enabled: true,
 		Actions: []Action{{Type: "wait", Seconds: 600}}, OnlyIfRunning: false})
 	_ = e.RunNow(s3.ID)
@@ -247,7 +245,6 @@ func waitIdle(t *testing.T, e *Engine, id int64) {
 	for time.Now().Before(deadline) {
 		time.Sleep(50 * time.Millisecond)
 		if !e.IsRunning(id) {
-			// IsRunning flips before the run row is finalised; give it a moment.
 			time.Sleep(100 * time.Millisecond)
 			return
 		}

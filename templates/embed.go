@@ -1,4 +1,3 @@
-// Package templates embeds the built-in game templates (YAML).
 package templates
 
 import "embed"

@@ -22,7 +22,6 @@ import { cn } from "@/lib/utils"
 
 const titleClass = "font-heading text-lg font-medium tracking-[0.04em] uppercase"
 
-/** Local YYYY-MM-DD, `offsetDays` from today (for <input type="date">). */
 function isoDate(offsetDays = 0, from = new Date()): string {
   const d = new Date(from.getTime() + offsetDays * 86_400_000)
   const pad = (n: number) => String(n).padStart(2, "0")
@@ -46,7 +45,6 @@ function useExpiryMutation(server: Server) {
   return { set, run }
 }
 
-/** Small badge for tiles and headers; nothing when there is no end date. */
 export function ExpiryBadge({ server, className }: { server: Server; className?: string }) {
   const { t } = useTranslation()
   const st = expiryStatus(server)
@@ -72,7 +70,6 @@ export function ExpiryBadge({ server, className }: { server: Server; className?:
   )
 }
 
-/** Banner on the server page: expired (with admin actions) or expiring within 3 days. */
 export function ExpiryBanner({ server, admin }: { server: Server; admin: boolean }) {
   const { t, i18n } = useTranslation()
   const { set, run } = useExpiryMutation(server)
@@ -118,7 +115,6 @@ export function ExpiryBanner({ server, admin }: { server: Server; admin: boolean
   return null
 }
 
-/** Pick an exact end date. */
 export function ExpiryDateDialog({ server, open, onOpenChange }: { server: Server; open: boolean; onOpenChange: (o: boolean) => void }) {
   const { t } = useTranslation()
   const { set, run } = useExpiryMutation(server)
@@ -155,7 +151,6 @@ export function ExpiryDateDialog({ server, open, onOpenChange }: { server: Serve
   )
 }
 
-/** Settings tab card (admins): current end date, quick extensions, exact date, remove. */
 export function ExpiryCard({ server }: { server: Server }) {
   const { t, i18n } = useTranslation()
   const { set, run } = useExpiryMutation(server)
@@ -207,7 +202,6 @@ export function ExpiryCard({ server }: { server: Server }) {
   )
 }
 
-/** Dashboard card for admins listing expired servers. */
 export function ExpiredServersCard({ servers }: { servers: Server[] }) {
   const { t, i18n } = useTranslation()
   const expired = servers.filter((s) => s.expired)
@@ -258,9 +252,6 @@ function ExtendButton({ server }: { server: Server }) {
   )
 }
 
-// --- wizard -------------------------------------------------------------------
-
-/** "Czas działania" select for the creation forms. */
 export function ExpiryField({
   idPrefix,
   choice,

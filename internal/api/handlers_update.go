@@ -18,7 +18,6 @@ const (
 	CodeNoSelfUpdate = "self_update_unavailable"
 )
 
-// GitHub allows 60 unauthenticated API calls per hour; cache the answer.
 var latestCache struct {
 	sync.Mutex
 	at  time.Time
@@ -44,7 +43,6 @@ func (s *Server) updateStatusPath() string {
 	return filepath.Join(s.cfg.DataDir, "update-status.json")
 }
 
-// handleUpdateInfo: installed vs latest release and the last update run.
 func (s *Server) handleUpdateInfo(w http.ResponseWriter, r *http.Request) {
 	out := map[string]any{"current": s.version, "repo": selfupdate.Repo}
 	rel, err := s.latestRelease(r.Context(), r.URL.Query().Get("refresh") == "1")
@@ -69,8 +67,6 @@ func (s *Server) handleUpdateInfo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// handleStartUpdate starts the root update unit; the panel restarts when it
-// is done, so the UI polls GET /system/update until the version changes.
 func (s *Server) handleStartUpdate(w http.ResponseWriter, r *http.Request) {
 	a, ok := s.addons()
 	if !ok {

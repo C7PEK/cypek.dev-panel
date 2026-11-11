@@ -19,7 +19,6 @@ import { canDo, isInstalling, useReinstall, useUpdateServer } from "@/lib/server
 import { useTemplates } from "@/lib/templates"
 import type { Server, TemplateVariable } from "@/lib/types"
 
-/** Settings tab for servers created from a template: variables + limits + reinstall. */
 export function TemplateSettings({ server }: { server: Server }) {
   const { t } = useTranslation()
   const templates = useTemplates()
@@ -80,7 +79,7 @@ function SettingsForm({ server, tplId, variables }: { server: Server; tplId: str
     if (!/^\d+$/.test(cpuPercent.trim())) errors.__cpuPercent = t("servers.validation.integer")
     setLocalErrors(errors)
     if (Object.values(errors).some(Boolean)) return
-    // Masked secrets go back masked; the backend keeps the stored value then.
+
     const vars = Object.fromEntries(variables.map((v) => [v.key, (values[v.key] ?? "").trim()]))
     update.mutate(
       {

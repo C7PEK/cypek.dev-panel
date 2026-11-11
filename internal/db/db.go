@@ -1,4 +1,3 @@
-// Package db opens the SQLite database and runs embedded goose migrations.
 package db
 
 import (
@@ -21,9 +20,6 @@ import (
 //go:embed migrations/*.sql
 var migrations embed.FS
 
-// Open opens (and creates if needed) the SQLite database at path with the
-// pragmas the panel relies on. SQLite serialises writers, so a single
-// connection avoids SQLITE_BUSY without sacrificing anything at this scale.
 func Open(path string) (*sql.DB, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return nil, fmt.Errorf("create db dir: %w", err)
@@ -42,7 +38,6 @@ func Open(path string) (*sql.DB, error) {
 	return sqlDB, nil
 }
 
-// OpenMemory opens an isolated in-memory database, for tests.
 func OpenMemory() (*sql.DB, error) {
 	sqlDB, err := sql.Open("sqlite", "file::memory:?_pragma=foreign_keys(ON)")
 	if err != nil {
@@ -52,9 +47,6 @@ func OpenMemory() (*sql.DB, error) {
 	return sqlDB, nil
 }
 
-// Migrate applies pending migrations. When path is non-empty and migrations
-// are pending, a copy of the database file is written next to it first so an
-// upgrade can always be rolled back by hand.
 func Migrate(ctx context.Context, sqlDB *sql.DB, path string, log *slog.Logger) error {
 	migrationsFS, err := fs.Sub(migrations, "migrations")
 	if err != nil {
@@ -75,7 +67,7 @@ func Migrate(ctx context.Context, sqlDB *sql.DB, path string, log *slog.Logger) 
 	if err != nil {
 		return fmt.Errorf("read schema version: %w", err)
 	}
-	// A brand-new database (version 0) has nothing worth backing up.
+
 	if path != "" && current > 0 {
 		if backup, err := backupFile(path); err != nil {
 			return fmt.Errorf("backup database before migration: %w", err)
@@ -93,7 +85,6 @@ func Migrate(ctx context.Context, sqlDB *sql.DB, path string, log *slog.Logger) 
 	return nil
 }
 
-// backupFile copies path to path.bak-<timestamp>; returns "" if path does not exist yet.
 func backupFile(path string) (string, error) {
 	src, err := os.Open(path)
 	if errors.Is(err, os.ErrNotExist) {
@@ -125,8 +116,6 @@ func backupFile(path string) (string, error) {
 	return dst, nil
 }
 
-// Now returns the canonical timestamp format stored in TEXT columns.
 func Now() string { return time.Now().UTC().Format(time.RFC3339Nano) }
 
-// ParseTime parses a value written by Now.
 func ParseTime(s string) (time.Time, error) { return time.Parse(time.RFC3339Nano, s) }

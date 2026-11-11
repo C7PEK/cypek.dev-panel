@@ -11,7 +11,6 @@ import { formatBytes } from "@/lib/format"
 import type { FileJob } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-// Finished jobs stay visible this long (the server keeps them ~2h).
 const SHOW_FINISHED_MS = 10 * 60 * 1000
 
 interface Props {
@@ -19,7 +18,6 @@ interface Props {
   onOpenFolder: (dir: string) => void
 }
 
-/** Downloads from links and extractions running in the background. */
 export function FileJobs({ serverId, onOpenFolder }: Props) {
   const { t } = useTranslation()
   const qc = useQueryClient()
@@ -28,7 +26,6 @@ export function FileJobs({ serverId, onOpenFolder }: Props) {
   const [hidden, setHidden] = useState<Set<string>>(new Set())
   const previous = useRef<Map<string, FileJob["state"]>>(new Map())
 
-  // Announce jobs that finished while the tab is open and refresh listings.
   useEffect(() => {
     for (const j of jobs.data ?? []) {
       const before = previous.current.get(j.id)

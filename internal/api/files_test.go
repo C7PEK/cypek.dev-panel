@@ -39,7 +39,6 @@ func TestFilesAPI(t *testing.T) {
 	base := "/api/v1/servers/" + id + "/files"
 	dir := filepath.Join(e.cfg.ServersDir(), id)
 
-	// Write + read + list.
 	resp := e.raw(http.MethodPut, base+"/content?path=plugins/config.yml", "text/plain", strings.NewReader("a: 1\n"))
 	if resp.StatusCode != 200 {
 		t.Fatalf("write: %d", resp.StatusCode)
@@ -58,8 +57,6 @@ func TestFilesAPI(t *testing.T) {
 		t.Errorf("list = %v", names)
 	}
 
-	// Traversal and protected paths. A leading "/" means the server root, so
-	// "/etc/passwd" is just a file inside the server directory.
 	for _, p := range []string{"../../etc/passwd", ".homepanel/run.json", "plugins/../../x"} {
 		resp = e.raw(http.MethodGet, base+"/content?path="+p, "", nil)
 		resp.Body.Close()
@@ -84,7 +81,6 @@ func TestFilesAPI(t *testing.T) {
 		t.Fatal("host /etc/passwd overwritten")
 	}
 
-	// mkdir, rename, upload, download, extract, delete.
 	resp, _ = e.do(http.MethodPost, base+"/mkdir", map[string]string{"path": "worlds/overworld"})
 	if resp.StatusCode != 204 {
 		t.Errorf("mkdir: %d", resp.StatusCode)
@@ -124,7 +120,6 @@ func TestFilesAPI(t *testing.T) {
 		t.Error("worlds not deleted")
 	}
 
-	// Permission matrix: files.read vs files.write.
 	plain, _ := e.store.CreateUser(t.Context(), "plain", "password123", auth.RoleUser)
 	_ = e.store.GrantPermissions(t.Context(), id, plain.ID, []auth.Permission{auth.PermFilesRead})
 	e.loginAs("plain")
@@ -184,11 +179,11 @@ func TestBackupsAPI(t *testing.T) {
 		if j := b["job"].(map[string]any); j["error"] != nil {
 			t.Fatalf("backup error: %v", j["error"])
 		}
-		time.Sleep(1100 * time.Millisecond) // distinct file names (second resolution)
+		time.Sleep(1100 * time.Millisecond)
 	}
 	_, body = e.do(http.MethodGet, base+"/", nil)
 	items := body["items"].([]any)
-	if len(items) != 2 { // keepLast = 2
+	if len(items) != 2 {
 		t.Fatalf("retention: %d items", len(items))
 	}
 	bid := strconv.Itoa(int(items[0].(map[string]any)["id"].(float64)))
@@ -197,14 +192,12 @@ func TestBackupsAPI(t *testing.T) {
 		t.Errorf("files on disk = %v", files)
 	}
 
-	// Download.
 	resp = e.raw(http.MethodGet, base+"/"+bid+"/download", "", nil)
 	data, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != 200 || len(data) == 0 || !strings.Contains(resp.Header.Get("Content-Disposition"), ".tar.zst") {
 		t.Errorf("download: %d %d bytes", resp.StatusCode, len(data))
 	}
 
-	// Restore: change a file, restore, verify; logs were excluded so they vanish.
 	_ = os.WriteFile(filepath.Join(dir, "world.dat"), []byte("broken"), 0o640)
 	resp, body = e.do(http.MethodPost, base+"/"+bid+"/restore", nil)
 	if resp.StatusCode != 202 {
@@ -232,7 +225,6 @@ func TestBackupsAPI(t *testing.T) {
 		t.Errorf("after delete files = %v", files)
 	}
 
-	// Permission matrix.
 	plain, _ := e.store.CreateUser(t.Context(), "plain", "password123", auth.RoleUser)
 	_ = e.store.GrantPermissions(t.Context(), id, plain.ID, []auth.Permission{auth.PermConsoleRead})
 	e.loginAs("plain")

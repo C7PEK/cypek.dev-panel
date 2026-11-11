@@ -18,7 +18,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/providers"
 )
 
-// withFakeUpstream points the env's paper/adoptium clients at local fakes.
 func withFakeUpstream(t *testing.T, e *testEnv) {
 	t.Helper()
 	var buf bytes.Buffer
@@ -103,7 +102,6 @@ func TestTemplatesAndInstallFlow(t *testing.T) {
 		t.Errorf("unknown source: %d", resp.StatusCode)
 	}
 
-	// Validation: consent, bogus version, unknown template.
 	resp, body = e.do(http.MethodPost, "/api/v1/servers", map[string]any{"name": "MC", "templateId": "minecraft-paper", "variables": map[string]string{"MC_VERSION": "latest"}})
 	if resp.StatusCode != 422 || body["error"].(map[string]any)["field"] != "variables.EULA" {
 		t.Fatalf("no consent: %d %v", resp.StatusCode, body)
@@ -117,7 +115,6 @@ func TestTemplatesAndInstallFlow(t *testing.T) {
 		t.Fatalf("unknown template: %d %v", resp.StatusCode, body)
 	}
 
-	// Create + install.
 	resp, body = e.do(http.MethodPost, "/api/v1/servers", map[string]any{"name": "MC", "templateId": "minecraft-paper",
 		"variables": map[string]string{"MC_VERSION": "latest", "EULA": "true", "PORT": "25570"}})
 	if resp.StatusCode != 201 {
@@ -159,7 +156,6 @@ func TestTemplatesAndInstallFlow(t *testing.T) {
 		t.Errorf("server.properties = %s", props)
 	}
 
-	// The fake "java" is a shell script that behaves like a server: start it for real.
 	resp, body = e.do(http.MethodPost, "/api/v1/servers/"+id+"/power", map[string]string{"action": "start"})
 	if resp.StatusCode != 200 {
 		t.Fatalf("start: %d %v", resp.StatusCode, body)
@@ -250,7 +246,6 @@ func TestConsoleHints(t *testing.T) {
 		t.Error("query builtins leaked into variables")
 	}
 
-	// Custom servers have no commands.
 	resp, body = e.do(http.MethodPost, "/api/v1/servers", fakeServerBody("Custom"))
 	cid := body["id"].(string)
 	_, body = e.do(http.MethodGet, "/api/v1/servers/"+cid+"/console/hints", nil)

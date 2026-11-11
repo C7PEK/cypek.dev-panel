@@ -24,8 +24,6 @@ func (s *Server) handleSetupStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, setupStatusResponse{SetupRequired: required})
 }
 
-// handleSetup creates the owner account. The setup token (printed by the
-// installer / `homepanel serve`) proves the caller controls the machine.
 func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r)
 	if ok, retry := s.setupLimit.Allow(ip); !ok {

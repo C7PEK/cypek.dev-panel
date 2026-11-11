@@ -19,7 +19,6 @@ import { useLogout } from "@/lib/auth"
 import { usePanelUpdate } from "@/lib/system"
 import type { User } from "@/lib/types"
 
-// Main application frame: top bar with navigation and the user menu.
 export function AppShell({ user, children }: { user: User; children: ReactNode }) {
   const { t } = useTranslation()
   const logout = useLogout()

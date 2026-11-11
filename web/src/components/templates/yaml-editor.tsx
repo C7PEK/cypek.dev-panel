@@ -30,7 +30,6 @@ export function ValidationLine({ state }: { state: ValidationState }) {
   )
 }
 
-/** CodeMirror in YAML mode, sized for dialogs. */
 export function YamlEditor({
   value,
   onChange,

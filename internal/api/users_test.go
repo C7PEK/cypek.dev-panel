@@ -18,7 +18,6 @@ func TestUsersAndGrantsAPI(t *testing.T) {
 	e := newEnv(t)
 	e.completeSetup("owner", "password123")
 
-	// Owner creates an admin and a user.
 	resp, body := e.do(http.MethodPost, "/api/v1/users/", map[string]string{"username": "adm", "password": "password123", "role": "admin"})
 	if resp.StatusCode != 201 || body["role"] != "admin" {
 		t.Fatalf("create admin: %d %v", resp.StatusCode, body)
@@ -44,7 +43,7 @@ func TestUsersAndGrantsAPI(t *testing.T) {
 	if len(body["items"].([]any)) != 3 {
 		t.Errorf("list = %v", body)
 	}
-	// Owner is immutable; self-role change refused.
+
 	_, me := e.do(http.MethodGet, "/api/v1/auth/me", nil)
 	ownerID := strconv.Itoa(int(me["user"].(map[string]any)["id"].(float64)))
 	resp, body = e.do(http.MethodPatch, "/api/v1/users/"+ownerID, map[string]any{"disabled": true})
@@ -56,7 +55,6 @@ func TestUsersAndGrantsAPI(t *testing.T) {
 		t.Errorf("owner delete: %d", resp.StatusCode)
 	}
 
-	// Server grants.
 	_, srvBody := e.do(http.MethodPost, "/api/v1/servers", fakeServerBody("G"))
 	sid := srvBody["id"].(string)
 	resp, body = e.do(http.MethodPut, "/api/v1/servers/"+sid+"/users/"+plainID, map[string]any{"permissions": []string{"console.read", "power", "bogus"}})
@@ -77,7 +75,6 @@ func TestUsersAndGrantsAPI(t *testing.T) {
 		t.Errorf("grants = %v", body)
 	}
 
-	// Admin: may manage users but not other admins or the owner; cannot create admins.
 	e.loginAs("adm")
 	resp, _ = e.do(http.MethodPost, "/api/v1/users/", map[string]string{"username": "adm2", "password": "password123", "role": "admin"})
 	if resp.StatusCode != 403 {
@@ -91,13 +88,12 @@ func TestUsersAndGrantsAPI(t *testing.T) {
 	if resp.StatusCode != 403 {
 		t.Errorf("admin disables self: %d", resp.StatusCode)
 	}
-	// Disabled user cannot log in; re-enable.
+
 	resp, _ = e.do(http.MethodPatch, "/api/v1/users/"+plainID, map[string]any{"disabled": false})
 	if resp.StatusCode != 200 {
 		t.Fatalf("re-enable: %d", resp.StatusCode)
 	}
 
-	// Plain user: no access to user management, can change own password.
 	e.loginAs("plain")
 	resp, _ = e.do(http.MethodGet, "/api/v1/users/", nil)
 	if resp.StatusCode != 403 {
@@ -123,7 +119,6 @@ func TestUsersAndGrantsAPI(t *testing.T) {
 		t.Errorf("new password: %v", err)
 	}
 
-	// Owner removes the grant and deletes the user.
 	e.loginAs("owner")
 	resp, _ = e.do(http.MethodPut, "/api/v1/servers/"+sid+"/users/"+plainID, map[string]any{"permissions": []string{}})
 	if resp.StatusCode != 204 {
@@ -144,7 +139,7 @@ func TestTOTPFlow(t *testing.T) {
 	if st["enabled"] != false || st["policy"] != "none" {
 		t.Fatalf("status = %v", st)
 	}
-	// Policy cannot be enabled before the owner enrols.
+
 	resp, body := e.do(http.MethodPut, "/api/v1/settings/security", map[string]string{"requireTotp": "admins"})
 	if resp.StatusCode != 409 {
 		t.Errorf("policy before enrol: %d %v", resp.StatusCode, body)
@@ -164,7 +159,6 @@ func TestTOTPFlow(t *testing.T) {
 	}
 	backup := body["backupCodes"].([]any)[0].(string)
 
-	// Login now needs the second step.
 	jar, _ := cookiejar.New(nil)
 	e.client = &http.Client{Jar: jar}
 	e.csrf = ""
@@ -194,7 +188,6 @@ func TestTOTPFlow(t *testing.T) {
 		t.Errorf("status after = %v", st)
 	}
 
-	// Policy for admins: a new admin without 2FA is blocked except for enrolment.
 	resp, body = e.do(http.MethodPut, "/api/v1/settings/security", map[string]string{"requireTotp": "admins"})
 	if resp.StatusCode != 200 {
 		t.Fatalf("set policy: %d %v", resp.StatusCode, body)
@@ -230,7 +223,6 @@ func TestAPIKeys(t *testing.T) {
 		t.Errorf("bad scope: %d %v", resp.StatusCode, body)
 	}
 
-	// Bearer requests: no cookie, no CSRF header needed, scope enforced.
 	bearer := func(method, path string, payload any) (*http.Response, map[string]any) {
 		t.Helper()
 		var rd *strings.Reader
@@ -267,7 +259,7 @@ func TestAPIKeys(t *testing.T) {
 		t.Errorf("out-of-scope settings: %d %v", resp.StatusCode, body)
 	}
 	resp, body = bearer(http.MethodPost, "/api/v1/servers/"+sid+"/power", map[string]string{"action": "stop"})
-	if resp.StatusCode != 409 { // in scope; server is stopped -> conflict, not forbidden
+	if resp.StatusCode != 409 {
 		t.Errorf("in-scope power: %d %v", resp.StatusCode, body)
 	}
 	resp, _ = bearer(http.MethodPost, "/api/v1/auth/api-keys", map[string]any{"name": "nested"})

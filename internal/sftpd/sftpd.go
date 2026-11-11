@@ -1,8 +1,3 @@
-// Package sftpd is the panel's built-in SFTP server (no system sshd, no
-// Linux accounts). Users log in with their panel username and password:
-// "name" shows every server they may read as a folder, "name.<server id>"
-// opens one server directly. Every path goes through files.ResolveSafe, the
-// .homepanel folder is hidden, and writes need the files.write permission.
 package sftpd
 
 import (
@@ -25,27 +20,22 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// ServerRef is one game server a user can reach.
 type ServerRef struct {
 	ID   string
 	Name string
 	Dir  string
 }
 
-// Backend connects the SFTP server to the panel's accounts and permissions.
 type Backend interface {
-	// Authenticate checks a password (rate limiting and audit included) and
-	// returns the user id and canonical username.
 	Authenticate(ctx context.Context, username, password, ip string) (int64, string, error)
-	// Servers lists the servers the user may read files of.
+
 	Servers(ctx context.Context, userID int64) ([]ServerRef, error)
-	// CanWrite reports files.write on a server.
+
 	CanWrite(ctx context.Context, userID int64, serverID string) bool
-	// Audit records an event.
+
 	Audit(userID int64, username, ip, action, target string, details map[string]any)
 }
 
-// Server accepts SSH connections and serves only the sftp subsystem.
 type Server struct {
 	Listen      string
 	HostKeyPath string
@@ -65,10 +55,8 @@ const (
 	handshakeTime = 30 * time.Second
 )
 
-// Fingerprint is the host key's SHA256 fingerprint, as clients show it.
 func (s *Server) Fingerprint() string { return s.fingerprint }
 
-// LoadHostKey creates (once) and loads the ed25519 host key.
 func (s *Server) LoadHostKey() error {
 	b, err := os.ReadFile(s.HostKeyPath)
 	if errors.Is(err, os.ErrNotExist) {
@@ -99,15 +87,13 @@ func (s *Server) LoadHostKey() error {
 	return nil
 }
 
-// session is what a successful login carries into the connection.
 type session struct {
 	userID   int64
 	username string
 	ip       string
-	single   string // server id for "name.<id>" logins
+	single   string
 }
 
-// Run listens until ctx ends.
 func (s *Server) Run(ctx context.Context) error {
 	if s.signer == nil {
 		if err := s.LoadHostKey(); err != nil {
@@ -169,7 +155,6 @@ func (s *Server) config(ctx context.Context, sess *session) *ssh.ServerConfig {
 			name, single := splitLogin(meta.User())
 			id, canonical, err := s.Backend.Authenticate(ctx, name, string(password), sess.ip)
 			if err != nil && single != "" {
-				// A username that itself contains a dot.
 				id, canonical, err = s.Backend.Authenticate(ctx, meta.User(), string(password), sess.ip)
 				single = ""
 			}
@@ -196,7 +181,6 @@ func (s *Server) config(ctx context.Context, sess *session) *ssh.ServerConfig {
 	return cfg
 }
 
-// splitLogin turns "name.abc12345" into ("name", "abc12345").
 func splitLogin(user string) (string, string) {
 	i := strings.LastIndexByte(user, '.')
 	if i <= 0 || i == len(user)-1 {
@@ -251,8 +235,6 @@ func (s *Server) handle(ctx context.Context, raw net.Conn) {
 	}
 }
 
-// serveSession accepts only the "sftp" subsystem; shells and commands are
-// refused.
 func (s *Server) serveSession(ctx context.Context, sess *session, stats *counters, ch ssh.Channel, reqs <-chan *ssh.Request) {
 	defer ch.Close()
 	for req := range reqs {

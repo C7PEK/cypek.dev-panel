@@ -12,16 +12,12 @@ import (
 	"time"
 )
 
-// Event is one entry of the server's history: lifecycle changes recorded by
-// the shim plus error bursts detected in the console output. Stored as JSON
-// lines in .homepanel/events.jsonl so the panel can read them even while it
-// was down when they happened.
 type Event struct {
 	At       string   `json:"at"`
-	Kind     string   `json:"kind"` // start | ready | stop | exit | crash | error
+	Kind     string   `json:"kind"`
 	Message  string   `json:"message,omitempty"`
-	Lines    []string `json:"lines,omitempty"` // error context (stack trace)
-	Count    int      `json:"count,omitempty"` // similar errors folded into this one
+	Lines    []string `json:"lines,omitempty"`
+	Count    int      `json:"count,omitempty"`
 	ExitCode *int     `json:"exitCode,omitempty"`
 }
 
@@ -31,17 +27,14 @@ const (
 	errorBurstWindow  = 1500 * time.Millisecond
 	errorMaxLines     = 40
 	errorEventsPerMin = 20
-	// DefaultErrorRegex catches the usual suspects across Java, Node, Python
-	// and FXServer logs.
+
 	DefaultErrorRegex = `(?i)(\[[^\]]*\b(ERROR|SEVERE|FATAL)\b|\b(ERROR|SEVERE|FATAL)\]|^\s*(ERROR|FATAL)\b|Exception in thread|Traceback \(most recent call last\)|Unhandled(Promise)?Rejection|\bpanic:|SCRIPT ERROR)`
 )
 
 var ansiRe = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07|\r`)
 
-// StripANSI removes terminal escape sequences from a console line.
 func StripANSI(s string) string { return ansiRe.ReplaceAllString(s, "") }
 
-// eventLog appends events and detects error bursts in output.
 type eventLog struct {
 	path string
 	re   *regexp.Regexp
@@ -54,7 +47,7 @@ type eventLog struct {
 	inMinute   int
 	suppressed int
 	stop       chan struct{}
-	disabled   bool // oneshot tasks do not pollute the server's history
+	disabled   bool
 }
 
 func newEventLog(serverDir, errorRegex string) *eventLog {
@@ -81,7 +74,6 @@ func (l *eventLog) close() {
 	}
 }
 
-// flusher closes error bursts once the output goes quiet.
 func (l *eventLog) flusher() {
 	t := time.NewTicker(500 * time.Millisecond)
 	defer t.Stop()
@@ -99,7 +91,6 @@ func (l *eventLog) flusher() {
 	}
 }
 
-// record writes a lifecycle event immediately (after any pending error).
 func (l *eventLog) record(e Event) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -107,7 +98,6 @@ func (l *eventLog) record(e Event) {
 	l.appendLocked(e)
 }
 
-// output feeds console output; complete lines are scanned for errors.
 func (l *eventLog) output(chunk []byte) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -116,7 +106,7 @@ func (l *eventLog) output(chunk []byte) {
 		i := strings.IndexByte(s, '\n')
 		if i < 0 {
 			l.partial.WriteString(s)
-			if l.partial.Len() > 8192 { // runaway line without newline
+			if l.partial.Len() > 8192 {
 				l.partial.Reset()
 			}
 			return
@@ -200,13 +190,10 @@ func truncateLine(s string) string {
 	return s
 }
 
-// ReadEvents returns up to limit events, newest first, from events.jsonl and
-// its rotated predecessor.
 func ReadEvents(serverDir string, limit int) ([]Event, error) {
 	base := filepath.Join(serverDir, MetaDir, EventsFile)
 	var all []Event
 	for _, p := range []string{base + ".1", base} {
-		// Regular files only, size-capped: the game can replace them.
 		f, err := safefs.OpenRegular(serverDir, p[len(serverDir)+1:])
 		if err != nil {
 			continue

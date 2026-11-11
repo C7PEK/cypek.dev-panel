@@ -1,6 +1,3 @@
-// Package archive extracts tar.gz, tar.xz and zip files safely: every entry
-// is confined to the destination (no "..", no absolute paths, symlinks only
-// within the tree). Used for runtimes, game artifacts and the file manager.
 package archive
 
 import (
@@ -22,29 +19,21 @@ import (
 	"github.com/ulikunitz/xz"
 )
 
-// Options tune extraction.
 type Options struct {
-	// Strip removes this many leading path components (like tar --strip-components).
 	Strip int
-	// Progress, when set, is called with the running entry count every few
-	// hundred entries (big archives take a while with pure-Go xz).
+
 	Progress func(entries int)
-	// MaxBytes stops extraction once this many bytes were written (zip
-	// bombs, a full disk); 0 = unlimited.
+
 	MaxBytes int64
-	// Cancel is polled between entries; returning true aborts.
+
 	Cancel func() bool
-	// Written, when set, receives the running byte count.
+
 	Written func(n int64)
-	// NoLinks refuses symlink and hardlink entries (user uploads). Game
-	// artifacts (FXServer's alpine/) need their symlinks.
+
 	NoLinks bool
-	// Resolve, when set, must accept the folder of every entry (callers pass
-	// files.ResolveSafe so archives go through the same path check as the
-	// file manager; this package cannot import files).
+
 	Resolve func(root, userPath string) (string, error)
-	// Keep, when set, names entries (slash-separated, after Strip) that are
-	// skipped when the target already exists.
+
 	Keep func(rel string) bool
 }
 
@@ -76,15 +65,12 @@ func (o Options) tick(n int) {
 	}
 }
 
-// ErrCancelled is returned when Options.Cancel asked to stop.
 var ErrCancelled = errors.New("extraction cancelled")
 
-// ErrTooLarge is returned when Options.MaxBytes is exceeded.
 var ErrTooLarge = errors.New("the archive unpacks to more than the allowed size")
 
 func (o Options) cancelled() bool { return o.Cancel != nil && o.Cancel() }
 
-// budget counts written bytes across entries.
 type budget struct {
 	opts Options
 	n    int64
@@ -109,7 +95,6 @@ func (br *budgetReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// Extract unpacks archivePath into dest, picking the format from the file name.
 func Extract(archivePath, dest string, opts Options) error {
 	name := strings.ToLower(archivePath)
 	switch {
@@ -134,13 +119,8 @@ func Extract(archivePath, dest string, opts Options) error {
 	}
 }
 
-// UseSystemXz lets tests force the pure-Go decoder.
 var UseSystemXz = true
 
-// xzReader decompresses xz. The pure-Go decoder is ~75x slower than xz(1)
-// (84 s vs 1 s for the 300 MB FXServer artifact), so when the xz binary is
-// present it is run as a child process (plain exec, no shell) and Go is the
-// fallback, keeping the no-system-dependency promise.
 func xzReader(r io.Reader) (io.Reader, error) {
 	if UseSystemXz {
 		if path, err := exec.LookPath("xz"); err == nil {
@@ -159,7 +139,6 @@ func xzReader(r io.Reader) (io.Reader, error) {
 	return xz.NewReader(r)
 }
 
-// cmdReader reaps the decompressor when the tar reader is done with it.
 type cmdReader struct {
 	io.ReadCloser
 	cmd    *exec.Cmd
@@ -174,7 +153,6 @@ func (c *cmdReader) Close() error {
 	return nil
 }
 
-// Within joins rel under root and ensures the result stays inside root.
 func Within(root, rel string) (string, error) {
 	if filepath.IsAbs(rel) {
 		return "", fmt.Errorf("absolute path %q in archive", rel)
@@ -187,9 +165,6 @@ func Within(root, rel string) (string, error) {
 	return p, nil
 }
 
-// stripped validates an entry name and removes strip leading components.
-// Names with ".." segments or a leading "/" are rejected outright rather than
-// normalised: an archive that tries is hostile and should not be installed.
 func stripped(name string, strip int) (string, bool, error) {
 	slash := filepath.ToSlash(name)
 	if strings.HasPrefix(slash, "/") {
@@ -292,14 +267,11 @@ func extractTar(archivePath, dest string, opts Options, wrap func(io.Reader) (io
 			if _, err := Within(destAbs, linkRel); err != nil {
 				return err
 			}
-			// Copy instead of linking: a hardlink created through a planted
-			// symlink would alias a file outside the destination. os.Root
-			// keeps the source lookup beneath destAbs.
+
 			if err := copyWithin(destAbs, linkRel, target); err != nil {
 				return fmt.Errorf("hardlink %s: %w", h.Name, err)
 			}
 		default:
-			// devices, fifos: never expected in game archives
 			continue
 		}
 	}
@@ -382,9 +354,7 @@ func writeFile(root, target string, r io.Reader, mode os.FileMode) error {
 	if err := safeDir(root, filepath.Dir(target)); err != nil {
 		return err
 	}
-	// Replace, never write through, whatever is at the target: a symlink
-	// would redirect the data, an existing hardlink would modify the other
-	// name's file too.
+
 	if st, err := os.Lstat(target); err == nil && !st.IsDir() {
 		os.Remove(target)
 	}
@@ -399,11 +369,6 @@ func writeFile(root, target string, r io.Reader, mode os.FileMode) error {
 	return out.Close()
 }
 
-// symlink records target -> linkname verbatim. Links may point anywhere
-// (chroot-style archives such as FXServer's alpine/ contain absolute links
-// like /usr/glibc-compat/...): a link by itself touches nothing. What must
-// never happen is writing *through* such a link, which safeDir prevents for
-// every file and directory created afterwards.
 func symlink(root, target, linkname string) error {
 	if err := safeDir(root, filepath.Dir(target)); err != nil {
 		return err
@@ -412,9 +377,6 @@ func symlink(root, target, linkname string) error {
 	return os.Symlink(linkname, target)
 }
 
-// safeDir creates dir (inside root) and verifies that, with symlinks
-// resolved, it still lies inside root. It walks component by component so a
-// symlinked intermediate directory cannot redirect the write.
 func safeDir(root, dir string) error {
 	rel, err := filepath.Rel(root, dir)
 	if err != nil {
@@ -446,7 +408,7 @@ func fileMode(m int64) os.FileMode {
 	if mode == 0 {
 		mode = 0o644
 	}
-	return mode | 0o600 // always readable/writable by the owner
+	return mode | 0o600
 }
 
 func dirMode(m int64) os.FileMode {
@@ -457,8 +419,6 @@ func dirMode(m int64) os.FileMode {
 	return mode | 0o700
 }
 
-// copyWithin copies the regular file srcRel (beneath root, resolved through
-// os.Root so links cannot lead outside) to target.
 func copyWithin(root, srcRel, target string) error {
 	r, err := os.OpenRoot(root)
 	if err != nil {

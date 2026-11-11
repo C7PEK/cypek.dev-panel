@@ -1,5 +1,3 @@
-// Command homepanel is the HomePanel binary: the web panel (serve), the
-// per-server supervisor shim (shim), self-update and maintenance commands.
 package main
 
 import (
@@ -7,7 +5,6 @@ import (
 	"os"
 )
 
-// version is overridden at build time via -ldflags "-X main.version=...".
 var version = "dev"
 
 func usage() {

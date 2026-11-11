@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-// The embedded copies must match packaging/ so install.sh and the repo agree.
 func TestEmbeddedSystemFilesMatchPackaging(t *testing.T) {
 	pairs := map[string]string{
 		"systemfiles/homepanel.service":                  "../../packaging/systemd/homepanel.service",

@@ -14,9 +14,6 @@ import (
 
 const CodeNoGit = "no_git_source"
 
-// handleGitUpdate pulls the latest code of a git-based server (Discord
-// bots), reinstalls its dependencies and starts it again. It runs as an
-// install job, so the wizard's progress view and log show every step.
 func (s *Server) handleGitUpdate(w http.ResponseWriter, r *http.Request) {
 	_, user := sessionFromContext(r.Context())
 	srv := serverFromContext(r.Context())
@@ -60,8 +57,6 @@ func (s *Server) handleGitUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	then := func(ok bool, jobErr error) {
 		if !ok {
-			// The old run config is still valid; a failed pull or npm run
-			// must not leave the bot down for good.
 			_ = s.servers.SetInstallState(s.bgCtx, srv.ID, servers.InstallReady, "")
 		}
 		if !restart && !wasRunning {
@@ -74,7 +69,7 @@ func (s *Server) handleGitUpdate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if s.servers.CheckStartable(ctx, srv.ID) != nil {
-			return // expired meanwhile: stays stopped
+			return
 		}
 		s.applyConfigDefaults(cur)
 		if err := s.sup.Start(ctx, srv.ID); err != nil {

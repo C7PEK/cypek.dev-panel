@@ -20,7 +20,6 @@ import { MOD_LOADERS, PLUGIN_LOADERS, loaderName, useGameVersions, useSetModPlat
 import type { ModPlatform } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-/** Native select styled like the inputs (works well on phones). */
 export function NativeSelect({
   id,
   value,
@@ -53,7 +52,6 @@ export function NativeSelect({
   )
 }
 
-/** Shows what the panel thinks the server runs, with a way to correct it. */
 export function PlatformCard({ serverId, platform, canWrite }: { serverId: string; platform: ModPlatform; canWrite: boolean }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -136,7 +134,7 @@ function PlatformForm({
   const { t } = useTranslation()
   const versions = useGameVersions(true)
   const save = useSetModPlatform(serverId)
-  // Start from the current override; "" means "detect automatically".
+
   const [loader, setLoader] = useState(platform.overridden ? platform.loader : "")
   const [gameVersion, setGameVersion] = useState(platform.overridden ? platform.gameVersion : "")
 
@@ -154,7 +152,7 @@ function PlatformForm({
   }
 
   const versionList = versions.data ?? []
-  // Keep a manually typed/unknown version selectable.
+
   const options = gameVersion && !versionList.includes(gameVersion) ? [gameVersion, ...versionList] : versionList
 
   const fields = (

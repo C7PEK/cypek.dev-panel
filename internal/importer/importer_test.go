@@ -254,12 +254,12 @@ func TestPufferConversionRuns(t *testing.T) {
 			t.Errorf("%s: kind=%q eula=%q", c.loader, got, eula)
 		}
 	}
-	// The unsupported branch fails loudly instead of silently half-installing.
+
 	dir := t.TempDir()
 	if out, err := runBash(t, dir, installer.PrepareScript(script, dir), map[string]string{"loader": "forge", "SERVER_DIR": dir}); err == nil || !strings.Contains(out, "forgedl is not supported") {
 		t.Errorf("forge should fail: %v %s", err, out)
 	}
-	// Start shell: picks the fabric jar when present, falls back otherwise.
+
 	dir = t.TempDir()
 	shell := templates.ShellReferences(tp.Start.Shell)
 	fake := "java() { echo \"java $*\"; }\n" + strings.ReplaceAll(shell, "exec java", "java")
@@ -286,7 +286,6 @@ func runBash(t *testing.T, dir, script string, env map[string]string) (string, e
 	return string(out), err
 }
 
-// TestConvertedScriptsParse runs bash -n over every sample conversion.
 func TestConvertedScriptsParse(t *testing.T) {
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Skip("bash not available")

@@ -15,25 +15,20 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/supervisor"
 )
 
-// Target is what the engine needs from the rest of the panel for one server.
 type Target struct {
-	// WarnCommand renders the template's warn command for a message; ok=false
-	// when the server has none.
 	WarnCommand func(ctx context.Context, serverID, message string) (cmd string, ok bool, err error)
-	// Players returns the current player count (-1 when unknown).
+
 	Players func(ctx context.Context, serverID string) int
-	// Backup creates a backup; may return ErrBackupsUnavailable.
+
 	Backup func(ctx context.Context, serverID string, logf func(string, ...any)) error
-	// BeforeStart runs before start/restart actions (config defaults).
+
 	BeforeStart func(ctx context.Context, serverID string)
-	// CanStart refuses start/restart (e.g. an expired server).
+
 	CanStart func(ctx context.Context, serverID string) error
 }
 
-// ErrBackupsUnavailable is returned by Target.Backup until backups exist.
 var ErrBackupsUnavailable = errors.New("backups are not available yet")
 
-// Engine owns the cron instance and executes chains.
 type Engine struct {
 	store  *Store
 	sup    supervisor.Supervisor
@@ -48,18 +43,14 @@ type Engine struct {
 	ctx     context.Context
 }
 
-// New creates an engine in the system time zone.
 func New(store *Store, sup supervisor.Supervisor, target Target, log *slog.Logger) *Engine {
 	loc := time.Local
 	return &Engine{store: store, sup: sup, target: target, log: log, loc: loc,
 		cron: cron.New(cron.WithLocation(loc), cron.WithParser(Parser)), entries: map[int64]cron.EntryID{}, running: map[int64]context.CancelFunc{}}
 }
 
-// Location is the time zone schedules are interpreted in.
 func (e *Engine) Location() *time.Location { return e.loc }
 
-// Start loads all enabled schedules and starts the cron. Missed runs are
-// logged, never caught up.
 func (e *Engine) Start(ctx context.Context) error {
 	e.ctx = ctx
 	all, err := e.store.List(ctx, "")
@@ -86,7 +77,6 @@ func (e *Engine) Start(ctx context.Context) error {
 	return nil
 }
 
-// Reload (re)registers one schedule after create/update/delete.
 func (e *Engine) Reload(ctx context.Context, id int64) {
 	e.mu.Lock()
 	if entry, ok := e.entries[id]; ok {
@@ -120,7 +110,6 @@ func (e *Engine) add(s *Schedule) {
 	}
 }
 
-// RunNow executes a schedule immediately (manual trigger).
 func (e *Engine) RunNow(id int64) error {
 	e.mu.Lock()
 	_, busy := e.running[id]
@@ -132,7 +121,6 @@ func (e *Engine) RunNow(id int64) error {
 	return nil
 }
 
-// Cancel aborts a running chain.
 func (e *Engine) Cancel(id int64) bool {
 	e.mu.Lock()
 	cancel, ok := e.running[id]
@@ -143,7 +131,6 @@ func (e *Engine) Cancel(id int64) bool {
 	return ok
 }
 
-// IsRunning reports whether a chain is executing right now.
 func (e *Engine) IsRunning(id int64) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -172,8 +159,6 @@ func (e *Engine) fire(id int64, trigger string) {
 		e.mu.Unlock()
 	}()
 
-	// Bookkeeping must survive a cancelled chain, so it uses a context that
-	// is not cancelled with the run itself.
 	bg := context.WithoutCancel(ctx)
 	s, err := e.store.Get(bg, id)
 	if err != nil {
@@ -201,7 +186,6 @@ func (e *Engine) fire(id int64, trigger string) {
 	e.store.setTimes(bg, id, db.Now(), next)
 }
 
-// execute runs the chain and returns ok | skipped | failed.
 func (e *Engine) execute(ctx context.Context, s *Schedule, logf func(string, ...any)) string {
 	logf("Starting \"%s\"", s.Name)
 	st, err := e.sup.Status(ctx, s.ServerID)
@@ -316,7 +300,6 @@ func (e *Engine) runAction(ctx context.Context, serverID string, a Action, logf 
 	return fmt.Errorf("unknown action %q", a.Type)
 }
 
-// console sends one line to the server's stdin through the shim.
 func (e *Engine) console(ctx context.Context, serverID, line string) error {
 	c, err := e.sup.Attach(ctx, serverID)
 	if err != nil {

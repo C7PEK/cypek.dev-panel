@@ -11,8 +11,6 @@ import (
 	"strconv"
 )
 
-// Modrinth is a small client for the Modrinth v2 API (plugins and mods).
-// Modrinth asks for a User-Agent that identifies the project; UserAgent does.
 type Modrinth struct{ BaseURL string }
 
 func NewModrinth() *Modrinth { return &Modrinth{BaseURL: "https://api.modrinth.com/v2"} }
@@ -47,7 +45,7 @@ type ModrinthFile struct {
 type ModrinthDependency struct {
 	ProjectID      string `json:"project_id"`
 	VersionID      string `json:"version_id"`
-	DependencyType string `json:"dependency_type"` // required | optional | incompatible | embedded
+	DependencyType string `json:"dependency_type"`
 }
 
 type ModrinthVersion struct {
@@ -55,7 +53,7 @@ type ModrinthVersion struct {
 	ProjectID     string               `json:"project_id"`
 	Name          string               `json:"name"`
 	VersionNumber string               `json:"version_number"`
-	VersionType   string               `json:"version_type"` // release | beta | alpha
+	VersionType   string               `json:"version_type"`
 	DatePublished string               `json:"date_published"`
 	GameVersions  []string             `json:"game_versions"`
 	Loaders       []string             `json:"loaders"`
@@ -63,7 +61,6 @@ type ModrinthVersion struct {
 	Dependencies  []ModrinthDependency `json:"dependencies"`
 }
 
-// PrimaryFile is the file Modrinth marks primary (or the first one).
 func (v *ModrinthVersion) PrimaryFile() *ModrinthFile {
 	for i := range v.Files {
 		if v.Files[i].Primary {
@@ -89,8 +86,6 @@ func jsonArray(items []string) string {
 	return string(b)
 }
 
-// Search runs a faceted search. projectType is "plugin" or "mod"; loaders
-// are OR-ed; gameVersion may be empty; serverSide drops client-only mods.
 func (m *Modrinth) Search(ctx context.Context, query, projectType string, loaders []string, gameVersion string, serverSide bool, sort string, offset, limit int) (*ModrinthSearch, error) {
 	facets := [][]string{{"project_type:" + projectType}}
 	if len(loaders) > 0 {
@@ -120,8 +115,6 @@ func (m *Modrinth) Search(ctx context.Context, query, projectType string, loader
 	return &out, nil
 }
 
-// Versions lists a project's versions for the loaders / game version,
-// newest first (Modrinth's order).
 func (m *Modrinth) Versions(ctx context.Context, projectID string, loaders []string, gameVersion string) ([]ModrinthVersion, error) {
 	q := url.Values{}
 	if len(loaders) > 0 {
@@ -156,7 +149,6 @@ func (m *Modrinth) Projects(ctx context.Context, ids []string) ([]ModrinthProjec
 	return out, nil
 }
 
-// VersionsByHash identifies files by SHA-1; unknown hashes are absent.
 func (m *Modrinth) VersionsByHash(ctx context.Context, sha1s []string) (map[string]ModrinthVersion, error) {
 	out := map[string]ModrinthVersion{}
 	if len(sha1s) == 0 {
@@ -166,8 +158,6 @@ func (m *Modrinth) VersionsByHash(ctx context.Context, sha1s []string) (map[stri
 	return out, err
 }
 
-// LatestByHash returns, per SHA-1, the newest version compatible with the
-// loaders and game version.
 func (m *Modrinth) LatestByHash(ctx context.Context, sha1s, loaders []string, gameVersion string) (map[string]ModrinthVersion, error) {
 	out := map[string]ModrinthVersion{}
 	if len(sha1s) == 0 {
@@ -181,7 +171,6 @@ func (m *Modrinth) LatestByHash(ctx context.Context, sha1s, loaders []string, ga
 	return out, err
 }
 
-// GameVersions lists Minecraft release versions, newest first.
 func (m *Modrinth) GameVersions(ctx context.Context) ([]string, error) {
 	var tags []struct {
 		Version     string `json:"version"`

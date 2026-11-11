@@ -20,7 +20,6 @@ interface Props {
   connected: boolean
 }
 
-/** Top-of-dashboard strip with CPU, RAM, disk, uptime and load of the host. */
 export function HostBar({ host, connected }: Props) {
   const { t } = useTranslation()
   if (!host) {
@@ -91,7 +90,7 @@ export function HostBar({ host, connected }: Props) {
               {label}
             </div>
             <div className="flex items-baseline gap-1.5">
-              <span className="font-heading text-xl leading-none">{value || "—"}</span>
+              <span className="font-heading text-xl leading-none">{value || "-"}</span>
               <span className="truncate text-[0.7rem] text-muted-foreground">{sub}</span>
             </div>
             {meter && <Meter value={meter.value} max={meter.max} />}

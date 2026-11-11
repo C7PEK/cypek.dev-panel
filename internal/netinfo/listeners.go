@@ -8,16 +8,11 @@ import (
 	"strings"
 )
 
-// Bound lists ports something on this host is bound to, per protocol
-// ("tcp" listeners and bound "udp" sockets), read from /proc/net. Reading
-// these files needs no privileges.
 type Bound struct {
 	TCP map[int]bool
 	UDP map[int]bool
 }
 
-// Has reports whether port is bound for any protocol in proto
-// ("tcp", "udp" or "tcp+udp").
 func (b Bound) Has(port int, proto string) bool {
 	if strings.Contains(proto, "tcp") && b.TCP[port] {
 		return true
@@ -25,10 +20,8 @@ func (b Bound) Has(port int, proto string) bool {
 	return strings.Contains(proto, "udp") && b.UDP[port]
 }
 
-// procNet is swapped in tests.
 var procNet = "/proc/net"
 
-// BoundPorts reads the host's listening TCP and bound UDP ports.
 func BoundPorts() (Bound, error) {
 	b := Bound{TCP: map[int]bool{}, UDP: map[int]bool{}}
 	var firstErr error
@@ -50,21 +43,19 @@ func BoundPorts() (Bound, error) {
 	return b, firstErr
 }
 
-// parseProcNet reads lines like
-// "0: 0100007F:1F90 00000000:0000 0A ..." (local address, remote, state).
 func parseProcNet(r io.Reader, into map[int]bool, tcp bool) {
 	sc := bufio.NewScanner(r)
 	first := true
 	for sc.Scan() {
 		if first {
-			first = false // header
+			first = false
 			continue
 		}
 		fields := strings.Fields(sc.Text())
 		if len(fields) < 4 {
 			continue
 		}
-		// TCP: only LISTEN (0A); UDP: every bound socket (07 = unconnected).
+
 		if tcp && fields[3] != "0A" {
 			continue
 		}

@@ -13,14 +13,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/providers"
 )
 
-// runFetch is a helper for install scripts of imported templates (it runs
-// inside the server sandbox): it downloads well-known server jars with
-// checksum verification so converted PufferPanel templates need neither jq
-// nor hand-written API calls.
-//
-//	homepanel fetch mojang <version|latest> <target>
-//	homepanel fetch paper <version|latest> <target>
-//	homepanel fetch fabric-installer <target>
 func runFetch(args []string) error {
 	if len(args) < 2 {
 		return errors.New("usage: homepanel fetch mojang|paper <version> <target> | fabric-installer <target>")

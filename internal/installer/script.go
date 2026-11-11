@@ -6,10 +6,6 @@ import (
 	"strings"
 )
 
-// scriptPrelude adapts install scripts written for Pterodactyl/Pelican/
-// PufferPanel containers to this host: they run as the panel user (no root)
-// in the server's sandbox, so package managers are skipped and the paths
-// containers mount the server at point to the real directory.
 const scriptPrelude = `#!/bin/bash
 # --- panel.cypek.dev install wrapper ---------------------------------------
 # Package managers need root; the tools they would install (curl, jq, unzip,
@@ -38,12 +34,9 @@ cd "$SERVER_DIR" || exit 1
 
 var crlf = regexp.MustCompile(`\r\n?`)
 
-// PrepareScript normalises line endings, points container paths at the
-// server directory and prepends the prelude. The script text itself is
-// template-provided; user variable values only arrive via the environment.
 func PrepareScript(content, serverDir string) string {
 	s := crlf.ReplaceAllString(content, "\n")
-	// Drop the script's own shebang; bash runs it.
+
 	if strings.HasPrefix(s, "#!") {
 		if i := strings.IndexByte(s, '\n'); i >= 0 {
 			s = s[i+1:]
@@ -55,15 +48,10 @@ func PrepareScript(content, serverDir string) string {
 	return scriptPrelude + s + "\n"
 }
 
-// hostTools are programs install scripts commonly call; containers ship
-// them, a minimal host may not.
 var hostTools = []string{"curl", "wget", "jq", "unzip", "tar", "git", "xz", "file"}
 
-// aptPackage names the Debian/Ubuntu package providing a tool.
 var aptPackage = map[string]string{"xz": "xz-utils"}
 
-// MissingTools lists the Debian packages for hostTools a script mentions
-// that are not on PATH.
 func MissingTools(script string) []string {
 	var out []string
 	for _, tool := range hostTools {

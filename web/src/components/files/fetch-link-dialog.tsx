@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils"
 
 interface Props {
   serverId: string
-  /** Current folder of the file browser ("" = root). */
   path: string
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -25,9 +24,6 @@ interface Props {
 
 const BROKEN: LinkKind[] = ["mega", "wetransfer"]
 
-// "Download from link": the server fetches the file, so it does not go
-// through the user's (usually slow) upload. Mounted only while open, so
-// every opening starts with an empty form.
 export function FetchLinkDialog({ serverId, path, open, onOpenChange }: Props) {
   const { t } = useTranslation()
   const fetchLink = useFetchLink(serverId)

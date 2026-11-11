@@ -1,5 +1,3 @@
-// Package netinfo discovers addresses the panel is reachable on, for the
-// first-run banner and the setup screen (homelab: usually a bare LAN IP).
 package netinfo
 
 import (
@@ -7,18 +5,15 @@ import (
 	"strings"
 )
 
-// Address is one reachable IP with a hint about where it comes from.
 type Address struct {
 	IP        string `json:"ip"`
 	Interface string `json:"interface"`
-	// Kind is "lan", "tailscale" or "other".
+
 	Kind string `json:"kind"`
 }
 
-// tailscaleCGNAT is the 100.64.0.0/10 range Tailscale hands out.
 var tailscaleCGNAT = &net.IPNet{IP: net.IPv4(100, 64, 0, 0), Mask: net.CIDRMask(10, 32)}
 
-// LocalAddresses lists IPv4 addresses on interfaces that are up and not loopback.
 func LocalAddresses() ([]Address, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -58,8 +53,6 @@ func classify(ifaceName string, ip net.IP) string {
 	return "other"
 }
 
-// URLs renders http(s)://ip:port for each address. listen is the configured
-// listen address; when it binds a specific IP only that URL is returned.
 func URLs(listen string, tls bool, addrs []Address) []string {
 	scheme := "http"
 	if tls {

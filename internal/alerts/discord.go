@@ -1,6 +1,3 @@
-// Package alerts sends Discord webhook notifications when a server crashes
-// and does not come back, when it recovers, and (optionally) on console
-// error bursts.
 package alerts
 
 import (
@@ -23,11 +20,8 @@ var (
 	digitsRe    = regexp.MustCompile(`^\d{5,25}$`)
 )
 
-// ErrWebhook is returned for anything that is not a Discord webhook URL.
 var ErrWebhook = errors.New("this is not a Discord webhook link (https://discord.com/api/webhooks/...)")
 
-// ValidateWebhook accepts only Discord webhook URLs, so the panel cannot be
-// made to POST to arbitrary hosts.
 func ValidateWebhook(raw string) (string, error) {
 	u, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil || u.Scheme != "https" || u.User != nil || !webhookHost.MatchString(u.Host) || !webhookPath.MatchString(u.Path) {
@@ -45,7 +39,6 @@ func ValidateWebhook(raw string) (string, error) {
 	return u.String(), nil
 }
 
-// WebhookHint shows the end of the token, enough to recognise a webhook.
 func WebhookHint(webhook string) string {
 	if webhook == "" {
 		return ""
@@ -61,7 +54,6 @@ func WebhookHint(webhook string) string {
 	return "…/" + m[3][len(m[3])-4:]
 }
 
-// Mention is a validated ping target list.
 type Mention struct {
 	Text     string
 	Everyone bool
@@ -74,8 +66,6 @@ var (
 	userRe = regexp.MustCompile(`^<@!?(\d{5,25})>$`)
 )
 
-// ParseMention accepts "@everyone", "@here", "<@&role>", "<@user>" or a bare
-// user id, space separated; Text is the normalised form.
 func ParseMention(s string) (Mention, error) {
 	var m Mention
 	fields := strings.Fields(s)
@@ -107,7 +97,6 @@ func ParseMention(s string) (Mention, error) {
 	return m, nil
 }
 
-// Message is a Discord webhook payload.
 type Message struct {
 	Username        string          `json:"username,omitempty"`
 	Content         string          `json:"content,omitempty"`
@@ -141,7 +130,6 @@ type EmbedFooter struct {
 	Text string `json:"text"`
 }
 
-// withMention puts the ping in content and allows exactly those mentions.
 func (m *Message) withMention(men Mention) {
 	m.AllowedMentions = allowedMentions{Parse: []string{}}
 	if men.Text == "" {
@@ -155,12 +143,10 @@ func (m *Message) withMention(men Mention) {
 	m.AllowedMentions.Users = men.Users
 }
 
-// Sender delivers messages; tests replace it.
 type Sender interface {
 	Send(ctx context.Context, webhook string, msg Message) error
 }
 
-// Discord posts to webhooks, honouring rate limits.
 type Discord struct{ Client *http.Client }
 
 func NewDiscord() *Discord { return &Discord{Client: &http.Client{Timeout: 15 * time.Second}} }
@@ -189,7 +175,6 @@ func (d *Discord) Send(ctx context.Context, webhook string, msg Message) error {
 		req.Header.Set("User-Agent", "panel.cypek.dev alerts (+https://github.com/C7PEK/cypek.dev-panel)")
 		resp, err := d.Client.Do(req)
 		if err != nil {
-			// url.Error includes the URL, i.e. the webhook token.
 			var ue *url.Error
 			if errors.As(err, &ue) {
 				err = fmt.Errorf("%s Discord: %w", ue.Op, ue.Err)

@@ -1,6 +1,3 @@
-// Package providers knows how to find and fetch third-party artifacts
-// (Paper builds, Temurin JREs). Downloads are HTTPS-only and verified
-// against the provider's checksum when one exists.
 package providers
 
 import (
@@ -19,31 +16,22 @@ import (
 	"time"
 )
 
-// UserAgent identifies the panel to upstream APIs, as PaperMC asks.
 const UserAgent = "homepanel/0.1 (+https://github.com/C7PEK/cypek.dev-panel)"
 
-// Client is a shared HTTP client with sane timeouts for API calls.
 var Client = &http.Client{Timeout: 30 * time.Second}
 
-// DownloadClient streams large files; no overall timeout, ctx governs it.
-// Tests swap it for one that trusts their TLS server.
 var DownloadClient = &http.Client{Timeout: 0}
 
-// Progress receives download progress; total is -1 when unknown.
 type Progress func(done, total int64)
 
-// ErrChecksum means the downloaded bytes did not match the expected digest.
 var ErrChecksum = errors.New("checksum mismatch")
 
-// Download fetches rawURL to dest atomically (temp file + rename). When
-// sha256hex is non-empty the file is verified before it is moved into place.
 func Download(ctx context.Context, rawURL, dest, sha256hex string, progress Progress) error {
 	return DownloadVerified(ctx, rawURL, dest, sha256.New(), sha256hex, 0, progress)
 }
 
 type userAgentKey struct{}
 
-// WithUserAgent makes downloads under ctx send ua instead of UserAgent.
 func WithUserAgent(ctx context.Context, ua string) context.Context {
 	return context.WithValue(ctx, userAgentKey{}, ua)
 }
@@ -55,11 +43,8 @@ func userAgentFor(ctx context.Context) string {
 	return UserAgent
 }
 
-// ErrTooLarge means the download exceeded its size limit.
 var ErrTooLarge = errors.New("file is too large")
 
-// DownloadVerified is Download with any digest (h, compared to wantHex when
-// non-empty) and an optional size limit (maxBytes > 0).
 func DownloadVerified(ctx context.Context, rawURL, dest string, h hash.Hash, wantHex string, maxBytes int64, progress Progress) error {
 	u, err := url.Parse(rawURL)
 	if err != nil || u.Scheme != "https" {
@@ -140,7 +125,6 @@ func DownloadVerified(ctx context.Context, rawURL, dest string, h hash.Hash, wan
 	return os.Rename(tmpName, dest)
 }
 
-// getJSON fetches a JSON document with the panel's User-Agent.
 func getJSON(ctx context.Context, rawURL string, into any, decode func(io.Reader, any) error) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {

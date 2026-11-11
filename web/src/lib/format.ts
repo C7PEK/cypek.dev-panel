@@ -1,4 +1,3 @@
-/** Formats bytes with a sensible unit: "512 B", "3.4 KB", "512 MB", "1.2 GB". */
 export function formatBytes(n: number | undefined): string {
   if (n === undefined || n === null || Number.isNaN(n)) return ""
   if (n < 1024) return `${n} B`
@@ -11,7 +10,6 @@ export function formatBytes(n: number | undefined): string {
   return `${(gb / 1024).toFixed(2)} TB`
 }
 
-/** "3d 4h", "2h 05m" or "12m" from seconds. */
 export function formatUptime(seconds: number | undefined): string {
   if (!seconds || seconds < 0) return ""
   const d = Math.floor(seconds / 86400)
@@ -22,13 +20,11 @@ export function formatUptime(seconds: number | undefined): string {
   return `${m}m`
 }
 
-/** Whole percent with a cap, e.g. "37%". */
 export function formatPercent(p: number | undefined): string {
   if (p === undefined || Number.isNaN(p)) return ""
   return `${Math.round(p)}%`
 }
 
-/** Short locale-aware date + time, e.g. "08.11.2026, 14:03". */
 export function formatDateTime(iso: string | undefined, locale: string): string {
   if (!iso) return ""
   const d = new Date(iso)
@@ -40,7 +36,6 @@ export function formatDateTime(iso: string | undefined, locale: string): string 
   }
 }
 
-/** Relative time like "in 3 h" / "2 min ago" (Intl.RelativeTimeFormat). */
 export function formatRelative(iso: string | undefined, locale: string): string {
   if (!iso) return ""
   const d = new Date(iso)

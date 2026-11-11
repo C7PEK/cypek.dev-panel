@@ -25,7 +25,6 @@ interface Props {
   serverId: string
   items: InstalledMod[]
   canWrite: boolean
-  /** Label variant: "plugins" or "mods". */
   kind: "plugins" | "mods"
   onChanged: (result?: ModInstallResult) => void
   onBrowse: () => void

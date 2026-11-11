@@ -7,9 +7,6 @@ import (
 	"strconv"
 )
 
-// Fabric resolves the Fabric server launcher (meta.fabricmc.net v2, checked
-// 2026-11-09). The launcher jar has no published checksum; it loads the
-// vanilla server.jar placed next to it (downloaded and verified separately).
 type Fabric struct{ BaseURL string }
 
 func NewFabric() *Fabric { return &Fabric{BaseURL: "https://meta.fabricmc.net/v2"} }
@@ -31,7 +28,6 @@ func newestStable(list []fabricVersion) string {
 	return ""
 }
 
-// GameVersions lists the stable game versions Fabric supports, newest first.
 func (f *Fabric) GameVersions(ctx context.Context) ([]string, error) {
 	var list []fabricVersion
 	if err := getJSON(ctx, f.BaseURL+"/versions/game", &list, decodeJSON); err != nil {
@@ -46,7 +42,6 @@ func (f *Fabric) GameVersions(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
-// FabricServer is the launcher download for one game version.
 type FabricServer struct {
 	URL, Loader, Installer string
 }
@@ -67,12 +62,10 @@ func (f *Fabric) Server(ctx context.Context, game string) (*FabricServer, error)
 	return &FabricServer{URL: u, Loader: loader, Installer: installer}, nil
 }
 
-// Purpur resolves Purpur builds (api.purpurmc.org v2, checked 2026-11-09).
 type Purpur struct{ BaseURL string }
 
 func NewPurpur() *Purpur { return &Purpur{BaseURL: "https://api.purpurmc.org/v2/purpur"} }
 
-// Versions lists Purpur's Minecraft versions, newest first.
 func (p *Purpur) Versions(ctx context.Context) ([]string, error) {
 	var out struct {
 		Versions []string `json:"versions"`

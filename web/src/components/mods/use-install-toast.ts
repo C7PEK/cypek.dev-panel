@@ -3,7 +3,6 @@ import { toast } from "sonner"
 
 import type { ModInstallResult } from "@/lib/types"
 
-/** Toast text for an install result: "Zainstalowano LuckPerms (+ 1 zależność)". */
 export function useInstallToast() {
   const { t } = useTranslation()
   return (res: ModInstallResult, fallbackName: string) => {

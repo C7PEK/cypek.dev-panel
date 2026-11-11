@@ -7,7 +7,6 @@ import { Logo } from "@/components/layout/logo"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
-// Centered card over the cypek.dev backdrop (particles, grid, vignette) for login and setup.
 export function AuthShell({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   const { t } = useTranslation()
   return (

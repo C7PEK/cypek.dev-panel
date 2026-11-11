@@ -38,12 +38,11 @@ func TestFileJobs(t *testing.T) {
 	dir := filepath.Join(e.cfg.ServersDir(), id)
 	base := "/api/v1/servers/" + id + "/files"
 
-	// Links that cannot work are refused up front with a helpful message.
 	resp, body = e.do(http.MethodPost, base+"/fetch", map[string]any{"url": "https://mega.nz/file/x#y", "path": ""})
 	if resp.StatusCode != 422 || !strings.Contains(body["error"].(map[string]any)["message"].(string), "MEGA") {
 		t.Fatalf("mega: %d %v", resp.StatusCode, body)
 	}
-	// The LAN and localhost are off limits (SSRF).
+
 	resp, body = e.do(http.MethodPost, base+"/fetch", map[string]any{"url": "http://127.0.0.1:8420/api/v1/version", "path": ""})
 	if resp.StatusCode != 202 {
 		t.Fatalf("fetch: %d %v", resp.StatusCode, body)
@@ -53,7 +52,6 @@ func TestFileJobs(t *testing.T) {
 		t.Fatalf("loopback fetch: %v", job)
 	}
 
-	// Extraction runs in the background.
 	zf, _ := os.Create(filepath.Join(dir, "world.zip"))
 	zw := zip.NewWriter(zf)
 	for _, n := range []string{"world/level.dat", "world/region/r.0.0.mca"} {

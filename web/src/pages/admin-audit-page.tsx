@@ -76,7 +76,7 @@ export function AdminAuditPage({ user }: { user: User }) {
                         onClick={() => hasDetails && setOpen(open === e.id ? null : e.id)}
                       >
                         <td className="py-2 pr-3 whitespace-nowrap text-muted-foreground">{formatDateTime(e.createdAt, i18n.language)}</td>
-                        <td className="py-2 pr-3">{e.username || "—"}</td>
+                        <td className="py-2 pr-3">{e.username || "-"}</td>
                         <td className="py-2 pr-3 font-mono text-xs">{e.action}</td>
                         <td className="py-2 pr-3 font-mono text-xs break-all">{e.target}</td>
                         <td className="py-2 pr-3 font-mono text-xs">{e.ip}</td>

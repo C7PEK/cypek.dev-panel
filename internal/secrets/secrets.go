@@ -1,5 +1,3 @@
-// Package secrets encrypts values at rest (bot tokens, license keys) with
-// the key from config.toml, so a copied panel.db does not leak them.
 package secrets
 
 import (
@@ -14,12 +12,10 @@ import (
 
 const prefix = "enc:v1:"
 
-// Box seals and opens strings with AES-256-GCM.
 type Box struct {
 	aead cipher.AEAD
 }
 
-// New derives a Box from a 32-byte key.
 func New(key []byte) (*Box, error) {
 	if len(key) != 32 {
 		return nil, fmt.Errorf("secrets: key must be 32 bytes, got %d", len(key))
@@ -35,7 +31,6 @@ func New(key []byte) (*Box, error) {
 	return &Box{aead: aead}, nil
 }
 
-// Seal encrypts plain; an empty string stays empty.
 func (b *Box) Seal(plain string) (string, error) {
 	if plain == "" {
 		return "", nil
@@ -48,8 +43,6 @@ func (b *Box) Seal(plain string) (string, error) {
 	return prefix + base64.RawStdEncoding.EncodeToString(ct), nil
 }
 
-// Open decrypts a value produced by Seal. Values without the prefix are
-// returned unchanged, which lets plain values coexist during migration.
 func (b *Box) Open(value string) (string, error) {
 	if !IsSealed(value) {
 		return value, nil
@@ -69,8 +62,6 @@ func (b *Box) Open(value string) (string, error) {
 	return string(plain), nil
 }
 
-// IsSealed reports whether value was produced by Seal.
 func IsSealed(value string) bool { return strings.HasPrefix(value, prefix) }
 
-// Masked is what the API shows instead of a secret.
 const Masked = "••••••••"

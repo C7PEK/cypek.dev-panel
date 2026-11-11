@@ -11,9 +11,7 @@ import { cn } from "@/lib/utils"
 
 interface Props {
   server: Server
-  /** Compact icon-only buttons for tiles. */
   compact?: boolean
-  /** Show the force-stop button (with inline confirm). */
   withKill?: boolean
   className?: string
 }
@@ -23,7 +21,7 @@ export function PowerButtons({ server, compact = false, withKill = false, classN
   const power = usePower(server.id)
   const [confirmKill, setConfirmKill] = useState(false)
   const can = canDo(server.status.state, server.installState)
-  // An expired server is locked until an admin extends it.
+
   const allowed = server.expired ? { ...can, start: false, restart: false } : can
   const pending = power.isPending ? power.variables : null
 

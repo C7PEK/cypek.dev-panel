@@ -10,9 +10,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/templates"
 )
 
-// fromPuffer converts a PufferPanel (v2/v3) server template. Install
-// operations become one bash script, run commands with "if" guards become an
-// if/elif chain; the environment is always "host".
 func fromPuffer(doc map[string]any) (*conv, error) {
 	if inner, ok := doc["pufferd"].(map[string]any); ok {
 		doc = inner
@@ -38,7 +35,7 @@ func fromPuffer(doc map[string]any) (*conv, error) {
 	data, _ := doc["data"].(map[string]any)
 	order := pufferVarOrder(doc, data)
 	vars := map[string]bool{}
-	emptyOpts := map[string]string{} // key -> stand-in for the "" option
+	emptyOpts := map[string]string{}
 	for _, key := range order {
 		m, _ := data[key].(map[string]any)
 		if m == nil {
@@ -56,7 +53,6 @@ func fromPuffer(doc map[string]any) (*conv, error) {
 		c.t.Variables = append(c.t.Variables, v)
 	}
 
-	// Install operations -> bash.
 	var script strings.Builder
 	writeEmptyOptionFix(&script, emptyOpts)
 	javaVersion := ""
@@ -139,7 +135,6 @@ func fromPuffer(doc map[string]any) (*conv, error) {
 
 func hasDoneRegex(c *conv) bool { return c.t.ReadyRegex != "" }
 
-// pufferVarOrder lists variables by their groups, then the rest sorted.
 func pufferVarOrder(doc map[string]any, data map[string]any) []string {
 	var out []string
 	seen := map[string]bool{}
@@ -184,8 +179,6 @@ func pufferVarOrder(doc map[string]any, data map[string]any) []string {
 	return append(out, rest...)
 }
 
-// pufferVariable maps one data entry; the second result is the stand-in
-// value used when a select offers the empty string (UI selects cannot).
 func (c *conv) pufferVariable(key string, m map[string]any) (templates.Variable, string) {
 	v := templates.Variable{Key: key, Type: templates.TypeString}
 	label := strings.TrimSpace(str(m["display"]))
@@ -261,8 +254,6 @@ func emptyFix(opts map[string]string) string {
 	return b.String()
 }
 
-// writeEmptyOptionFix turns the select stand-in back into the empty value
-// the template's expressions expect.
 func writeEmptyOptionFix(b *strings.Builder, opts map[string]string) {
 	keys := make([]string, 0, len(opts))
 	for k := range opts {
@@ -276,7 +267,6 @@ func writeEmptyOptionFix(b *strings.Builder, opts map[string]string) {
 
 var pufferVarRef = regexp.MustCompile(`\$\{([A-Za-z][A-Za-z0-9_]*)\}`)
 
-// pufferRef converts ${var} into {{var}} for non-shell fields.
 func pufferRef(s string) string {
 	s = strings.ReplaceAll(s, "${rootDir}", "{{SERVER_DIR}}")
 	return pufferVarRef.ReplaceAllString(s, "{{$1}}")
@@ -301,7 +291,6 @@ func strList(v any) []string {
 	return nil
 }
 
-// Versioned java calls (java21, java${javaversion}) map to the runtime's java.
 var versionedJava = regexp.MustCompile(`\bjava(?:\$\{[A-Za-z][A-Za-z0-9_]*\}|\d{1,2}\b)`)
 
 func commandLine(s string) string {
@@ -309,7 +298,6 @@ func commandLine(s string) string {
 	return versionedJava.ReplaceAllString(s, "java")
 }
 
-// pufferOp renders one install operation as bash lines.
 func (c *conv) pufferOp(typ string, op map[string]any) ([]string, bool) {
 	fail := func(cmd string) string { return cmd + " || exit 1" }
 	switch typ {
@@ -378,7 +366,6 @@ func (c *conv) pufferOp(typ string, op map[string]any) ([]string, bool) {
 	return nil, false
 }
 
-// emitGuarded writes lines, wrapped in if <cond> when the op has a guard.
 func (c *conv) emitGuarded(b *strings.Builder, expr string, lines []string, vars map[string]bool, what string) {
 	if len(lines) == 0 {
 		return
@@ -396,7 +383,7 @@ func (c *conv) emitGuarded(b *strings.Builder, expr string, lines []string, vars
 	}
 	switch cond {
 	case "false":
-		return // never runs on a host install (env != 'host')
+		return
 	case "true":
 		for _, l := range lines {
 			b.WriteString(l + "\n")
@@ -410,8 +397,6 @@ func (c *conv) emitGuarded(b *strings.Builder, expr string, lines []string, vars
 	b.WriteString("fi\n")
 }
 
-// pufferRun builds the start shell: env, working dir and the first command
-// whose condition holds.
 func (c *conv) pufferRun(run map[string]any, vars map[string]bool, emptyOpts map[string]string) string {
 	var b strings.Builder
 	writeEmptyOptionFix(&b, emptyOpts)

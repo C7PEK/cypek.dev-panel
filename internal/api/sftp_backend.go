@@ -11,8 +11,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/sftpd"
 )
 
-// SFTPBackend gives the built-in SFTP server the panel's accounts,
-// permissions, login rate limits and audit log.
 func (s *Server) SFTPBackend() sftpd.Backend { return sftpBackend{s} }
 
 type sftpBackend struct{ s *Server }
@@ -81,14 +79,12 @@ func (b sftpBackend) Audit(userID int64, username, ip, action, target string, de
 	b.s.audit.Log(context.Background(), e)
 }
 
-// SFTPInfo is what the Files tab needs to show connection details.
 type SFTPInfo struct {
 	Enabled     bool   `json:"enabled"`
 	Port        int    `json:"port"`
 	Fingerprint string `json:"fingerprint,omitempty"`
 }
 
-// handleSFTPInfo tells the Files tab how to connect.
 func (s *Server) handleSFTPInfo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.sftpInfo)
 }

@@ -1,22 +1,20 @@
-# build output
 /bin/
 /dist/
 /web/dist/*
 !/web/dist/.gitkeep
 
-# dev data (SQLite, config, servers)
 /.devdata/
 
-# node
 /web/node_modules/
 
-# go
 *.test
 *.out
 coverage.html
 
-# editors / OS
 .DS_Store
 *.swp
 .idea/
 .vscode/
+
+/CLAUDE.md
+/.claude/

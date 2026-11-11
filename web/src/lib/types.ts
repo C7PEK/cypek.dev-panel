@@ -30,8 +30,6 @@ export interface SystemInfo {
   urls: string[]
 }
 
-// --- Servers -----------------------------------------------------------------
-
 export type ServerState = "stopped" | "starting" | "running" | "stopping" | "crashed" | "unknown"
 
 export type ServerCategory = "fivem" | "minecraft" | "discord-bot" | "other"
@@ -41,7 +39,6 @@ export interface ServerStatus {
   pid?: number
   since?: string
   exitCode?: number
-  /** Why the server crashed, when the shim recorded a reason. */
   message?: string
   memoryBytes?: number
   cpuNanos?: number
@@ -61,7 +58,6 @@ export interface Port {
   protocol: "tcp" | "udp" | "tcp+udp"
 }
 
-/** 0 means unlimited. */
 export interface Limits {
   memoryMb: number
   cpuPercent: number
@@ -69,11 +65,9 @@ export interface Limits {
 
 export type InstallState = "pending" | "installing" | "ready" | "failed"
 
-/** Player count from the game's own query protocol (Minecraft server list ping). */
 export interface Players {
   online: number
   max: number
-  /** Best effort; Minecraft samples up to 12 names. */
   names?: string[]
   kind: string
   at: string
@@ -81,7 +75,6 @@ export interface Players {
 
 export interface ConsoleCommand {
   name: string
-  /** Tiny grammar: <required> [optional] <a|b|c> <player> <text...> */
   args?: string
   help?: LocalizedText
 }
@@ -94,11 +87,9 @@ export interface ConsoleHints {
 export interface Server {
   id: string
   name: string
-  /** "custom" for command servers, otherwise a template id. */
   templateId: string
   category: ServerCategory
   run: RunConfig
-  /** User variables only; secrets are masked as "••••••••". */
   variables: Record<string, string>
   ports: Port[]
   autostart: boolean
@@ -109,18 +100,13 @@ export interface Server {
   createdAt: string
   updatedAt: string
   status: ServerStatus
-  /** Present only while running and the game answered the query. */
   players?: Players
-  /** The code comes from git: "Update from git" is available. */
   gitUpdate?: boolean
-  /** End date (RFC 3339); absent = never expires. */
   expiresAt?: string
-  /** The end date passed: stopped and locked until an admin extends it. */
   expired?: boolean
   expiredAt?: string
 }
 
-/** PUT /servers/{id}/expiry: exactly one of the fields. */
 export type ExpiryInput = { extendDays: number } | { expiresAt: string | null }
 
 export interface ExpiryInfo {
@@ -131,23 +117,18 @@ export interface ExpiryInfo {
 
 export interface CreateServerInput {
   name: string
-  /** Custom servers. */
   run?: RunConfig
-  /** Template servers: all values as strings ("true"/"false", "2048"). */
   templateId?: string
   variables?: Record<string, string>
   limits?: Limits
   autostart?: boolean
   ports?: Port[]
-  /** Save even though another server declares the same port. */
   forcePorts?: boolean
-  /** Stop and lock the server after this many days (never deleted). */
   expiresInDays?: number
 }
 
 export type UpdateServerInput = Partial<Pick<Server, "name" | "run" | "limits" | "autostart" | "ports" | "variables">> & { forcePorts?: boolean }
 
-/** One port another server (or another program) already uses. */
 export interface PortConflict {
   port: number
   protocol: string
@@ -158,8 +139,6 @@ export interface PortConflict {
   host: boolean
   suggestion?: number
 }
-
-// --- Templates -----------------------------------------------------------------
 
 export type LocalizedText = Record<string, string>
 
@@ -177,15 +156,12 @@ export interface TemplateVariable {
   max?: number
   maxLength?: number
   required?: boolean
-  /** A bool the user must switch on (EULA, license terms). */
   consent?: boolean
-  /** Not shown in forms; the default value is used. */
   hidden?: boolean
 }
 
 export interface TemplatePort {
   name: string
-  /** May contain a placeholder such as "{{PORT}}". */
   port: string
   protocol: string
 }
@@ -195,9 +171,7 @@ export interface Template {
   name: string
   category: ServerCategory
   icon?: string
-  /** Sub-section inside the category (minecraft: plugins, mods, vanilla, proxy, bedrock). */
   group?: string
-  /** Rank inside the group, lower first. */
   order?: number
   description?: LocalizedText
   variables: TemplateVariable[]
@@ -207,7 +181,6 @@ export interface Template {
   source?: TemplateSource
   editable?: boolean
   overridesBuiltin?: boolean
-  /** The install runs a shell script in the server's sandbox. */
   usesScript?: boolean
 }
 
@@ -250,7 +223,6 @@ export interface InstallJob {
   step: number
   steps: number
   stepTitle: string
-  /** 0-100, -1 when unknown. */
   percent: number
   lines: string[]
   error?: string
@@ -260,8 +232,6 @@ export interface InstallJob {
 
 export type PowerAction = "start" | "stop" | "restart" | "kill"
 
-// --- Console WebSocket frames -------------------------------------------------
-
 export type ConsoleServerFrame =
   | { type: "hello"; state: ServerState; pid?: number; startedAt?: string }
   | { type: "output"; data: string }
@@ -269,8 +239,6 @@ export type ConsoleServerFrame =
   | { type: "error"; message: string }
 
 export type ConsoleClientFrame = { type: "input"; data: string } | { type: "resize"; cols: number; rows: number }
-
-// --- Live stats (events WebSocket) -------------------------------------------
 
 export interface HostStats {
   at: string
@@ -293,9 +261,7 @@ export interface StatsSample {
   at: string
   state: ServerState
   memoryBytes: number
-  /** 100 = one full core. */
   cpuPercent: number
-  /** -1 when unknown. */
   players?: number
 }
 
@@ -310,7 +276,6 @@ export interface ServerStatsResponse {
     peakPlayers: number
   }
   intervalSeconds: number
-  /** 0 = unlimited. */
   memoryLimit: number
   cpuCount: number
 }
@@ -345,8 +310,6 @@ export interface EventsMessage {
   host: HostStats
   servers: { id: string; status: ServerStatus; sample: StatsSample; players?: Players; history?: StatsSample[] }[]
 }
-
-// --- Schedules ---------------------------------------------------------------
 
 export type ScheduleActionType = "warn" | "command" | "wait" | "stop" | "start" | "restart" | "kill" | "backup"
 
@@ -398,8 +361,6 @@ export interface CronPreview {
   next: string[]
   timezone: string
 }
-
-// --- Account, users, audit ----------------------------------------------------
 
 export type Permission =
   | "console.read"
@@ -460,20 +421,15 @@ export interface UserGrant {
 
 export type LoginResult = SessionResponse | { totpRequired: true; token: string }
 
-// --- Minecraft plugins / mods (Modrinth) --------------------------------------
-
 export type ModPlatformKind = "plugins" | "mods" | ""
 
 export interface ModPlatform {
   kind: ModPlatformKind
-  /** "" when the panel could not tell what the server runs. */
   loader: string
   gameVersion: string
-  /** Folder the jars live in, e.g. "plugins". */
   dir: string
   detected: boolean
   overridden: boolean
-  /** Loaders whose plugins/mods are accepted (paper also takes spigot/bukkit). */
   loaders: string[]
 }
 
@@ -545,7 +501,7 @@ export interface AlertSettings {
   notifyAutoRestart: boolean
   notifyErrors: boolean
   includeLogs: boolean
-  language: "pl" | "en"
+  language: "pl" | "en" | "de"
   panelUrl: string
 }
 
@@ -559,7 +515,6 @@ export interface AlertHistoryItem {
 }
 
 export interface AlertSettingsInput {
-  /** Omit to keep the stored webhook, "" removes it. */
   webhook?: string
   mention: string
   graceSec: number
@@ -567,7 +522,7 @@ export interface AlertSettingsInput {
   notifyAutoRestart: boolean
   notifyErrors: boolean
   includeLogs: boolean
-  language: "pl" | "en"
+  language: "pl" | "en" | "de"
   panelUrl: string
 }
 
@@ -584,8 +539,6 @@ export interface ServerAlertsInput {
   webhook?: string
   mention: string
 }
-
-// --- Firewall hints / panel update --------------------------------------------
 
 export interface FirewallInfo {
   firewall: { kind: "ufw" | "firewalld" | "none" | "unknown"; active: boolean }
@@ -614,8 +567,6 @@ export interface PanelUpdateInfo {
   last?: PanelUpdateRun
 }
 
-// --- File jobs (download from link, background extraction) -------------------
-
 export type FileJobKind = "download" | "extract"
 export type FileJobState = "running" | "done" | "failed" | "cancelled"
 export type FileJobSource = "gdrive" | "dropbox" | "onedrive" | "github" | "direct"
@@ -630,7 +581,6 @@ export interface FileJob {
   dir: string
   file?: string
   bytes: number
-  /** -1 when unknown. */
   total: number
   error?: string
   startedAt: string

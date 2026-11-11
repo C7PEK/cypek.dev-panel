@@ -13,18 +13,13 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/supervisor"
 )
 
-// scriptRunner runs install scripts through the server's own supervisor unit
-// (homepanel-server@<id>), so a script gets exactly the sandbox the game
-// gets: the panel user, write access to the server directory only, private
-// /tmp. The unit's run.json is swapped for a oneshot bash run and restored.
 type scriptRunner struct{ s *Server }
 
 const installScriptFile = "install.sh"
 
 func (r scriptRunner) RunScript(ctx context.Context, serverID, serverDir, script string, env map[string]string, timeout time.Duration, logf func(string, ...any)) error {
 	sup := r.s.sup
-	// All files go through safefs: the server folder is writable by the
-	// game, which could plant symlinks at these names.
+
 	scriptRel := filepath.Join(shim.MetaDir, installScriptFile)
 	if err := safefs.WriteFile(serverDir, scriptRel, []byte(script), 0o700); err != nil {
 		return err
@@ -54,7 +49,6 @@ func (r scriptRunner) RunScript(ctx context.Context, serverID, serverDir, script
 		return fmt.Errorf("start install script: %w", err)
 	}
 
-	// Stream output until the shim closes the console.
 	var console supervisor.Console
 	for i := 0; i < 50 && console == nil; i++ {
 		if c, err := sup.Attach(ctx, serverID); err == nil {
@@ -62,7 +56,7 @@ func (r scriptRunner) RunScript(ctx context.Context, serverID, serverDir, script
 			break
 		}
 		if info, _ := shim.ReadExitInfo(serverDir); info != nil {
-			break // finished before we could attach
+			break
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -101,8 +95,6 @@ func (r scriptRunner) RunScript(ctx context.Context, serverID, serverDir, script
 						cr = true
 						continue
 					case cr:
-						// A bare \r redraws the line (progress bars): keep
-						// only the latest state.
 						partial.Reset()
 						cr = false
 					}
@@ -113,7 +105,7 @@ func (r scriptRunner) RunScript(ctx context.Context, serverID, serverDir, script
 		flush(partial.String())
 		console.Close()
 	}
-	// Wait for the shim to record the exit.
+
 	deadline := time.Now().Add(15 * time.Second)
 	for {
 		if info, _ := shim.ReadExitInfo(serverDir); info != nil {

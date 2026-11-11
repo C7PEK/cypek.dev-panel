@@ -13,8 +13,6 @@ import { formatBytes, formatPercent } from "@/lib/format"
 import { mergeLive } from "@/lib/servers"
 import type { LiveServer, Server } from "@/lib/types"
 
-// Dashboard tile. The name is a "stretched link" covering the card so the
-// buttons stay real <button>s instead of being nested inside an <a>.
 export function ServerTile({ server: raw, live }: { server: Server; live?: LiveServer }) {
   const { t } = useTranslation()
   const server = mergeLive(raw, live)
@@ -81,7 +79,7 @@ export function ServerTile({ server: raw, live }: { server: Server; live?: LiveS
             ) : status.state === "crashed" && status.exitCode !== undefined ? (
               t("servers.exitCode", { code: status.exitCode })
             ) : (
-              <span className="text-muted-foreground/50">—</span>
+              <span className="text-muted-foreground/50">-</span>
             )}
             {cpu !== undefined && (
               <span className="inline-flex items-center gap-1" title={t("stats.cpu")}>

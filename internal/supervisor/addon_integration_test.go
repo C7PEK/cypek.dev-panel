@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-// TestAddonStartAsPanelUser starts the database installer unit the way the
-// panel does (opt-in: HOMEPANEL_ADDON_TEST=1, run as the homepanel user).
 func TestAddonStartAsPanelUser(t *testing.T) {
 	if os.Getenv("HOMEPANEL_ADDON_TEST") != "1" {
 		t.Skip("set HOMEPANEL_ADDON_TEST=1")

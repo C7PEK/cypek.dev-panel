@@ -17,10 +17,8 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/files"
 )
 
-// metaDir is the panel's per-server folder (run.json, events); never served.
 const metaDir = ".homepanel"
 
-// vfs maps SFTP paths to server folders for one session.
 type vfs struct {
 	ctx     context.Context
 	backend Backend
@@ -32,11 +30,10 @@ type vfs struct {
 	cachedAt time.Time
 }
 
-// target is a resolved SFTP path.
 type target struct {
-	root   bool // the virtual top level listing servers
+	root   bool
 	server *ServerRef
-	rel    string // path inside the server folder ("" = the folder itself)
+	rel    string
 	abs    string
 }
 
@@ -46,14 +43,13 @@ func (v *vfs) servers() []ServerRef {
 	if time.Since(v.cachedAt) > 10*time.Second {
 		list, err := v.backend.Servers(v.ctx, v.sess.userID)
 		if err != nil {
-			list = nil // disabled or deleted account: no access, not the old list
+			list = nil
 		}
 		v.cache, v.cachedAt = list, time.Now()
 	}
 	return v.cache
 }
 
-// FolderName is how a server appears at the top level ("Name (id)").
 func FolderName(s ServerRef) string {
 	name := strings.Map(func(r rune) rune {
 		if r == '/' || r == '\\' || r < 0x20 || r == 0x7f {
@@ -101,7 +97,7 @@ func (v *vfs) resolve(p string) (*target, error) {
 	if err != nil {
 		return nil, sftp.ErrSSHFxPermissionDenied
 	}
-	// A symlink inside the folder may still point into .homepanel.
+
 	if real, err := filepath.EvalSymlinks(srv.Dir); err == nil {
 		meta := filepath.Join(real, metaDir)
 		if abs == meta || strings.HasPrefix(abs, meta+string(filepath.Separator)) {
@@ -111,8 +107,6 @@ func (v *vfs) resolve(p string) (*target, error) {
 	return &target{server: srv, rel: rest, abs: abs}, nil
 }
 
-// resolveEntry is resolve without following the last element: removing or
-// renaming a symlink acts on the link, never on what it points to.
 func (v *vfs) resolveEntry(p string) (*target, error) {
 	clean := path.Clean("/" + p)
 	parent, err := v.resolve(path.Dir(clean))
@@ -120,7 +114,7 @@ func (v *vfs) resolveEntry(p string) (*target, error) {
 		return nil, err
 	}
 	if parent.root {
-		return v.resolve(clean) // a server folder itself (refused by callers)
+		return v.resolve(clean)
 	}
 	base := path.Base(clean)
 	if parent.rel == "" && base == metaDir {
@@ -152,7 +146,6 @@ func mapErr(err error) error {
 	return err
 }
 
-// Fileread opens a file for download.
 func (v *vfs) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	t, err := v.resolve(r.Filepath)
 	if err != nil {
@@ -173,7 +166,6 @@ func (v *vfs) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	return f, nil
 }
 
-// Filewrite opens a file for upload.
 func (v *vfs) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	t, err := v.resolve(r.Filepath)
 	if err != nil {
@@ -207,7 +199,6 @@ func (v *vfs) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	return f, nil
 }
 
-// Filecmd handles everything that changes metadata or the tree.
 func (v *vfs) Filecmd(r *sftp.Request) error {
 	resolve := v.resolve
 	switch r.Method {
@@ -242,7 +233,7 @@ func (v *vfs) Filecmd(r *sftp.Request) error {
 				return mapErr(err)
 			}
 		}
-		return nil // ownership changes are ignored: everything belongs to the panel user
+		return nil
 	case "Rename", "PosixRename":
 		dst, err := v.resolveEntry(r.Target)
 		if err != nil {
@@ -256,7 +247,7 @@ func (v *vfs) Filecmd(r *sftp.Request) error {
 		}
 		if r.Method == "Rename" {
 			if _, err := os.Lstat(dst.abs); err == nil {
-				return sftp.ErrSSHFxFailure // SFTP v3 rename never overwrites
+				return sftp.ErrSSHFxFailure
 			}
 		}
 		v.stats.add(&v.stats.renamed)
@@ -281,13 +272,11 @@ func (v *vfs) Filecmd(r *sftp.Request) error {
 		v.stats.add(&v.stats.mkdir)
 		return mapErr(os.Mkdir(t.abs, 0o750))
 	case "Link", "Symlink":
-		// Links could point outside the server folder.
 		return sftp.ErrSSHFxPermissionDenied
 	}
 	return sftp.ErrSSHFxOpUnsupported
 }
 
-// Filelist answers List, Stat and Lstat.
 func (v *vfs) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 	t, err := v.resolve(r.Filepath)
 	if err != nil {
@@ -350,7 +339,6 @@ func (l lister) ListAt(out []os.FileInfo, offset int64) (int, error) {
 	return n, nil
 }
 
-// dirInfo is a virtual folder (the server list).
 type dirInfo struct {
 	name string
 	mod  time.Time

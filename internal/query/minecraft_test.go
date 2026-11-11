@@ -9,7 +9,6 @@ import (
 	"time"
 )
 
-// fakeMinecraft answers one status handshake like a real server.
 func fakeMinecraft(t *testing.T, status any) (host string, port int) {
 	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -26,7 +25,7 @@ func fakeMinecraft(t *testing.T, status any) (host string, port int) {
 			go func() {
 				defer conn.Close()
 				_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
-				hs, err := readPacket(conn) // handshake
+				hs, err := readPacket(conn)
 				if err != nil {
 					return
 				}
@@ -37,7 +36,7 @@ func fakeMinecraft(t *testing.T, status any) (host string, port int) {
 				if proto, _ := readVarInt(r); proto != -1 {
 					return
 				}
-				if _, err := readPacket(conn); err != nil { // status request
+				if _, err := readPacket(conn); err != nil {
 					return
 				}
 				js, _ := json.Marshal(status)

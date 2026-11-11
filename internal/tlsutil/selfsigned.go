@@ -1,4 +1,3 @@
-// Package tlsutil creates the panel's optional self-signed certificate.
 package tlsutil
 
 import (
@@ -20,12 +19,8 @@ import (
 	"time"
 )
 
-const validity = 825 * 24 * time.Hour // the longest browsers still accept
+const validity = 825 * 24 * time.Hour
 
-// EnsureSelfSigned returns cert and key paths under dir, creating or
-// renewing the certificate when it is missing, expires within 30 days or
-// does not cover every host (IPs or names). fingerprint is the SHA-256 of the
-// certificate, for comparing with what the browser shows.
 func EnsureSelfSigned(dir string, hosts []string) (certPath, keyPath, fingerprint string, err error) {
 	certPath, keyPath = filepath.Join(dir, "self-signed.crt"), filepath.Join(dir, "self-signed.key")
 	if pair, err := tls.LoadX509KeyPair(certPath, keyPath); err == nil && len(pair.Certificate) > 0 {
@@ -74,7 +69,6 @@ func EnsureSelfSigned(dir string, hosts []string) (certPath, keyPath, fingerprin
 	return certPath, keyPath, Fingerprint(der), nil
 }
 
-// Fingerprint formats a SHA-256 digest like browsers do (AB:CD:...).
 func Fingerprint(der []byte) string {
 	sum := sha256.Sum256(der)
 	h := strings.ToUpper(hex.EncodeToString(sum[:]))

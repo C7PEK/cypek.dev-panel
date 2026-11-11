@@ -18,7 +18,6 @@ import { SettingsPage } from "@/pages/settings-page"
 import { ServerPage } from "@/pages/server-page"
 import { SetupPage } from "@/pages/setup-page"
 
-// Gate decides between first-run setup, login and the app based on server state.
 function Gate() {
   const setup = useSetupStatus()
   const me = useMe()
@@ -46,7 +45,6 @@ function Gate() {
 function AuthedRoutes({ user }: { user: User }) {
   const navigate = useNavigate()
   const location = useLocation()
-  // The backend answers totp_required until the user enrols: send them to the 2FA card.
   useEffect(() => {
     const onRequired = () => {
       if (!location.pathname.startsWith("/profile")) void navigate("/profile?enroll=1", { replace: true })

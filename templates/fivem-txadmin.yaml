@@ -7,44 +7,47 @@ icon: fivem
 description:
   pl: FXServer uruchamiany przez txAdmin, czyli własny panel FiveM na porcie 40120 (konfiguracja, zasoby, bany). Do przepisów ESX/QBCore najpierw utwórz bazę w zakładce Bazy danych panelu i wpisz jej użytkownika, hasło i nazwę w kreatorze txAdmin (host 127.0.0.1). UWAGA, txAdmin ma własny harmonogram restartów, który dubluje harmonogram tego panelu; włącz tylko jeden. Przy pierwszym starcie PIN logowania pojawi się w konsoli. Tylko hosty x86_64.
   en: FXServer started through txAdmin, FiveM's own web panel on port 40120 (setup, resources, bans). For ESX/QBCore recipes create a database in the panel's Databases tab first and enter its user, password and name in the txAdmin deployer (host 127.0.0.1). NOTE, txAdmin has its own restart scheduler that duplicates this panel's; enable only one. The first-login PIN shows up in the console. x86_64 hosts only.
+  de: FXServer, gestartet über txAdmin, das eigene Webpanel von FiveM auf Port 40120 (Einrichtung, Ressourcen, Bans). Für ESX/QBCore-Rezepte erstellst du zuerst im Tab Datenbanken des Panels eine Datenbank und trägst Benutzer, Passwort und Name im txAdmin-Deployer ein (Host 127.0.0.1). WICHTIG, txAdmin hat einen eigenen Neustart-Planer, der den des Panels doppelt. Aktiviere nur einen. Die PIN für die erste Anmeldung erscheint in der Konsole. Nur für x86_64-Hosts.
 
 variables:
   - key: LICENSE_KEY
-    label: { pl: Klucz licencyjny (sv_licenseKey), en: License key (sv_licenseKey) }
+    label: { pl: Klucz licencyjny (sv_licenseKey), en: License key (sv_licenseKey), de: Lizenzschlüssel (sv_licenseKey) }
     help:
       pl: Z https://keymaster.fivem.net. Trafia do server.cfg w katalogu serwera, który wskażesz w kreatorze txAdmin.
       en: From https://keymaster.fivem.net. Written to server.cfg in the server folder you point txAdmin at.
+      de: Von https://keymaster.fivem.net. Wird in die server.cfg in dem Serverordner geschrieben, den du in txAdmin angibst.
     type: secret
     required: true
     pattern: '^[A-Za-z0-9_-]{20,128}$'
   - key: SERVER_NAME
-    label: { pl: Nazwa serwera (sv_hostname), en: Server name (sv_hostname) }
+    label: { pl: Nazwa serwera (sv_hostname), en: Server name (sv_hostname), de: Servername (sv_hostname) }
     type: string
     default: My FiveM Server
     maxLength: 120
   - key: MAX_CLIENTS
-    label: { pl: Maksymalna liczba graczy, en: Max players }
+    label: { pl: Maksymalna liczba graczy, en: Max players, de: Max. Spieler }
     type: number
     default: 32
     min: 1
     max: 2048
   - key: PORT
-    label: { pl: Port gry (TCP+UDP), en: Game port (TCP+UDP) }
+    label: { pl: Port gry (TCP+UDP), en: Game port (TCP+UDP), de: Spielport (TCP+UDP) }
     type: number
     default: 30120
     min: 1024
     max: 65535
   - key: TX_PORT
-    label: { pl: Port txAdmin (TCP), en: txAdmin port (TCP) }
+    label: { pl: Port txAdmin (TCP), en: txAdmin port (TCP), de: txAdmin-Port (TCP) }
     help:
       pl: Panel txAdmin będzie pod http://IP-maszyny:PORT. Nie wystawiaj go bez HTTPS do internetu.
       en: txAdmin will be at http://machine-ip:PORT. Do not expose it to the internet without HTTPS.
+      de: txAdmin ist dann unter http://rechner-ip:PORT erreichbar. Gib es nicht ohne HTTPS ins Internet frei.
     type: number
     default: 40120
     min: 1024
     max: 65535
   - key: ARTIFACT
-    label: { pl: Wersja FXServer (artefakt), en: FXServer version (artifact) }
+    label: { pl: Wersja FXServer (artefakt), en: FXServer version (artifact), de: FXServer-Version (Artifact) }
     type: select
     source: fivem-artifacts
     default: recommended
@@ -97,13 +100,9 @@ install:
 start:
   command: artifact/run.sh
   args: ["+set", "serverProfile", "default", "+set", "txAdminPort", "{{TX_PORT}}", "+set", "txDataPath", "txData"]
-# "quit" in the console only ends txAdmin's child FXServer, which txAdmin then
-# restarts; Ctrl+C (SIGINT) shuts txAdmin and the server down cleanly.
-# TODO(verify): txAdmin's SIGINT handling on current artifacts.
 stop:
   command: "^C"
   timeoutSec: 90
-# TODO(verify): txAdmin's ready line; left empty so the server counts as running once the process is up.
 readyRegex: ""
 
 ports:
@@ -112,9 +111,6 @@ ports:
 
 query: { kind: fivem-http, port: "{{PORT}}" }
 
-# Kept present before every start (never overrides your own value). oxmysql
-# measures query time inside FXServer, so any server hitch (slow disk, heavy
-# resource start) shows up as a "slow query" at its 200 ms default.
 configDefaults:
   - files: ["server.cfg", "txData/*/server.cfg"]
     key: mysql_slow_query_warning
@@ -122,10 +118,10 @@ configDefaults:
 
 console:
   commands:
-    - { name: status, help: { pl: Lista graczy z ID i pingiem, en: Player list with ids and ping } }
-    - { name: ensure, args: "<resource>", help: { pl: Uruchom lub zrestartuj zasób, en: Start or restart a resource } }
-    - { name: restart, args: "<resource>", help: { pl: Zrestartuj zasób, en: Restart a resource } }
-    - { name: refresh, help: { pl: Przeskanuj folder resources, en: Rescan the resources folder } }
-    - { name: txaKickAll, args: "[reason...]", help: { pl: Wyrzuć wszystkich graczy (txAdmin), en: Kick everyone (txAdmin) } }
-    - { name: txaBroadcast, args: "<message...>", help: { pl: Ogłoszenie do wszystkich (txAdmin), en: Broadcast to everyone (txAdmin) } }
-    - { name: quit, help: { pl: Zatrzymaj serwer, en: Stop the server } }
+    - { name: status, help: { pl: Lista graczy z ID i pingiem, en: Player list with ids and ping, de: Spielerliste mit IDs und Ping } }
+    - { name: ensure, args: "<resource>", help: { pl: Uruchom lub zrestartuj zasób, en: Start or restart a resource, de: Ressource starten oder neu starten } }
+    - { name: restart, args: "<resource>", help: { pl: Zrestartuj zasób, en: Restart a resource, de: Ressource neu starten } }
+    - { name: refresh, help: { pl: Przeskanuj folder resources, en: Rescan the resources folder, de: Ressourcen-Ordner neu einlesen } }
+    - { name: txaKickAll, args: "[reason...]", help: { pl: Wyrzuć wszystkich graczy (txAdmin), en: Kick everyone (txAdmin), de: Alle kicken (txAdmin) } }
+    - { name: txaBroadcast, args: "<message...>", help: { pl: Ogłoszenie do wszystkich (txAdmin), en: Broadcast to everyone (txAdmin), de: Nachricht an alle (txAdmin) } }
+    - { name: quit, help: { pl: Zatrzymaj serwer, en: Stop the server, de: Server stoppen } }

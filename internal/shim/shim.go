@@ -20,19 +20,17 @@ import (
 	"github.com/creack/pty"
 )
 
-// Options configure one shim run.
 type Options struct {
 	ID         string
 	ServerDir  string
 	SocketPath string
 	Log        *slog.Logger
-	// BacklogLines is the console backlog size; zero means 2000.
+
 	BacklogLines int
-	// KeepLogFiles is how many daily console logs to retain; zero means 30.
+
 	KeepLogFiles int
 }
 
-// Shim supervises one process.
 type Shim struct {
 	opts Options
 	cfg  *RunConfig
@@ -42,21 +40,21 @@ type Shim struct {
 	logs   *logWriter
 	events *eventLog
 	ready  *regexp.Regexp
-	readyB []byte // tail kept for matching readyRegex across chunks
+	readyB []byte
 
 	mu        sync.Mutex
 	state     State
 	pid       int
 	startedAt time.Time
 	exitCode  *int
-	requested bool // stop was requested (by signal or frame)
+	requested bool
 	cmd       *exec.Cmd
 	ptmx      *os.File
 	clients   map[*client]struct{}
 	stopOnce  sync.Once
 	killOnce  sync.Once
-	exited    chan struct{} // closed as soon as cmd.Wait returns
-	attached  chan struct{} // closed when the first console client connects
+	exited    chan struct{}
+	attached  chan struct{}
 	attachOne sync.Once
 }
 
@@ -72,7 +70,6 @@ func (c *client) send(f Frame) error {
 	return WriteFrame(c.conn, f)
 }
 
-// New prepares a shim. Run starts the process.
 func New(cfg *RunConfig, opts Options) (*Shim, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -106,11 +103,6 @@ func New(cfg *RunConfig, opts Options) (*Shim, error) {
 	return s, nil
 }
 
-// Run starts the process and serves the socket until the process exits.
-// Cancelling ctx requests a graceful stop. The returned code is what the shim
-// should exit with: the process's exit code for an unrequested exit (so
-// systemd's Restart=on-failure restarts crashes), and 0 whenever the stop or
-// kill was requested through the panel or a signal.
 func (s *Shim) Run(ctx context.Context) (int, error) {
 	logs, err := newLogWriter(s.opts.ServerDir, s.opts.KeepLogFiles)
 	if err != nil {
@@ -130,8 +122,6 @@ func (s *Shim) Run(ctx context.Context) (int, error) {
 	defer os.Remove(s.opts.SocketPath)
 
 	if s.cfg.Oneshot {
-		// A task's output is the point: let the panel attach first so it
-		// sees every line, but never hang if nobody comes.
 		go s.acceptLoop(ln)
 		select {
 		case <-s.attached:
@@ -174,10 +164,7 @@ func (s *Shim) Run(ctx context.Context) (int, error) {
 		<-s.exited
 	case <-s.exited:
 	}
-	// The process is gone but the terminal may still hold its last lines
-	// (often the error that made it exit): read them before finish closes
-	// the PTY and the clients. Bounded, because a leftover child can keep
-	// the terminal open.
+
 	select {
 	case <-readDone:
 	case <-time.After(2 * time.Second):
@@ -190,15 +177,13 @@ func (s *Shim) Run(ctx context.Context) (int, error) {
 	return code, nil
 }
 
-// oneshotAttachWait bounds how long a oneshot task waits for the panel.
 const oneshotAttachWait = 10 * time.Second
 
 func (s *Shim) listen() (net.Listener, error) {
 	if err := os.MkdirAll(filepath.Dir(s.opts.SocketPath), 0o750); err != nil {
 		return nil, fmt.Errorf("create socket dir: %w", err)
 	}
-	// A stale socket from a crashed shim would block Listen; a live one means
-	// another shim owns this server.
+
 	if conn, err := net.DialTimeout("unix", s.opts.SocketPath, 300*time.Millisecond); err == nil {
 		conn.Close()
 		return nil, fmt.Errorf("another shim is already serving %s", s.opts.SocketPath)
@@ -216,8 +201,7 @@ func (s *Shim) startProcess() error {
 	cmd := exec.Command(s.cfg.Command, s.cfg.Args...)
 	cmd.Dir = filepath.Join(s.opts.ServerDir, filepath.FromSlash(s.cfg.Dir))
 	cmd.Env = s.environment()
-	// A relative command is relative to the server dir, not the working dir,
-	// so templates can say "artifact/run.sh" or ".venv/bin/python" regardless of dir.
+
 	if strings.Contains(cmd.Path, "/") && !filepath.IsAbs(cmd.Path) {
 		cmd.Path = filepath.Join(s.opts.ServerDir, cmd.Path)
 	}
@@ -242,7 +226,6 @@ func (s *Shim) startProcess() error {
 	return nil
 }
 
-// environment builds a minimal, predictable environment for the game.
 func (s *Shim) environment() []string {
 	env := map[string]string{
 		"HOME": s.opts.ServerDir,
@@ -268,7 +251,6 @@ func (s *Shim) environment() []string {
 	return out
 }
 
-// readLoop pumps PTY output to the log, the backlog and connected clients.
 func (s *Shim) readLoop() {
 	buf := make([]byte, 32*1024)
 	for {
@@ -282,7 +264,6 @@ func (s *Shim) readLoop() {
 			s.broadcast(Frame{Type: TypeOutput, Data: string(chunk)})
 		}
 		if err != nil {
-			// EIO is the normal end: the slave side closed when the process exited.
 			if !errors.Is(err, io.EOF) && !errors.Is(err, syscall.EIO) {
 				s.log.Debug("pty read ended", "err", err)
 			}
@@ -409,8 +390,6 @@ func (s *Shim) broadcast(f Frame) {
 	}
 }
 
-// gracefulStop sends the stop command (or SIGTERM), waits for the timeout,
-// then kills the process group. Safe to call more than once.
 func (s *Shim) gracefulStop() {
 	s.stopOnce.Do(func() {
 		s.mu.Lock()
@@ -443,7 +422,6 @@ func (s *Shim) gracefulStop() {
 	})
 }
 
-// kill sends SIGKILL to the whole process group.
 func (s *Shim) kill() {
 	s.killOnce.Do(func() {
 		s.mu.Lock()
@@ -453,15 +431,13 @@ func (s *Shim) kill() {
 		if cmd == nil || cmd.Process == nil {
 			return
 		}
-		// pty.Start puts the child in its own session, so -pid is its group.
+
 		if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err != nil {
 			_ = cmd.Process.Kill()
 		}
 	})
 }
 
-// finish records the exit, tells clients and closes everything. It reports
-// whether the exit was requested.
 func (s *Shim) finish(code int) bool {
 	s.mu.Lock()
 	s.state = StateStopped
@@ -508,8 +484,6 @@ func exitCodeOf(err error) int {
 	return 1
 }
 
-// stopSignal maps the Pterodactyl-style signal notation ("^C" = SIGINT) used
-// by imported templates to a real signal instead of console input.
 func stopSignal(command string) (syscall.Signal, bool) {
 	switch strings.ToUpper(strings.TrimSpace(command)) {
 	case "^C", "SIGINT":

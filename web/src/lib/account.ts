@@ -7,7 +7,6 @@ import type { ApiKey, LoginResult, SessionResponse, TotpSetup, TotpStatus } from
 export const totpKey = ["auth", "totp"] as const
 export const apiKeysKey = ["auth", "api-keys"] as const
 
-/** Login that may stop at the 2FA step. */
 export function useLoginStep1() {
   const qc = useQueryClient()
   return useMutation({

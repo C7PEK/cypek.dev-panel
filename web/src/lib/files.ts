@@ -24,7 +24,6 @@ const q = (path: string) => `?path=${encodeURIComponent(path)}`
 
 export const filesKey = (id: string, path: string) => ["servers", id, "files", path] as const
 
-/** Joins a directory path and a name into a root-relative path ("" = root). */
 export function joinPath(dir: string, name: string): string {
   return dir ? `${dir}/${name}` : name
 }
@@ -60,7 +59,6 @@ export function downloadUrl(id: string, path: string) {
   return `${apiBase}${base(id)}/download${q(path)}`
 }
 
-/** Invalidates the listing of a directory (and nothing else). */
 function useInvalidateDir(id: string) {
   const qc = useQueryClient()
   return (dir: string) => qc.invalidateQueries({ queryKey: filesKey(id, dir) })
@@ -95,7 +93,6 @@ export function useDeleteFiles(id: string) {
   })
 }
 
-/** Starts a background extraction; progress comes from useFileJobs. */
 export function useExtract(id: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -106,7 +103,6 @@ export function useExtract(id: string) {
 
 export const fileJobsKey = (id: string) => ["servers", id, "file-jobs"] as const
 
-/** Downloads and extractions; polls every second while one is running. */
 export function useFileJobs(id: string) {
   return useQuery({
     queryKey: fileJobsKey(id),
@@ -133,7 +129,6 @@ export function useCancelFileJob(id: string) {
 
 export type LinkKind = "gdrive" | "dropbox" | "onedrive" | "github" | "mega" | "wetransfer" | "direct" | "invalid"
 
-/** Client-side guess of where a pasted link points (the server decides). */
 export function detectLink(raw: string): LinkKind {
   let u: URL
   try {
@@ -166,10 +161,6 @@ export function isArchive(name: string) {
   return ARCHIVE_RE.test(name)
 }
 
-/**
- * Uploads files with XHR so progress events are available. onProgress gets
- * 0..100 for the whole batch. Rejects with ApiError like the JSON client.
- */
 export function uploadFiles(id: string, dir: string, files: File[], onProgress?: (pct: number) => void) {
   return new Promise<{ uploaded: FileEntry[] }>((resolve, reject) => {
     const form = new FormData()
@@ -189,7 +180,6 @@ export function uploadFiles(id: string, dir: string, files: File[], onProgress?:
       try {
         data = xhr.responseText ? JSON.parse(xhr.responseText) : null
       } catch {
-        // fall through with null
       }
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve((data as { uploaded: FileEntry[] }) ?? { uploaded: [] })

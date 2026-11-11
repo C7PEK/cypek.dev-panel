@@ -9,12 +9,8 @@ import (
 	"strings"
 )
 
-// configDefaultMarker documents where an automatically added line came from.
 const configDefaultMarker = "# added by panel.cypek.dev (template default; edit or remove freely)"
 
-// ApplyConfigDefaults makes sure every ConfigDefault line is present in the
-// matching files under serverDir. It returns the files it changed. Files
-// that are symlinks or resolve outside serverDir are skipped.
 func ApplyConfigDefaults(serverDir string, t *Template) ([]string, error) {
 	if t == nil || len(t.ConfigDefaults) == 0 {
 		return nil, nil
@@ -53,8 +49,6 @@ func ApplyConfigDefaults(serverDir string, t *Template) ([]string, error) {
 	return changed, nil
 }
 
-// ensureLine prepends line unless an uncommented line already mentions key.
-// Prepending matters for FXServer: convars must be set before `ensure`.
 func ensureLine(root, path, key, line string, mode os.FileMode) (bool, error) {
 	b, err := readUnder(root, path)
 	if err != nil {
@@ -76,11 +70,8 @@ func ensureLine(root, path, key, line string, mode os.FileMode) (bool, error) {
 	return true, writeUnder(root, path, []byte(out), mode)
 }
 
-// maxConfigFile bounds config files the panel edits (game-controlled).
 const maxConfigFile = 16 << 20
 
-// readUnder reads abs (inside root) without following links out of root;
-// regular files only.
 func readUnder(root, abs string) ([]byte, error) {
 	rel, err := filepath.Rel(root, abs)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, "../") {
@@ -89,8 +80,6 @@ func readUnder(root, abs string) ([]byte, error) {
 	return safefs.ReadFile(root, rel, maxConfigFile)
 }
 
-// writeUnder replaces abs (inside root) atomically; a planted symlink or
-// temp name can never redirect the write.
 func writeUnder(root, abs string, data []byte, mode os.FileMode) error {
 	rel, err := filepath.Rel(root, abs)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, "../") {

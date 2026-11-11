@@ -8,26 +8,8 @@ import (
 	"strings"
 )
 
-// TuningPath is the MariaDB drop-in the installer owns. 60- sorts after the
-// distribution's 50-server.cnf so these values win.
 const TuningPath = "/etc/mysql/mariadb.conf.d/60-homepanel.cnf"
 
-// TuningConfig renders MariaDB settings for game servers on homelab hardware.
-//
-// Why: FiveM's oxmysql and Minecraft plugins warn about "slow queries" on a
-// stock install even though the queries themselves are trivial. The time
-// goes elsewhere:
-//   - reverse DNS lookups of every new connection (skip-name-resolve),
-//   - an fsync of the redo log on every commit, which on SD cards, cheap SSDs
-//     and thin-provisioned VM disks costs tens of milliseconds
-//     (innodb_flush_log_at_trx_commit=2: at most ~1 s of commits can be lost
-//     on a power cut, never on a crash of MariaDB itself),
-//   - a buffer pool too small to keep the game's tables in memory.
-//
-// bind-address covers both loopbacks when MariaDB supports a list (10.11+):
-// FXServer's Node resolves "localhost" to ::1 first on Debian, and txAdmin's
-// deployer suggests "localhost", so IPv4-only listening means failed or
-// delayed connections.
 func TuningConfig(totalRAMBytes uint64, dualStackBind bool) string {
 	bind := "127.0.0.1"
 	if dualStackBind {
@@ -41,7 +23,7 @@ func TuningConfig(totalRAMBytes uint64, dualStackBind bool) string {
 	if pool > 2048*mb {
 		pool = 2048 * mb
 	}
-	pool = pool / (128 * mb) * (128 * mb) // multiples of the chunk size
+	pool = pool / (128 * mb) * (128 * mb)
 	return fmt.Sprintf(`# Written by panel.cypek.dev (homepanel install-database). Re-running the
 # installer rewrites this file; put your own overrides in 70-local.cnf.
 [mysqld]
@@ -73,7 +55,6 @@ long_query_time                = 1
 `, bind, pool/mb)
 }
 
-// TotalRAM reads MemTotal from /proc/meminfo (bytes); 0 when unknown.
 func TotalRAM() uint64 {
 	b, err := os.ReadFile("/proc/meminfo")
 	if err != nil {
@@ -91,8 +72,6 @@ func TotalRAM() uint64 {
 	return 0
 }
 
-// SupportsBindList reports whether a MariaDB version string ("11.8.6-MariaDB…")
-// accepts a comma-separated bind-address (MariaDB 10.11+).
 func SupportsBindList(version string) bool {
 	var major, minor int
 	if _, err := fmt.Sscanf(version, "%d.%d", &major, &minor); err != nil {
@@ -101,14 +80,13 @@ func SupportsBindList(version string) bool {
 	return major > 10 || (major == 10 && minor >= 11)
 }
 
-// InstalledServerVersion asks the mariadbd binary for its version.
 func InstalledServerVersion() string {
 	for _, bin := range []string{"/usr/sbin/mariadbd", "/usr/sbin/mysqld"} {
 		out, err := exec.Command(bin, "--version").Output()
 		if err != nil {
 			continue
 		}
-		// "/usr/sbin/mariadbd  Ver 11.8.6-MariaDB-0+deb13u1 for debian-linux-gnu ..."
+
 		f := strings.Fields(string(out))
 		for i, w := range f {
 			if w == "Ver" && i+1 < len(f) {

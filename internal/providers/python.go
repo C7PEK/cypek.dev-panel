@@ -10,27 +10,17 @@ import (
 	"strings"
 )
 
-// Python resolves portable CPython builds from astral-sh/python-build-standalone.
-// Verified 2026-11-08 against the GitHub releases API:
-//
-//	GET https://api.github.com/repos/astral-sh/python-build-standalone/releases/latest
-//	-> {"tag_name":"20261026","assets":[{"name":"cpython-3.12.16+20261026-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz","browser_download_url":...}, ..., {"name":"SHA256SUMS"}]}
-//
-// Debian/Ubuntu ship python3 without ensurepip (python3-venv is a separate
-// package), so a self-contained build is more predictable for venvs.
 type Python struct {
-	BaseURL string // GitHub API base
+	BaseURL string
 }
 
-// NewPython returns a client for the GitHub releases API.
 func NewPython() *Python {
 	return &Python{BaseURL: "https://api.github.com/repos/astral-sh/python-build-standalone"}
 }
 
-// PythonBuild is a downloadable CPython tarball.
 type PythonBuild struct {
-	Version string // 3.12.16
-	Minor   string // 3.12
+	Version string
+	Minor   string
 	URL     string
 	SHA256  string
 }
@@ -45,7 +35,6 @@ func pythonArch() (string, error) {
 	return "", fmt.Errorf("no CPython builds for %s", runtime.GOARCH)
 }
 
-// Latest returns the newest install-only build for a minor line like "3.12".
 func (p *Python) Latest(ctx context.Context, minor string) (*PythonBuild, error) {
 	arch, err := pythonArch()
 	if err != nil {

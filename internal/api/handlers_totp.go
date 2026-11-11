@@ -15,13 +15,12 @@ import (
 )
 
 const (
-	CodeTOTPRequired = "totp_required" // login needs a second step / policy demands enrolment
+	CodeTOTPRequired = "totp_required"
 	CodeTOTPInvalid  = "totp_invalid"
 	CodeTOTPState    = "totp_state"
 )
 
-// Security policy stored in settings: who must have 2FA enabled.
-const settingRequireTOTP = "security.require_totp" // none | admins | all
+const settingRequireTOTP = "security.require_totp"
 
 func (s *Server) requireTOTPPolicy(ctx context.Context) string {
 	v, _ := s.store.GetSetting(ctx, settingRequireTOTP)
@@ -31,7 +30,6 @@ func (s *Server) requireTOTPPolicy(ctx context.Context) string {
 	return v
 }
 
-// totpPolicyApplies reports whether the policy demands 2FA from this user.
 func totpPolicyApplies(policy string, u *auth.User) bool {
 	switch policy {
 	case "all":
@@ -42,8 +40,6 @@ func totpPolicyApplies(policy string, u *auth.User) bool {
 	return false
 }
 
-// enforceTOTP blocks users the policy covers until they enrol. Only the
-// endpoints needed to enrol (and to leave) stay reachable.
 func (s *Server) enforceTOTP(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, user := sessionFromContext(r.Context())
@@ -61,7 +57,7 @@ func (s *Server) enforceTOTP(next http.Handler) http.Handler {
 type totpSetupResponse struct {
 	Secret     string `json:"secret"`
 	OTPAuthURL string `json:"otpauthUrl"`
-	QRPNG      string `json:"qrPng"` // base64 PNG
+	QRPNG      string `json:"qrPng"`
 }
 
 func (s *Server) handleTOTPSetup(w http.ResponseWriter, r *http.Request) {
@@ -151,7 +147,6 @@ type totpLoginRequest struct {
 	Code  string `json:"code"`
 }
 
-// handleLoginTOTP finishes a login that returned totpRequired.
 func (s *Server) handleLoginTOTP(w http.ResponseWriter, r *http.Request) {
 	if ok, retry := s.loginLimitIP.Allow(clientIP(r)); !ok {
 		rateLimited(w, retry)

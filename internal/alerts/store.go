@@ -13,8 +13,6 @@ import (
 
 const settingsKey = "alerts"
 
-// Settings are the panel-wide alert options. Webhook is plaintext in
-// memory and sealed in the database.
 type Settings struct {
 	Webhook           string `json:"-"`
 	Mention           string `json:"mention"`
@@ -27,12 +25,10 @@ type Settings struct {
 	PanelURL          string `json:"panelUrl"`
 }
 
-// DefaultSettings: alert after 20 s, tell about recoveries.
 func DefaultSettings() Settings {
 	return Settings{GraceSec: 20, NotifyRecovered: true, NotifyAutoRestart: true, IncludeLogs: true, Language: "pl"}
 }
 
-// FieldError names the invalid field.
 type FieldError struct {
 	Field string
 	Err   error
@@ -40,7 +36,6 @@ type FieldError struct {
 
 func (e *FieldError) Error() string { return e.Err.Error() }
 
-// Validate normalises the settings (webhook, mention, URL).
 func (s *Settings) Validate() error {
 	if s.Webhook != "" {
 		w, err := ValidateWebhook(s.Webhook)
@@ -57,7 +52,7 @@ func (s *Settings) Validate() error {
 	if s.GraceSec < 10 || s.GraceSec > 600 {
 		return &FieldError{"graceSec", errors.New("the delay must be between 10 and 600 seconds")}
 	}
-	if s.Language != "en" {
+	if s.Language != "en" && s.Language != "de" {
 		s.Language = "pl"
 	}
 	if s.PanelURL != "" {
@@ -71,14 +66,12 @@ func (s *Settings) Validate() error {
 	return nil
 }
 
-// ServerSettings override the globals for one server.
 type ServerSettings struct {
 	Enabled bool
 	Webhook string
 	Mention string
 }
 
-// Store keeps the settings in SQLite.
 type Store struct {
 	db  *sql.DB
 	box *secrets.Box
@@ -133,7 +126,6 @@ func (s *Store) SaveSettings(ctx context.Context, st Settings) error {
 	return nil
 }
 
-// Server returns a server's overrides (enabled by default).
 func (s *Store) Server(ctx context.Context, id string) (ServerSettings, error) {
 	var (
 		enabled          int

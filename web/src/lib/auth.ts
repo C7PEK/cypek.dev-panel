@@ -62,7 +62,6 @@ export function useLogout() {
   })
 }
 
-/** Console histories may hold passwords (rcon_password, /login ...): drop them on logout. */
 function clearConsoleHistory() {
   try {
     for (let i = localStorage.length - 1; i >= 0; i--) {
@@ -70,6 +69,5 @@ function clearConsoleHistory() {
       if (k?.startsWith("homepanel-history-")) localStorage.removeItem(k)
     }
   } catch {
-    // storage unavailable (private mode): nothing stored either
   }
 }

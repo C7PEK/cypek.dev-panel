@@ -27,7 +27,7 @@ func TestEnsureSelfSigned(t *testing.T) {
 	if info, _ := os.Stat(key); info.Mode().Perm() != 0o600 {
 		t.Errorf("key mode %v", info.Mode())
 	}
-	// Same hosts: reused. New IP: regenerated.
+
 	_, _, fp2, _ := EnsureSelfSigned(dir, []string{"192.168.8.111"})
 	if fp2 != fp {
 		t.Error("certificate regenerated without need")

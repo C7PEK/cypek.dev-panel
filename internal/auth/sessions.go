@@ -10,17 +10,15 @@ import (
 )
 
 const (
-	// SessionTTL is the absolute lifetime of a session cookie.
 	SessionTTL = 14 * 24 * time.Hour
-	// sessionIdleTTL logs out sessions unused for this long.
+
 	sessionIdleTTL  = 3 * 24 * time.Hour
 	sessionTokenLen = 32
 	csrfTokenLen    = 32
 )
 
-// Session is a logged-in browser session.
 type Session struct {
-	ID        string // hash of the token; the raw token lives only in the cookie
+	ID        string
 	UserID    int64
 	CSRFToken string
 	CreatedAt time.Time
@@ -28,13 +26,12 @@ type Session struct {
 	LastSeen  time.Time
 	IP        string
 	UserAgent string
-	// APIKey marks a synthetic session created from a bearer key.
+
 	APIKey bool
 }
 
 var ErrSessionInvalid = errors.New("session invalid or expired")
 
-// CreateSession issues a new session and returns the raw cookie token.
 func (s *Store) CreateSession(ctx context.Context, userID int64, ip, userAgent string) (token string, sess *Session, err error) {
 	token, err = randomToken(sessionTokenLen)
 	if err != nil {
@@ -64,8 +61,6 @@ func (s *Store) CreateSession(ctx context.Context, userID int64, ip, userAgent s
 	return token, sess, nil
 }
 
-// LookupSession resolves a raw cookie token to a live session and its user,
-// bumping last_seen_at at most once a minute to keep writes low.
 func (s *Store) LookupSession(ctx context.Context, token string) (*Session, *User, error) {
 	if token == "" {
 		return nil, nil, ErrSessionInvalid
@@ -99,7 +94,6 @@ func (s *Store) LookupSession(ctx context.Context, token string) (*Session, *Use
 	return &sess, user, nil
 }
 
-// DeleteSession removes a session by its hashed id.
 func (s *Store) DeleteSession(ctx context.Context, id string) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE id = ?`, id); err != nil {
 		return fmt.Errorf("delete session: %w", err)
@@ -107,12 +101,10 @@ func (s *Store) DeleteSession(ctx context.Context, id string) error {
 	return nil
 }
 
-// DeleteSessionByToken removes the session behind a raw cookie token.
 func (s *Store) DeleteSessionByToken(ctx context.Context, token string) error {
 	return s.DeleteSession(ctx, hashToken(token))
 }
 
-// PurgeExpiredSessions deletes sessions past their expiry; meant for a periodic job.
 func (s *Store) PurgeExpiredSessions(ctx context.Context) (int64, error) {
 	res, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE expires_at < ?`, fmtTime(time.Now().UTC()))
 	if err != nil {

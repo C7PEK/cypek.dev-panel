@@ -13,21 +13,18 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/providers"
 )
 
-// Node manages Node.js installs under <Dir>/node-<major>/bin/{node,npm}.
 type Node struct {
 	Dir      string
 	Provider *providers.Node
 	mu       sync.Mutex
 }
 
-// versionSelector: "22", "3.12", "22.11.0"; never anything path-like.
 var versionSelector = regexp.MustCompile(`^\d{1,3}(\.\d{1,4}){0,2}$`)
 
-// Ensure returns the node binary for a major version (or "lts").
 func (n *Node) Ensure(ctx context.Context, selector string, logf Logf, progress providers.Progress) (string, error) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	// The selector comes from template variables and ends up in a path.
+
 	if selector != "" && selector != "lts" && !versionSelector.MatchString(strings.TrimPrefix(selector, "v")) {
 		return "", fmt.Errorf("invalid Node.js version %q", selector)
 	}
@@ -50,14 +47,12 @@ func (n *Node) Ensure(ctx context.Context, selector string, logf Logf, progress 
 	return installTarball(ctx, build.URL, build.SHA256, target, n.Dir, "node", logf, progress)
 }
 
-// Python manages CPython installs under <Dir>/python-<minor>/bin/python3.
 type Python struct {
 	Dir      string
 	Provider *providers.Python
 	mu       sync.Mutex
 }
 
-// Ensure returns the python3 binary for a minor line like "3.12".
 func (p *Python) Ensure(ctx context.Context, minor string, logf Logf, progress providers.Progress) (string, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -83,8 +78,6 @@ func (p *Python) Ensure(ctx context.Context, minor string, logf Logf, progress p
 	return installTarball(ctx, build.URL, build.SHA256, target, p.Dir, "python3", logf, progress)
 }
 
-// installTarball downloads, verifies and extracts a runtime whose archive
-// has one top-level folder, then checks bin/<binary> exists.
 func installTarball(ctx context.Context, url, sha256, target, dir, binary string, logf Logf, progress providers.Progress) (string, error) {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return "", err

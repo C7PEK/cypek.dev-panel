@@ -76,7 +76,7 @@ func startServer(t *testing.T) *env {
 	addr := ln.Addr().String()
 	ln.Close()
 	srv := &Server{Listen: addr, HostKeyPath: filepath.Join(root, "hostkey"), Backend: b}
-	if err := srv.LoadHostKey(); err != nil { // as serve.go does, before Run
+	if err := srv.LoadHostKey(); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -151,7 +151,6 @@ func TestSFTPMultiServer(t *testing.T) {
 		t.Fatalf("read %q", b)
 	}
 
-	// Escapes and the meta folder are refused.
 	for _, p := range []string{alpha + "/.homepanel/run.json", alpha + "/../beta/readme.txt", alpha + "/escape/secret.txt", alpha + "/meta-link/run.json", "/aaaa1111/.homepanel/run.json"} {
 		if f, err := c.Open(p); err == nil {
 			data, _ := io.ReadAll(f)
@@ -161,13 +160,11 @@ func TestSFTPMultiServer(t *testing.T) {
 			}
 		}
 	}
-	// "../" is cleaned inside the SFTP namespace: /Alpha/../beta is the root
-	// level "beta", which does not exist (folders are "Name (id)").
+
 	if _, err := c.Open(alpha + "/../beta/readme.txt"); err == nil {
 		t.Error("../ resolved to a server folder by raw name")
 	}
 
-	// Writes: allowed on alpha, refused on beta (files.read only) and at the root.
 	w, err := c.Create(alpha + "/plugins.txt")
 	if err != nil {
 		t.Fatal(err)
@@ -211,7 +208,6 @@ func TestSFTPMultiServer(t *testing.T) {
 		t.Error("removed a server folder")
 	}
 
-	// No shell.
 	sess, err := conn.NewSession()
 	if err == nil {
 		out, err := sess.CombinedOutput("id")

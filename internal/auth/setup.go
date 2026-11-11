@@ -13,23 +13,18 @@ import (
 const (
 	settingSetupTokenHash = "setup_token_hash"
 	setupTokenLen         = 24
-	// SetupTokenFile is written (mode 0600) in the data dir so install.sh and
-	// `journalctl` are not the only ways to find the token.
+
 	SetupTokenFile = "setup-token"
 )
 
 var ErrSetupNotRequired = errors.New("setup already completed")
 var ErrSetupTokenInvalid = errors.New("invalid setup token")
 
-// SetupRequired reports whether no account exists yet.
 func (s *Store) SetupRequired(ctx context.Context) (bool, error) {
 	n, err := s.CountUsers(ctx)
 	return n == 0, err
 }
 
-// EnsureSetupToken makes sure a setup token exists while setup is required.
-// It returns the plaintext token only when a new one was generated; otherwise
-// it returns "" and the caller should point the user at SetupTokenFile.
 func (s *Store) EnsureSetupToken(ctx context.Context, dataDir string) (token string, generated bool, err error) {
 	required, err := s.SetupRequired(ctx)
 	if err != nil {
@@ -45,12 +40,9 @@ func (s *Store) EnsureSetupToken(ctx context.Context, dataDir string) (token str
 	}
 	tokenPath := filepath.Join(dataDir, SetupTokenFile)
 	if existing != "" {
-		// Keep the stored hash; re-read the plaintext from disk if it is still there
-		// so the banner can print it again after a restart.
 		if b, err := os.ReadFile(tokenPath); err == nil && hashToken(string(b)) == existing {
 			return string(b), false, nil
 		}
-		// Hash exists but plaintext is gone: rotate so the owner can still proceed.
 	}
 	token, err = randomToken(setupTokenLen)
 	if err != nil {
@@ -65,7 +57,6 @@ func (s *Store) EnsureSetupToken(ctx context.Context, dataDir string) (token str
 	return token, true, nil
 }
 
-// CompleteSetup creates the owner account after validating the setup token.
 func (s *Store) CompleteSetup(ctx context.Context, dataDir, token, username, password string) (*User, error) {
 	required, err := s.SetupRequired(ctx)
 	if err != nil {
@@ -93,12 +84,10 @@ func (s *Store) CompleteSetup(ctx context.Context, dataDir, token, username, pas
 	return user, nil
 }
 
-// GetSetting reads a panel-wide setting ("" when unset).
 func (s *Store) GetSetting(ctx context.Context, key string) (string, error) {
 	return s.getSetting(ctx, key)
 }
 
-// SetSetting writes a panel-wide setting.
 func (s *Store) SetSetting(ctx context.Context, key, value string) error {
 	return s.setSetting(ctx, key, value)
 }

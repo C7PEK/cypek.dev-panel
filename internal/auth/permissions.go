@@ -5,8 +5,6 @@ import (
 	"fmt"
 )
 
-// Permission is a per-server right granted to users with the global `user`
-// role. Owners and admins implicitly hold all of them on every server.
 type Permission string
 
 const (
@@ -21,13 +19,11 @@ const (
 	PermDelete       Permission = "delete"
 )
 
-// AllPermissions lists every per-server permission.
 var AllPermissions = []Permission{
 	PermConsoleRead, PermConsoleWrite, PermPower, PermFilesRead, PermFilesWrite,
 	PermSchedules, PermBackups, PermSettings, PermDelete,
 }
 
-// Valid reports whether p is known.
 func (p Permission) Valid() bool {
 	for _, q := range AllPermissions {
 		if p == q {
@@ -37,11 +33,8 @@ func (p Permission) Valid() bool {
 	return false
 }
 
-// IsAdmin reports whether the user bypasses per-server permissions.
 func (u *User) IsAdmin() bool { return u.Role.AtLeast(RoleAdmin) }
 
-// Require is the single permission check used by every handler and
-// WebSocket: admins pass, users need an explicit grant on that server.
 func (s *Store) Require(ctx context.Context, u *User, perm Permission, serverID string) (bool, error) {
 	if u == nil {
 		return false, nil
@@ -59,7 +52,6 @@ func (s *Store) Require(ctx context.Context, u *User, perm Permission, serverID 
 	return n > 0, nil
 }
 
-// GrantPermissions replaces the user's permission set on a server.
 func (s *Store) GrantPermissions(ctx context.Context, serverID string, userID int64, perms []Permission) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -80,8 +72,6 @@ func (s *Store) GrantPermissions(ctx context.Context, serverID string, userID in
 	return tx.Commit()
 }
 
-// VisibleServerIDs returns the servers a user has any permission on.
-// Admins see everything, signalled by all == true.
 func (s *Store) VisibleServerIDs(ctx context.Context, u *User) (ids []string, all bool, err error) {
 	if u.IsAdmin() {
 		return nil, true, nil
@@ -101,7 +91,6 @@ func (s *Store) VisibleServerIDs(ctx context.Context, u *User) (ids []string, al
 	return ids, false, rows.Err()
 }
 
-// ServerGrants returns every user's permissions on a server.
 func (s *Store) ServerGrants(ctx context.Context, serverID string) (map[int64][]Permission, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT user_id, permission FROM server_permissions WHERE server_id = ? ORDER BY user_id, permission`, serverID)
 	if err != nil {

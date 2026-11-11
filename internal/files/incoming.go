@@ -16,10 +16,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/archive"
 )
 
-// Incoming is a file being downloaded into a server folder. It is written
-// to a hidden temp file (random name, O_EXCL) and renamed under a free name
-// on Commit; all operations go through os.Root beneath the target folder,
-// so links planted by the game cannot redirect them.
 type Incoming struct {
 	root   *os.Root
 	dirRel string
@@ -27,7 +23,6 @@ type Incoming struct {
 	f      *os.File
 }
 
-// NewIncoming prepares a download into dir (relative to the server root).
 func (m *Manager) NewIncoming(dir string) (*Incoming, error) {
 	abs, rel, err := m.resolve(dir)
 	if err != nil {
@@ -47,7 +42,6 @@ func (m *Manager) NewIncoming(dir string) (*Incoming, error) {
 	return &Incoming{root: r, dirRel: rel}, nil
 }
 
-// Create opens the temp file.
 func (in *Incoming) Create() (io.Writer, error) {
 	for i := 0; i < 5; i++ {
 		var b [8]byte
@@ -65,8 +59,6 @@ func (in *Incoming) Create() (io.Writer, error) {
 	return nil, errors.New("could not create a temporary file")
 }
 
-// Commit renames the temp file to name, or "name (2).ext" ... when taken,
-// and returns the path relative to the server root.
 func (in *Incoming) Commit(name string) (string, error) {
 	defer in.root.Close()
 	if err := in.f.Close(); err != nil {
@@ -102,7 +94,6 @@ func (in *Incoming) Commit(name string) (string, error) {
 	return "", ErrExists
 }
 
-// Abort removes the temp file.
 func (in *Incoming) Abort() {
 	if in.f != nil {
 		in.f.Close()
@@ -111,14 +102,12 @@ func (in *Incoming) Abort() {
 	in.root.Close()
 }
 
-// ExtractOptions for long-running extractions started from the UI.
 type ExtractOptions struct {
 	MaxBytes int64
 	Cancel   func() bool
 	Written  func(n int64)
 }
 
-// ExtractWith is Extract with a size budget, cancellation and progress.
 func (m *Manager) ExtractWith(archivePath, dirPath string, o ExtractOptions) error {
 	src, _, err := m.resolve(archivePath)
 	if err != nil {
@@ -139,7 +128,6 @@ func (m *Manager) ExtractWith(archivePath, dirPath string, o ExtractOptions) err
 	return archive.Extract(src, dst, opts)
 }
 
-// IsArchive reports whether the name looks like something Extract handles.
 func IsArchive(name string) bool {
 	n := strings.ToLower(filepath.Base(name))
 	for _, ext := range []string{".zip", ".tar", ".tar.gz", ".tgz", ".tar.xz", ".txz", ".tar.zst", ".tzst"} {

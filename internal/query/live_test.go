@@ -7,7 +7,6 @@ import (
 	"testing"
 )
 
-// TestLiveMinecraft pings a real server: HOMEPANEL_QUERY_PORT=25565 go test -run TestLiveMinecraft -v ./internal/query
 func TestLiveMinecraft(t *testing.T) {
 	port, _ := strconv.Atoi(os.Getenv("HOMEPANEL_QUERY_PORT"))
 	if port == 0 {

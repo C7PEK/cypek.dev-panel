@@ -1,7 +1,3 @@
-// Package installer runs a template's install steps for a server: resolves
-// and downloads artifacts, prepares the runtime, writes config files and
-// finally produces the run config. Steps are executed by Go code, never a
-// shell. Progress is kept in memory per server for the UI to poll.
 package installer
 
 import (
@@ -39,14 +35,13 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/templates"
 )
 
-// Deps are the collaborators steps need.
 type Deps struct {
 	Paper  *providers.Paper
 	FiveM  *providers.FiveM
 	Mojang *providers.Mojang
 	Fabric *providers.Fabric
 	Purpur *providers.Purpur
-	// Mod loaders and Bedrock; nil means the public default.
+
 	Forge    *providers.Forge
 	NeoForge *providers.NeoForge
 	Quilt    *providers.Quilt
@@ -54,18 +49,15 @@ type Deps struct {
 	Java     *runtimes.Java
 	Node     *runtimes.Node
 	Python   *runtimes.Python
-	// Scripts runs `script` steps inside the server's sandbox.
+
 	Scripts ScriptRunner
 	Log     *slog.Logger
 }
 
-// ScriptRunner executes an install script for a server in its sandbox and
-// streams output lines to logf. It returns an error for a non-zero exit.
 type ScriptRunner interface {
 	RunScript(ctx context.Context, serverID, serverDir, script string, env map[string]string, timeout time.Duration, logf func(string, ...any)) error
 }
 
-// JobState is the lifecycle of one installation.
 type JobState string
 
 const (
@@ -74,37 +66,32 @@ const (
 	JobFailed  JobState = "failed"
 )
 
-// Job is the observable progress of an installation.
 type Job struct {
 	ServerID   string    `json:"serverId"`
 	State      JobState  `json:"state"`
 	Step       int       `json:"step"`
 	Steps      int       `json:"steps"`
 	StepTitle  string    `json:"stepTitle"`
-	Percent    int       `json:"percent"` // of the current download, -1 when unknown
+	Percent    int       `json:"percent"`
 	Lines      []string  `json:"lines"`
 	Error      string    `json:"error,omitempty"`
 	StartedAt  time.Time `json:"startedAt"`
 	FinishedAt time.Time `json:"finishedAt,omitzero"`
 }
 
-// Result is what a successful installation produced.
 type Result struct {
 	Run   shim.RunConfig
 	Ports []servers.Port
-	// Builtins are the resolved internal variables (JAVA, JVM_FLAGS, ...),
-	// stored with the server so a reinstall is not needed to rebuild run.json.
+
 	Builtins map[string]string
 }
 
-// Manager runs at most one job per server and remembers the last one.
 type Manager struct {
 	deps Deps
 	mu   sync.Mutex
 	jobs map[string]*Job
 }
 
-// New creates a Manager.
 func New(d Deps) *Manager {
 	if d.Log == nil {
 		d.Log = slog.Default()
@@ -114,18 +101,14 @@ func New(d Deps) *Manager {
 
 const maxLines = 500
 
-// ErrInstallRunning means a job is already in progress for this server.
 var ErrInstallRunning = errors.New("installation already running")
 
-// SetScriptRunner wires the sandboxed script executor (it needs the
-// supervisor, which lives in the API layer).
 func (m *Manager) SetScriptRunner(r ScriptRunner) {
 	m.mu.Lock()
 	m.deps.Scripts = r
 	m.mu.Unlock()
 }
 
-// Get returns the last job for a server.
 func (m *Manager) Get(serverID string) (*Job, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -138,7 +121,6 @@ func (m *Manager) Get(serverID string) (*Job, bool) {
 	return &cp, true
 }
 
-// Running reports whether an installation is in progress for serverID.
 func (m *Manager) Running(serverID string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -146,28 +128,21 @@ func (m *Manager) Running(serverID string) bool {
 	return ok && j.State == JobRunning
 }
 
-// Forget drops the job record (after the server was deleted).
 func (m *Manager) Forget(serverID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.jobs, serverID)
 }
 
-// Start launches the installation in the background. vars are the validated
-// user variables; serverDir is the server's working directory. done is
-// called exactly once from the job goroutine with the outcome.
 func (m *Manager) Start(ctx context.Context, serverID, serverDir string, tpl *templates.Template, vars map[string]string, done func(*Result, error)) error {
 	return m.StartWith(ctx, serverID, serverDir, tpl, vars, Hooks{}, done)
 }
 
-// Hooks customise a job: Before runs first inside the job (its log lines
-// show up in the install log), e.g. stopping the server for a git update.
 type Hooks struct {
 	Before   func(ctx context.Context, logf func(string, ...any)) error
-	Finished string // last log line on success (default "Installation finished.")
+	Finished string
 }
 
-// StartWith is Start with hooks.
 func (m *Manager) StartWith(ctx context.Context, serverID, serverDir string, tpl *templates.Template, vars map[string]string, hooks Hooks, done func(*Result, error)) error {
 	m.mu.Lock()
 	if j, ok := m.jobs[serverID]; ok && j.State == JobRunning {
@@ -224,13 +199,12 @@ type stepCtx struct {
 	job  *Job
 	dir  string
 	vars map[string]string
-	tpl  *templates.Template // for masking secret values in the log
+	tpl  *templates.Template
 }
 
 func (c *stepCtx) logf(format string, args ...any) {
 	line := fmt.Sprintf(format, args...)
 	if c.tpl != nil {
-		// The log is shown to console.read users and goes to the journal.
 		line = maskSecrets(c.tpl, c.vars, line)
 	}
 	c.m.deps.Log.Info("install", "server", c.job.ServerID, "msg", line)
@@ -266,9 +240,7 @@ func (m *Manager) run(ctx context.Context, job *Job, dir string, tpl *templates.
 	if abs, err := filepath.Abs(dir); err == nil {
 		vars[templates.KeyServerDir] = abs
 	}
-	// The runtime is prepared before the install steps when they may need it
-	// (npm, pip, java -jar installer.jar in egg scripts). Only Java "auto"
-	// waits: it depends on what the download step reports as the minimum.
+
 	runtimeReady := runtimeBeforeSteps(tpl.Runtime)
 	if runtimeReady {
 		if err := c.runtime(ctx, 0, tpl.Runtime); err != nil {
@@ -279,9 +251,7 @@ func (m *Manager) run(ctx context.Context, job *Job, dir string, tpl *templates.
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		// Java "auto" is prepared once the download steps reported the
-		// minimum, but before the first program that may need it (a mod
-		// loader installer: java -jar installer.jar --installServer).
+
 		if !runtimeReady && (st.Exec != nil || st.Script != nil) {
 			if err := c.runtime(ctx, i+1, tpl.Runtime); err != nil {
 				return nil, err
@@ -368,8 +338,7 @@ func (c *stepCtx) download(ctx context.Context, n int, st *templates.DownloadSte
 		}
 		c.logf("Bedrock Dedicated Server %s", srv.Version)
 		c.logf("Mojang publishes no checksum for it; downloading over HTTPS only")
-		// minecraft.net's CDN resets requests whose agent carries a URL.
-		// TODO(verify): checked 2026-11-11; the plain product name passes.
+
 		if err := providers.Download(providers.WithUserAgent(ctx, "homepanel/0.1"), srv.URL, dest, "", c.progress); err != nil {
 			return err
 		}
@@ -377,7 +346,7 @@ func (c *stepCtx) download(ctx context.Context, n int, st *templates.DownloadSte
 		return nil
 	case "mojang":
 		if version == "latest" && c.vars["MC_VERSION_RESOLVED"] != "" {
-			version = c.vars["MC_VERSION_RESOLVED"] // e.g. picked by the Fabric step
+			version = c.vars["MC_VERSION_RESOLVED"]
 		}
 		c.begin(n, "Downloading the Minecraft server")
 		mj := c.m.deps.Mojang
@@ -564,8 +533,6 @@ func (c *stepCtx) write(n int, st *templates.WriteStep) error {
 	return safefs.WriteFile(c.dir, filepath.Clean(path), []byte(content), 0o640)
 }
 
-// properties sets keys in a Java .properties file, keeping other lines
-// (comments included) and their order.
 func (c *stepCtx) properties(n int, st *templates.PropertiesStep) error {
 	path, err := templates.Render(st.Path, c.vars)
 	if err != nil {
@@ -618,14 +585,11 @@ func (c *stepCtx) properties(n int, st *templates.PropertiesStep) error {
 	return safefs.WriteFile(c.dir, filepath.Clean(path), []byte(strings.Join(lines, "\n")+"\n"), 0o640)
 }
 
-// escapeProp escapes what Java's Properties loader would otherwise interpret.
 func escapeProp(v string) string {
 	r := strings.NewReplacer("\\", "\\\\", "\n", "\\n", "\r", "\\r", "\t", "\\t")
 	return r.Replace(v)
 }
 
-// runtimeBeforeSteps: node/python always, java when the version is fixed
-// or chosen by a variable (imported eggs), not for "auto".
 func runtimeBeforeSteps(rt templates.Runtime) bool {
 	switch rt.Kind {
 	case "node", "python":
@@ -726,8 +690,7 @@ func (c *stepCtx) runtime(ctx context.Context, n int, rt templates.Runtime) erro
 		venv := filepath.Join(c.dir, ".venv")
 		if _, err := os.Stat(filepath.Join(venv, "bin", "python")); err != nil {
 			c.logf("Creating virtual environment .venv")
-			// -I: isolated mode, so files planted in the server folder
-			// (venv.py, PYTHON* variables) cannot hook the interpreter.
+
 			if err := c.runSandboxed(ctx, py, []string{"-I", "-m", "venv", venv}, c.dir, nil, 300); err != nil {
 				return fmt.Errorf("create venv: %w", err)
 			}
@@ -744,8 +707,6 @@ func (c *stepCtx) runtime(ctx context.Context, n int, rt templates.Runtime) erro
 	}
 }
 
-// git clones the repository into To, or fetches and resets to the branch
-// when it already exists (that is what "Update from git" does).
 func (c *stepCtx) git(ctx context.Context, n int, st *templates.GitStep) error {
 	rawURL, err := templates.Render(st.URL, c.vars)
 	if err != nil {
@@ -781,8 +742,6 @@ func (c *stepCtx) git(ctx context.Context, n int, st *templates.GitStep) error {
 		ref = plumbing.NewBranchReferenceName(branch)
 	}
 	if gst, err := os.Lstat(filepath.Join(dest, ".git")); err == nil {
-		// .git is writable by the bot: a ".git" file (gitdir: ...) or link
-		// could send the panel's object writes anywhere.
 		if !gst.IsDir() {
 			return errors.New("app/.git is not a normal folder (modified by the bot?); reinstall the server")
 		}
@@ -790,8 +749,7 @@ func (c *stepCtx) git(ctx context.Context, n int, st *templates.GitStep) error {
 		if err != nil {
 			return fmt.Errorf("open repository: %w", err)
 		}
-		// Always fetch from the URL in the server's settings, never from
-		// .git/config, so the access token cannot be sent elsewhere.
+
 		_ = repo.DeleteRemote("origin")
 		if _, err := repo.CreateRemote(&gitconfig.RemoteConfig{Name: "origin", URLs: []string{rawURL}}); err != nil {
 			return fmt.Errorf("set remote: %w", err)
@@ -848,7 +806,6 @@ func (c *stepCtx) git(ctx context.Context, n int, st *templates.GitStep) error {
 	return nil
 }
 
-// describeCommit is "abc1234567: first line of the message (author)".
 func describeCommit(repo *gogit.Repository, h plumbing.Hash) string {
 	out := h.String()[:10]
 	c, err := repo.CommitObject(h)
@@ -862,7 +819,6 @@ func describeCommit(repo *gogit.Repository, h plumbing.Hash) string {
 	return fmt.Sprintf("%s: %s (%s)", out, msg, c.Author.Name)
 }
 
-// allowLocalGit lets tests clone from file:// repositories.
 var allowLocalGit = false
 
 func orDefault(s, d string) string {
@@ -872,7 +828,6 @@ func orDefault(s, d string) string {
 	return s
 }
 
-// script runs a template's install script in the server sandbox.
 func (c *stepCtx) script(ctx context.Context, n int, st *templates.ScriptStep) error {
 	c.m.mu.Lock()
 	runner := c.m.deps.Scripts
@@ -894,7 +849,6 @@ func (c *stepCtx) script(ctx context.Context, n int, st *templates.ScriptStep) e
 	return runner.RunScript(ctx, c.job.ServerID, c.dir, script, env, timeout, c.logf)
 }
 
-// exec runs a program without a shell, streaming its output to the log.
 func (c *stepCtx) exec(ctx context.Context, n int, st *templates.ExecStep) error {
 	cmd, err := templates.Render(st.Command, c.vars)
 	if err != nil {
@@ -940,7 +894,7 @@ func (c *stepCtx) exec(ctx context.Context, n int, st *templates.ExecStep) error
 			return err
 		}
 	}
-	// Relative commands (.venv/bin/pip) are relative to the server dir.
+
 	if strings.Contains(cmd, "/") && !filepath.IsAbs(cmd) {
 		cmd = filepath.Join(c.dir, cmd)
 	}
@@ -952,12 +906,6 @@ func (c *stepCtx) exec(ctx context.Context, n int, st *templates.ExecStep) error
 	return c.runSandboxed(ctx, cmd, args, dir, env, timeout)
 }
 
-// runSandboxed runs a program inside the server's own systemd unit (the
-// same sandbox as the game and as install scripts), never in the panel:
-// npm/pip execute code from the server folder (lifecycle scripts, .npmrc,
-// .venv/bin/*), which the game or a files.write user controls. Without a
-// script runner (unit tests, no supervisor) it falls back to a child
-// process.
 func (c *stepCtx) runSandboxed(ctx context.Context, cmd string, args []string, dir string, env map[string]string, timeoutSec int) error {
 	c.m.mu.Lock()
 	runner := c.m.deps.Scripts
@@ -975,12 +923,10 @@ func (c *stepCtx) runSandboxed(ctx context.Context, cmd string, args []string, d
 	return runner.RunScript(ctx, c.job.ServerID, c.dir, b.String(), full, time.Duration(timeoutSec)*time.Second, c.logf)
 }
 
-// shellQuote makes s one literal bash word.
 func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-// programEnv is the minimal environment for install programs.
 func (c *stepCtx) programEnv(env map[string]string) map[string]string {
 	path := "/usr/local/bin:/usr/bin:/bin"
 	for _, k := range []string{templates.KeyNode, templates.KeyJava} {
@@ -998,8 +944,6 @@ func (c *stepCtx) programEnv(env map[string]string) map[string]string {
 	return full
 }
 
-// runProgram executes cmd with a minimal environment plus the runtime bin
-// dirs on PATH, piping output lines into the install log.
 func (c *stepCtx) runProgram(ctx context.Context, cmd string, args []string, dir string, env map[string]string, timeoutSec int) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSec)*time.Second)
 	defer cancel()
@@ -1031,7 +975,6 @@ func (c *stepCtx) runProgram(ctx context.Context, cmd string, args []string, dir
 	return nil
 }
 
-// insideDir resolves rel under dir and refuses anything that escapes it.
 func insideDir(dir, rel string) (string, error) {
 	if filepath.IsAbs(rel) {
 		return "", fmt.Errorf("path %q must be relative", rel)
@@ -1040,8 +983,7 @@ func insideDir(dir, rel string) (string, error) {
 	if p != dir && !strings.HasPrefix(p, filepath.Clean(dir)+string(filepath.Separator)) {
 		return "", fmt.Errorf("path %q escapes the server directory", rel)
 	}
-	// Also resolve symlinks: a folder in the path may have been replaced
-	// by a link pointing outside the server.
+
 	if _, err := os.Stat(dir); err == nil {
 		real, err := files.ResolveSafe(dir, filepath.ToSlash(rel))
 		if err != nil {
@@ -1052,10 +994,6 @@ func insideDir(dir, rel string) (string, error) {
 	return p, nil
 }
 
-// Reconfigure re-applies the template's write/properties steps and rebuilds
-// the run config after the user changed variables, reusing the builtins
-// (Java path, JVM flags) resolved by the original installation. It runs
-// synchronously: no downloads happen.
 func (m *Manager) Reconfigure(serverDir string, tpl *templates.Template, userVars, builtins map[string]string) (*Result, error) {
 	vars := map[string]string{}
 	for k, v := range builtins {
@@ -1094,7 +1032,6 @@ func (m *Manager) Reconfigure(serverDir string, tpl *templates.Template, userVar
 	return &Result{Run: run, Ports: ports, Builtins: out}, nil
 }
 
-// maskSecrets hides values of secret variables in text meant for logs.
 func maskSecrets(tpl *templates.Template, vars map[string]string, text string) string {
 	for _, v := range tpl.Variables {
 		if v.Type != templates.TypeSecret {

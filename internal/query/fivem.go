@@ -10,9 +10,6 @@ import (
 	"time"
 )
 
-// fivemHTTP reads FXServer's built-in HTTP endpoints on the game port:
-// players.json (array of {id, name, ping, identifiers}) and info.json
-// (vars.sv_maxClients). Both exist on every FXServer without extra setup.
 func fivemHTTP(ctx context.Context, host string, port int) (*Players, error) {
 	client := &http.Client{Timeout: 3 * time.Second}
 	base := fmt.Sprintf("http://%s:%d", host, port)

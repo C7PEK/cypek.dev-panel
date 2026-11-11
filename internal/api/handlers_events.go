@@ -18,7 +18,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/supervisor"
 )
 
-// storeSource adapts the server store + supervisor to metrics.Source.
 type storeSource struct {
 	servers *servers.Store
 	sup     supervisor.Supervisor
@@ -66,17 +65,16 @@ func (s storeSource) Status(ctx context.Context, id string) (supervisor.Status, 
 	return st, nil
 }
 
-// eventServer is the per-server part of a tick.
 type eventServer struct {
 	ID      string            `json:"id"`
 	Sample  metrics.Sample    `json:"sample"`
 	Players *query.Players    `json:"players,omitempty"`
-	History []metrics.Sample  `json:"history,omitempty"` // only in the first message
+	History []metrics.Sample  `json:"history,omitempty"`
 	Status  supervisor.Status `json:"status"`
 }
 
 type eventMsg struct {
-	Type    string        `json:"type"` // snapshot | tick
+	Type    string        `json:"type"`
 	Host    metrics.Host  `json:"host"`
 	Servers []eventServer `json:"servers"`
 }
@@ -85,8 +83,6 @@ func (s *Server) handleSystemStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.metrics.Host())
 }
 
-// handleServerStats returns the sample history for ?minutes=N (default 15,
-// max 60) plus a summary of the window.
 func (s *Server) handleServerStats(w http.ResponseWriter, r *http.Request) {
 	srv := serverFromContext(r.Context())
 	minutes, _ := strconv.Atoi(r.URL.Query().Get("minutes"))
@@ -140,16 +136,12 @@ type statsSummary struct {
 	PeakPlayers int     `json:"peakPlayers"`
 }
 
-// serverEvent is a merged history entry: shim lifecycle/error events plus
-// panel actions (who pressed stop, which schedule restarted it).
 type serverEvent struct {
 	shim.Event
-	Source   string `json:"source"` // server | panel
+	Source   string `json:"source"`
 	Username string `json:"username,omitempty"`
 }
 
-// handleServerEvents returns the newest events (?limit, default 100, max 500)
-// and 24h counters for the summary chips.
 func (s *Server) handleServerEvents(w http.ResponseWriter, r *http.Request) {
 	srv := serverFromContext(r.Context())
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
@@ -194,10 +186,6 @@ func (s *Server) handleServerEvents(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": out, "last24h": counts})
 }
 
-// handleEvents streams live status, resource samples and player counts for
-// every server the user may see: a "snapshot" with history on connect, then
-// a "tick" per collector interval. One socket per browser tab replaces the
-// dashboard's polling.
 func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	_, user := sessionFromContext(r.Context())
 	ws, err := websocket.Accept(w, r, &websocket.AcceptOptions{CompressionMode: websocket.CompressionContextTakeover})
@@ -207,7 +195,7 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	ws.SetReadLimit(4096)
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
-	// Drain client frames (pings) and notice disconnects.
+
 	go func() {
 		defer cancel()
 		for {
@@ -223,8 +211,6 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 		return ws.Write(wctx, websocket.MessageText, b)
 	}
 	build := func(typ string, samples map[string]metrics.Sample, host metrics.Host) (eventMsg, error) {
-		// Fresh user and session every tick: a demoted, disabled or
-		// logged-out account stops receiving server data.
 		fresh, err := s.store.GetUserByID(ctx, user.ID)
 		if err != nil || fresh.Disabled || !s.sessionAlive(ctx, r) {
 			return eventMsg{}, errors.New("session ended")
@@ -254,7 +240,6 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 				es.Players = s.playersOf(ctx, srv)
 			}
 			if typ == "snapshot" {
-				// Dashboard sparklines need the last 3 minutes only.
 				es.History = s.metrics.HistorySince(srv.ID, time.Now().Add(-3*time.Minute))
 			}
 			msg.Servers = append(msg.Servers, es)
@@ -272,7 +257,7 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 		samples map[string]metrics.Sample
 	}, 1)
 	unsub := s.metrics.Subscribe(func(h metrics.Host, samples map[string]metrics.Sample) {
-		select { // drop a tick rather than block the collector on a slow client
+		select {
 		case ticks <- struct {
 			host    metrics.Host
 			samples map[string]metrics.Sample

@@ -1,4 +1,3 @@
-// Package api wires HTTP routes, middleware and the embedded frontend.
 package api
 
 import (
@@ -33,7 +32,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/templates"
 )
 
-// Deps are the collaborators the API needs.
 type Deps struct {
 	Config  *config.Config
 	Store   *auth.Store
@@ -42,43 +40,40 @@ type Deps struct {
 	Version string
 	Servers *servers.Store
 	Sup     supervisor.Supervisor
-	// Templates, Installer, Paper and Secrets back server creation from templates.
+
 	Templates *templates.Registry
 	Installer *installer.Manager
 	Paper     *providers.Paper
-	// Alerts stores Discord alert settings (nil disables alerts).
+
 	Alerts *alerts.Store
-	// SFTPInfo describes the built-in SFTP server for the UI; ExposeSFTP
-	// receives the backend the SFTP server authenticates against.
+
 	SFTPInfo   SFTPInfo
 	ExposeSFTP func(sftpd.Backend)
-	// onServer hands tests the built server (package-internal).
+
 	onServer func(*Server)
-	// AlertSender overrides the Discord client (tests).
+
 	AlertSender alerts.Sender
-	// Modrinth backs the Minecraft plugin/mod manager (nil = public API).
+
 	Modrinth *providers.Modrinth
 	FiveM    *providers.FiveM
 	Secrets  *secrets.Box
-	// Metrics is the running collector (created and started by New when nil).
+
 	Metrics *metrics.Collector
-	// Schedules is the schedule store; the engine is created and started by New.
+
 	Schedules *scheduler.Store
-	// Backups is the backup record store.
+
 	Backups *backups.Store
-	// DBRecords stores per-server MariaDB databases; Databases talks to MariaDB.
+
 	DBRecords *database.Store
 	Databases *database.Manager
-	// BgCtx outlives requests; background installs run under it.
+
 	BgCtx context.Context
-	// Dist is the built frontend. Ignored when DevProxy is set.
+
 	Dist fs.FS
-	// DevProxy, when non-empty, forwards non-API requests to a Vite dev server
-	// whenever it is reachable, and serves Dist otherwise.
+
 	DevProxy string
 }
 
-// Server holds handler state.
 type Server struct {
 	cfg     *config.Config
 	store   *auth.Store
@@ -118,7 +113,6 @@ type Server struct {
 	pending   *auth.PendingLogins
 }
 
-// New builds the router.
 func New(d Deps) (http.Handler, error) {
 	s := &Server{
 		cfg:            d.Config,
@@ -186,7 +180,6 @@ func New(d Deps) (http.Handler, error) {
 		go s.repairDatabaseAccounts(s.bgCtx)
 	}
 	if s.metrics == nil && s.servers != nil && s.sup != nil {
-		// 1200 samples at 3 s = one hour of history per server (~60 kB each).
 		s.metrics = metrics.New(storeSource{servers: s.servers, sup: s.sup, api: s}, 3*time.Second, 1200, d.Config.DataDir, d.Log)
 		go s.metrics.Run(s.bgCtx)
 	}
@@ -413,7 +406,6 @@ func New(d Deps) (http.Handler, error) {
 	return r, nil
 }
 
-// internalError logs the cause and returns a generic 500 without leaking details.
 func (s *Server) internalError(w http.ResponseWriter, r *http.Request, err error) {
 	s.log.Error("request failed", "method", r.Method, "path", r.URL.Path, "err", err, "reqId", middleware.GetReqID(r.Context()))
 	writeError(w, http.StatusInternalServerError, CodeInternal, "Something went wrong on the server. Check the panel logs.")

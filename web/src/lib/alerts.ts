@@ -10,7 +10,6 @@ export function useAlerts() {
   return useQuery({
     queryKey: alertsKey,
     queryFn: () => api<{ settings: AlertSettings; history: AlertHistoryItem[] }>("GET", "/alerts"),
-    // History fills in while the page is open.
     refetchInterval: 15_000,
   })
 }
@@ -61,7 +60,6 @@ export function validWebhook(url: string): boolean {
 
 export type MentionMode = "none" | "everyone" | "here" | "role" | "user" | "raw"
 
-/** Splits a mention string into builder state; complex values fall back to raw. */
 export function parseMention(m: string): { mode: MentionMode; id: string } {
   const s = m.trim()
   if (s === "") return { mode: "none", id: "" }
@@ -106,7 +104,6 @@ export interface WebhookDraft {
 
 export const emptyWebhookDraft: WebhookDraft = { text: "", removed: false }
 
-/** Request value: undefined keeps the stored webhook, "" removes it. */
 export function webhookPayload(d: WebhookDraft): string | undefined {
   if (d.removed) return ""
   const s = d.text.trim()

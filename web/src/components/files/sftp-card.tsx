@@ -14,8 +14,6 @@ interface SFTPInfo {
   fingerprint?: string
 }
 
-// Connection details for WinSCP, FileZilla, Cyberduck or `sftp` (the
-// panel's built-in SFTP server; same username and password as the panel).
 export function SftpCard({ serverId, username }: { serverId: string; username: string }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)

@@ -2,8 +2,6 @@ import { BrandMark } from "@/components/brand/mark"
 import { splitName, useBranding } from "@/lib/branding"
 import { cn } from "@/lib/utils"
 
-// Wordmark: the part before the first dot in the display face, the rest
-// muted ("panel" + ".cypek.dev" by default, or the name from Settings).
 export function Logo({ className, size = "md", name }: { className?: string; size?: "md" | "lg"; name?: string }) {
   const b = useBranding()
   const [bold, rest] = splitName(name ?? b.data?.name ?? "")

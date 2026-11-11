@@ -17,7 +17,7 @@ type fakeSource struct {
 func (f *fakeSource) ServerIDs(context.Context) ([]string, error) { return []string{"a"}, nil }
 func (f *fakeSource) Players(context.Context, string) int         { return 2 }
 func (f *fakeSource) Status(context.Context, string) (supervisor.Status, error) {
-	f.nanos += 500_000_000 // half a core-second per call
+	f.nanos += 500_000_000
 	return supervisor.Status{State: supervisor.StateRunning, MemoryBytes: 1 << 20, CPUNanos: f.nanos}, nil
 }
 
@@ -34,7 +34,7 @@ func TestCollectorCPUAndHistory(t *testing.T) {
 	if len(hist) != 2 || hist[1].CPUPercent <= 0 || hist[1].MemoryBytes != 1<<20 || hist[1].Players != 2 {
 		t.Errorf("history = %+v", hist)
 	}
-	// 0.5 core-second over ~0.1 s is ~500%; just sanity-check the order of magnitude.
+
 	if hist[1].CPUPercent < 100 || hist[1].CPUPercent > 2000 {
 		t.Errorf("cpu%% = %v", hist[1].CPUPercent)
 	}

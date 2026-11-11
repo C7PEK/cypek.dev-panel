@@ -1,6 +1,3 @@
-// Package fetch downloads a file from a link pasted by a user (Google Drive,
-// Dropbox, OneDrive, GitHub or any direct link) straight to the server, so a
-// big world or modpack does not have to go through the user's upload.
 package fetch
 
 import (
@@ -18,13 +15,11 @@ import (
 	"time"
 )
 
-// Source is a link turned into a direct download.
 type Source struct {
-	URL  string // what is requested
-	Kind string // gdrive | dropbox | onedrive | github | direct
+	URL  string
+	Kind string
 }
 
-// Errors with a message the user can act on.
 var (
 	ErrUnsupported = errors.New("unsupported link")
 	ErrNotAFile    = errors.New("the link leads to a web page, not a file")
@@ -36,7 +31,6 @@ var (
 	driveID   = regexp.MustCompile(`^[A-Za-z0-9_-]{10,}$`)
 )
 
-// Resolve turns a share link into a direct download link.
 func Resolve(raw string) (Source, error) {
 	u, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil {
@@ -60,8 +54,7 @@ func Resolve(raw string) (Source, error) {
 		if id == "" {
 			return Source{}, fmt.Errorf("%w: could not find the file id in this Google Drive link", ErrUnsupported)
 		}
-		// confirm=t skips the "too large to scan for viruses" page.
-		// TODO(verify): drive.usercontent.google.com download endpoint (checked 2026-11-10).
+
 		return Source{URL: "https://drive.usercontent.google.com/download?id=" + id + "&export=download&confirm=t", Kind: "gdrive"}, nil
 	case host == "drive.usercontent.google.com":
 		q := u.Query()
@@ -78,8 +71,6 @@ func Resolve(raw string) (Source, error) {
 		u.RawQuery = q.Encode()
 		return Source{URL: u.String(), Kind: "dropbox"}, nil
 	case host == "1drv.ms" || host == "onedrive.live.com" || strings.HasSuffix(host, ".sharepoint.com"):
-		// Public share links through the shares API.
-		// TODO(verify): api.onedrive.com shares endpoint for anonymous links.
 		enc := strings.TrimRight(base64.URLEncoding.EncodeToString([]byte(u.String())), "=")
 		return Source{URL: "https://api.onedrive.com/v1.0/shares/u!" + enc + "/root/content", Kind: "onedrive"}, nil
 	case host == "github.com" && strings.Contains(u.Path, "/blob/"):
@@ -96,19 +87,14 @@ func Resolve(raw string) (Source, error) {
 	return Source{URL: u.String(), Kind: "direct"}, nil
 }
 
-// Sink receives the download: Create opens a temporary file once the
-// response looked like a file, Commit gives it its final name.
 type Sink interface {
 	Create() (io.Writer, error)
 	Commit(name string) (string, error)
 	Abort()
 }
 
-// Progress reports bytes written and the expected total (-1 = unknown).
 type Progress func(done, total int64)
 
-// Download fetches src into sink. client must be a netguard client (public
-// addresses only). maxBytes caps the size (free disk space).
 func Download(ctx context.Context, client *http.Client, src Source, sink Sink, maxBytes int64, progress Progress) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, src.URL, nil)
 	if err != nil {
@@ -119,7 +105,7 @@ func Download(ctx context.Context, client *http.Client, src Source, sink Sink, m
 	if err != nil {
 		var ue *url.Error
 		if errors.As(err, &ue) {
-			err = ue.Err // the URL may carry tokens; do not echo it
+			err = ue.Err
 		}
 		return "", fmt.Errorf("could not download: %w", err)
 	}
@@ -196,7 +182,6 @@ func Download(ctx context.Context, client *http.Client, src Source, sink Sink, m
 	return final, nil
 }
 
-// fileName takes Content-Disposition, then the last path element.
 func fileName(resp *http.Response) string {
 	if cd := resp.Header.Get("Content-Disposition"); cd != "" {
 		if _, params, err := mime.ParseMediaType(cd); err == nil {
@@ -216,7 +201,6 @@ func fileName(resp *http.Response) string {
 	return "download"
 }
 
-// Clean makes a remote name a safe single file name.
 func Clean(name string) string {
 	name = path.Base(strings.ReplaceAll(name, "\\", "/"))
 	name = strings.Map(func(r rune) rune {

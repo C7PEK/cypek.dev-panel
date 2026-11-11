@@ -16,7 +16,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/templates"
 )
 
-// makeRepo creates a local repository with one commit on branch main.
 func makeRepo(t *testing.T, files map[string]string) (string, func(map[string]string)) {
 	t.Helper()
 	dir := t.TempDir()
@@ -84,7 +83,6 @@ func TestGitAndExecSteps(t *testing.T) {
 		t.Errorf("run = %+v", res.Run)
 	}
 
-	// Update from git: new commit lands after a reinstall; local changes are discarded.
 	commit(map[string]string{"index.js": "console.log(2)"})
 	_ = os.WriteFile(filepath.Join(dir, "app", "index.js"), []byte("local edit"), 0o640)
 	if _, lines, err = run(); err != nil {
@@ -100,7 +98,6 @@ func TestGitAndExecSteps(t *testing.T) {
 		t.Errorf("no-op update: %v\n%s", err, strings.Join(lines, "\n"))
 	}
 
-	// Hooks: Before runs inside the job; its failure fails the job.
 	done0 := make(chan error, 1)
 	_ = m.StartWith(context.Background(), "bot00001", dir, tpl, map[string]string{"REPO_URL": url}, Hooks{
 		Before:   func(_ context.Context, logf func(string, ...any)) error { logf("stopping first"); return nil },
@@ -119,14 +116,13 @@ func TestGitAndExecSteps(t *testing.T) {
 		t.Errorf("failing hook: %v", err)
 	}
 
-	// A failing exec fails the install with its output in the log.
 	tplBad, _ := templates.Parse([]byte("id: bad\nname: B\ncategory: other\nvariables: []\ninstall:\n  - exec: {command: /bin/false}\nstart: {command: /bin/true}\n"))
 	done := make(chan error, 1)
 	_ = m.Start(context.Background(), "bad00001", filepath.Join(t.TempDir(), "b"), tplBad, map[string]string{}, func(_ *Result, e error) { done <- e })
 	if err := <-done; err == nil || !strings.Contains(err.Error(), "false failed") {
 		t.Errorf("failing exec: %v", err)
 	}
-	// https-only when not in test mode.
+
 	allowLocalGit = false
 	done = make(chan error, 1)
 	_ = m.Start(context.Background(), "bot00002", filepath.Join(t.TempDir(), "c"), tpl, map[string]string{"REPO_URL": url, "GIT_TOKEN": ""}, func(_ *Result, e error) { done <- e })
@@ -136,7 +132,6 @@ func TestGitAndExecSteps(t *testing.T) {
 }
 
 func TestDiscordTemplatesParse(t *testing.T) {
-	// Git variants: an https repo is required, the Discord token is optional.
 	for _, f := range []string{"../../templates/discord-node-git.yaml", "../../templates/discord-python-git.yaml"} {
 		b, err := os.ReadFile(f)
 		if err != nil {
@@ -153,7 +148,7 @@ func TestDiscordTemplatesParse(t *testing.T) {
 			t.Errorf("%s accepted an ssh url", f)
 		}
 	}
-	// File-based variants need nothing at all.
+
 	for _, f := range []string{"../../templates/discord-node.yaml", "../../templates/discord-python.yaml"} {
 		b, err := os.ReadFile(f)
 		if err != nil {

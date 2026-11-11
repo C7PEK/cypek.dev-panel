@@ -1,7 +1,3 @@
-// Package netguard builds HTTP clients for user-supplied links that may
-// only reach public internet addresses: never loopback, the LAN, link-local,
-// CGNAT/Tailscale or other special ranges. The check runs when the socket
-// connects, so redirects and DNS rebinding are covered too.
 package netguard
 
 import (
@@ -13,7 +9,6 @@ import (
 	"time"
 )
 
-// ErrNotPublic is returned when a link resolves to a non-public address.
 var ErrNotPublic = errors.New("not a public internet address")
 
 var blocked = func() []*net.IPNet {
@@ -25,7 +20,6 @@ var blocked = func() []*net.IPNet {
 	return out
 }()
 
-// Public reports whether ip is a normal internet address.
 func Public(ip net.IP) bool {
 	if ip == nil || ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
 		ip.IsInterfaceLocalMulticast() || ip.IsUnspecified() || ip.IsMulticast() {
@@ -50,19 +44,14 @@ func control(_, address string, _ syscall.RawConn) error {
 	return nil
 }
 
-// Options shape a guarded client.
 type Options struct {
-	// Timeout bounds the whole request (0 = none; use a context instead for
-	// long downloads).
 	Timeout time.Duration
-	// HTTPSOnly refuses plain http, also on redirects.
+
 	HTTPSOnly bool
-	// MaxRedirects defaults to 10.
+
 	MaxRedirects int
 }
 
-// Client returns an http.Client that only talks to public addresses. It
-// ignores proxy environment variables (a proxy would bypass the check).
 func Client(o Options) *http.Client {
 	if o.MaxRedirects == 0 {
 		o.MaxRedirects = 10

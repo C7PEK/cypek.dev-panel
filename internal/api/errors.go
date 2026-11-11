@@ -8,7 +8,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/auth"
 )
 
-// Error codes are stable identifiers the frontend maps to translated messages.
 const (
 	CodeBadRequest         = "bad_request"
 	CodeValidation         = "validation_failed"
@@ -38,13 +37,12 @@ type errorBody struct {
 type errorDetail struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
-	// Field names the offending input when the error is a validation error.
+
 	Field string `json:"field,omitempty"`
-	// Params fill the translated message (e.g. port, server name).
+
 	Params map[string]any `json:"params,omitempty"`
 }
 
-// writeError renders the shared error envelope.
 func writeError(w http.ResponseWriter, status int, code, message string) {
 	writeJSON(w, status, errorBody{Error: errorDetail{Code: code, Message: message}})
 }
@@ -60,8 +58,6 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = enc.Encode(v)
 }
 
-// writeAuthError maps auth package errors to API responses; returns false if
-// err was not one of them (caller should treat it as internal).
 func writeAuthError(w http.ResponseWriter, err error) bool {
 	switch {
 	case errors.Is(err, auth.ErrInvalidCredentials):
@@ -75,7 +71,7 @@ func writeAuthError(w http.ResponseWriter, err error) bool {
 	case errors.Is(err, auth.ErrUsernameTaken):
 		writeFieldError(w, CodeUsernameTaken, "username", "This username is already taken.")
 	case errors.Is(err, auth.ErrInvalidUsername):
-		writeFieldError(w, CodeInvalidUsername, "username", "Username must be 2–32 characters: letters, digits, dot, underscore or dash.")
+		writeFieldError(w, CodeInvalidUsername, "username", "Username must be 2-32 characters: letters, digits, dot, underscore or dash.")
 	case errors.Is(err, auth.ErrPasswordTooShort):
 		writeFieldError(w, CodeWeakPassword, "password", "Password must be at least 8 characters.")
 	case errors.Is(err, auth.ErrPasswordTooLong):
@@ -88,7 +84,6 @@ func writeAuthError(w http.ResponseWriter, err error) bool {
 	return true
 }
 
-// decodeJSON reads a JSON body into v, rejecting unknown fields and oversize payloads.
 func decodeJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()

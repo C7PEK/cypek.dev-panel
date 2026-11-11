@@ -7,27 +7,30 @@ icon: discord
 description:
   pl: Bot w Pythonie (np. discord.py) z Twoich plików. Po utworzeniu wrzuć pliki bota w zakładce Pliki (upload, SFTP albo „Pobierz z linku” z ZIP-a). Pakiety z requirements.txt instalują się same przy starcie w osobnym środowisku (.venv).
   en: A Python bot (e.g. discord.py) from your own files. After creating it, put the bot's files in the Files tab (upload, SFTP or "Download from link" with a ZIP). Packages from requirements.txt are installed automatically on start into a private environment (.venv).
+  de: Ein Python-Bot (z. B. discord.py) aus deinen eigenen Dateien. Lege die Dateien des Bots nach dem Erstellen im Tab Dateien ab (Hochladen, SFTP oder „Von Link herunterladen“ mit einem ZIP). Pakete aus requirements.txt werden beim Start automatisch in eine eigene Umgebung (.venv) installiert.
 
 variables:
   - key: START_FILE
-    label: { pl: Plik startowy, en: Entry file }
+    label: { pl: Plik startowy, en: Entry file, de: Startdatei }
     help:
       pl: Zostaw puste, a panel sam wykryje start (main.py, bot.py, app.py, src/main.py). Albo wpisz plik, np. src/bot.py.
       en: Leave empty to detect it (main.py, bot.py, app.py, src/main.py). Or enter a file, e.g. src/bot.py.
+      de: Leer lassen für automatische Erkennung (main.py, bot.py, app.py, src/main.py). Oder gib eine Datei an, z. B. src/bot.py.
     type: string
     default: ""
     maxLength: 200
     pattern: '^$|^[^\s/][^\s]*\.py$'
   - key: PY_VERSION
-    label: { pl: Wersja Pythona, en: Python version }
+    label: { pl: Wersja Pythona, en: Python version, de: Python-Version }
     type: select
     options: ["3.12", "3.13"]
     default: "3.12"
   - key: DISCORD_TOKEN
-    label: { pl: Token bota Discord (opcjonalnie), en: Discord bot token (optional) }
+    label: { pl: Token bota Discord (opcjonalnie), en: Discord bot token (optional), de: Discord-Bot-Token (optional) }
     help:
       pl: Tylko jeśli Twój bot czyta go z os.environ["DISCORD_TOKEN"]. Jeśli token jest w pliku .env albo config, zostaw puste.
       en: Only if your bot reads it from os.environ["DISCORD_TOKEN"]. If the token is in a .env or config file, leave this empty.
+      de: Nur wenn dein Bot ihn aus os.environ["DISCORD_TOKEN"] liest. Steht der Token in einer .env- oder Konfigurationsdatei, lass das Feld leer.
     type: secret
     maxLength: 200
 

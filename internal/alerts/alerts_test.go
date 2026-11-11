@@ -120,7 +120,6 @@ func (h *harness) event(kind string, code int) {
 	h.events[h.srv.Dir] = append(h.events[h.srv.Dir], shim.Event{At: h.now.Format(time.RFC3339Nano), Kind: kind, ExitCode: &c})
 }
 
-// tick advances the clock and waits for queued deliveries.
 func (h *harness) tick(d time.Duration, state supervisor.State) {
 	h.now = h.now.Add(d)
 	h.m.Tick(context.Background(), map[string]supervisor.State{h.srv.ID: state})
@@ -129,7 +128,7 @@ func (h *harness) tick(d time.Duration, state supervisor.State) {
 
 func TestCrashStaysDownThenRecovers(t *testing.T) {
 	h := newHarness(t)
-	h.tick(0, supervisor.StateRunning) // first sight: history is skipped
+	h.tick(0, supervisor.StateRunning)
 	h.event("crash", 1)
 	h.tick(3*time.Second, supervisor.StateCrashed)
 	h.tick(10*time.Second, supervisor.StateCrashed)
@@ -164,7 +163,7 @@ func TestCrashAutoRestartIsQuiet(t *testing.T) {
 	h.event("crash", 137)
 	h.tick(3*time.Second, supervisor.StateStopped)
 	h.tick(5*time.Second, supervisor.StateRunning)
-	h.tick(25*time.Second, supervisor.StateRunning) // past grace, alive
+	h.tick(25*time.Second, supervisor.StateRunning)
 	if h.sender.count() != 0 {
 		t.Fatal("alerted although running")
 	}
@@ -192,14 +191,14 @@ func TestStopAndConsoleExitAreNotAlerts(t *testing.T) {
 	h.tick(0, supervisor.StateRunning)
 	h.event("stop", 0)
 	h.tick(60*time.Second, supervisor.StateStopped)
-	// A game server's "stop" typed in the console exits with 0.
+
 	h.srv.CleanExitIsDown = false
 	h.event("exit", 0)
 	h.tick(60*time.Second, supervisor.StateStopped)
 	if h.sender.count() != 0 {
 		t.Fatalf("unexpected alerts: %+v", h.sender.msgs)
 	}
-	// For a bot the same clean exit means it is down.
+
 	h.srv.CleanExitIsDown = true
 	h.event("exit", 0)
 	h.tick(25*time.Second, supervisor.StateStopped)
@@ -210,12 +209,12 @@ func TestStopAndConsoleExitAreNotAlerts(t *testing.T) {
 
 func TestCatchUpAfterPanelRestartAndServerOverrides(t *testing.T) {
 	h := newHarness(t)
-	h.event("crash", 1) // happened before the panel (re)started
+	h.event("crash", 1)
 	h.tick(25*time.Second, supervisor.StateCrashed)
 	if h.sender.count() != 1 {
 		t.Fatalf("catch-up: %d", h.sender.count())
 	}
-	// Disabled server: nothing.
+
 	h2 := newHarness(t)
 	if _, err := h2.store.SaveServer(context.Background(), "bot1", ServerSettings{Enabled: false}); err != nil {
 		t.Fatal(err)
@@ -226,7 +225,7 @@ func TestCatchUpAfterPanelRestartAndServerOverrides(t *testing.T) {
 	if h2.sender.count() != 0 {
 		t.Fatal("disabled server alerted")
 	}
-	// Own webhook + mention win over the globals.
+
 	other := strings.Replace(hook, "123456789012345678", "999999999999999999", 1)
 	if _, err := h2.store.SaveServer(context.Background(), "bot1", ServerSettings{Enabled: true, Webhook: other, Mention: "@here"}); err != nil {
 		t.Fatal(err)
@@ -236,7 +235,7 @@ func TestCatchUpAfterPanelRestartAndServerOverrides(t *testing.T) {
 	if h2.sender.count() != 1 || h2.sender.hook[0] != other || !strings.HasPrefix(h2.sender.msgs[0].Content, "@here") || h2.sender.msgs[0].AllowedMentions.Parse[0] != "everyone" {
 		t.Fatalf("override: %+v %v", h2.sender.msgs, h2.sender.hook)
 	}
-	// Webhooks are stored sealed.
+
 	var raw string
 	h2.store.db.QueryRow(`SELECT webhook FROM server_alerts WHERE server_id = 'bot1'`).Scan(&raw)
 	h2.store.db.QueryRow(`SELECT value FROM settings WHERE key = 'alerts'`).Scan(&raw)
@@ -263,7 +262,7 @@ func TestDiscordSender(t *testing.T) {
 	}))
 	defer srv.Close()
 	d := &Discord{Client: srv.Client()}
-	// Point the validated discord.com URL at the test server.
+
 	d.Client.Transport = rewriteTransport{base: d.Client.Transport, target: srv.URL}
 	msg := Message{Content: "hi"}
 	msg.withMention(Mention{})

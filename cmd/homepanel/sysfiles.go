@@ -16,9 +16,6 @@ import (
 //go:embed systemfiles/*
 var systemFiles embed.FS
 
-// runInstallFiles writes the systemd units and the polkit rule shipped inside
-// the binary, so install.sh never has to carry copies that could drift.
-// Must run as root.
 func runInstallFiles(args []string) error {
 	flags := flag.NewFlagSet("install-files", flag.ContinueOnError)
 	dryRun := flags.Bool("dry-run", false, "print what would be written")
@@ -55,8 +52,6 @@ func runInstallFiles(args []string) error {
 	return nil
 }
 
-// runInitConfig creates /etc/homepanel/config.toml with fresh secrets unless
-// it already exists. Used by install.sh; idempotent.
 func runInitConfig(args []string) error {
 	flags := flag.NewFlagSet("init-config", flag.ContinueOnError)
 	path := flags.String("config", config.DefaultPath, "config file to create")
@@ -79,9 +74,6 @@ func runInitConfig(args []string) error {
 	return nil
 }
 
-// secureConfigDir makes /etc/homepanel root-owned and group-readable by the
-// panel: root-run helpers (database installer) write there, so the panel
-// user must not be able to plant symlinks in it.
 func secureConfigDir() {
 	const dir = "/etc/homepanel"
 	if _, err := os.Stat(dir); err != nil {

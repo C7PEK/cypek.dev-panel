@@ -1,15 +1,10 @@
 import { cn } from "@/lib/utils"
 
 interface Props {
-  /** Primary series (RAM); drawn filled. */
   values: number[]
-  /** Optional secondary series (CPU); thin line. */
   secondary?: number[]
-  /** Upper bound of the primary series; defaults to its max. */
   max?: number
-  /** Upper bound of the secondary series; defaults to max(100, its max). */
   secondaryMax?: number
-  /** Number of slots the chart is sized for (keeps the x scale stable while history fills). */
   slots?: number
   className?: string
   title?: string
@@ -28,7 +23,6 @@ function path(values: number[], max: number, slots: number, w: number, h: number
     .join(" ")
 }
 
-/** Tiny inline-SVG chart for tiles and headers; no library, theme aware. */
 export function Sparkline({ values, secondary, max, secondaryMax, slots = 60, className, title }: Props) {
   const w = 120
   const h = 32

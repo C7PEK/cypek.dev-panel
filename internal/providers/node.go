@@ -12,21 +12,14 @@ import (
 	"strings"
 )
 
-// Node resolves Node.js builds from nodejs.org.
-// Verified 2026-11-08 against https://nodejs.org/dist/index.json:
-//
-//	[{"version":"v26.13.0","lts":"Lithium","files":["linux-x64","linux-arm64",...]}, ...] newest first; lts is false for current lines
-//	https://nodejs.org/dist/v26.13.0/SHASUMS256.txt has "<sha256>  node-v26.13.0-linux-x64.tar.xz"
 type Node struct {
 	BaseURL string
 }
 
-// NewNode returns a client for nodejs.org.
 func NewNode() *Node { return &Node{BaseURL: "https://nodejs.org/dist"} }
 
-// NodeBuild is a downloadable Node.js tarball.
 type NodeBuild struct {
-	Version string // v26.13.0
+	Version string
 	Major   int
 	URL     string
 	SHA256  string
@@ -42,8 +35,6 @@ func nodeArch() (string, error) {
 	return "", fmt.Errorf("no Node.js builds for %s", runtime.GOARCH)
 }
 
-// Latest returns the newest release of a major version ("lts" picks the
-// newest LTS line) with its checksum.
 func (n *Node) Latest(ctx context.Context, selector string) (*NodeBuild, error) {
 	arch, err := nodeArch()
 	if err != nil {
@@ -74,7 +65,7 @@ func (n *Node) Latest(ctx context.Context, selector string) (*NodeBuild, error) 
 		if (wantMajor == 0 && !isLTS) || (wantMajor != 0 && major != wantMajor) {
 			continue
 		}
-		if strings.Contains(rel.Version, "-") { // pre-releases
+		if strings.Contains(rel.Version, "-") {
 			continue
 		}
 		file := fmt.Sprintf("node-%s-linux-%s.tar.xz", rel.Version, arch)

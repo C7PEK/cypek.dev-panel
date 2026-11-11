@@ -15,14 +15,11 @@ interface Props {
   variables: TemplateVariable[]
   values: Record<string, string>
   onChange: (key: string, value: string) => void
-  /** Field errors keyed by variable key (from API "variables.KEY" or local checks). */
   errors?: Record<string, string | undefined>
-  /** Consent variables already accepted (editing an installed server) are shown locked. */
   lockConsent?: boolean
   idPrefix?: string
 }
 
-/** Renders a template's variables as form fields. Values are always strings, like the API wants. */
 export function VariableFields({ templateId, variables, values, onChange, errors = {}, lockConsent = false, idPrefix = "var" }: Props) {
   return (
     <>
@@ -165,7 +162,7 @@ function VariableField({ templateId, variable: v, value, onChange, error, lockCo
       {control}
       {help && <FieldDescription>{help}</FieldDescription>}
       {v.type === "number" && (v.min !== undefined || v.max !== undefined) && !help && (
-        <FieldDescription>{t("templates.range", { min: v.min ?? "–", max: v.max ?? "–" })}</FieldDescription>
+        <FieldDescription>{t("templates.range", { min: v.min ?? "-", max: v.max ?? "-" })}</FieldDescription>
       )}
       <FieldError>{error}</FieldError>
     </Field>
@@ -261,7 +258,6 @@ function SourceSelect({
   )
 }
 
-/** Turns bare URLs in label text into links (EULA, license pages). */
 function linkify(text: string): ReactNode {
   const parts = text.split(/(https?:\/\/[^\s)]+)/g)
   return parts.map((part, i) =>

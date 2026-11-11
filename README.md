@@ -1,64 +1,81 @@
 # panel.cypek.dev
 
-A simple web panel for running game servers and bots (FiveM, Minecraft, Discord bots)
-on a single homelab machine. One static Go binary, SQLite, embedded React UI, servers
-run as systemd units so they survive panel restarts and updates.
+A web panel for game servers and Discord bots on one home server: a mini PC, an old laptop, a Raspberry Pi or a cheap VPS.
 
-> Brand: **panel.cypek.dev** by **cypek.dev**. The technical name used for the binary, the
-> systemd user and the paths is still `homepanel`. Early development — see `CLAUDE.md`.
+One binary, no Docker, no PHP, no separate daemon. Every game server runs as its own systemd unit, so restarting or updating the panel never kicks players.
 
-## Install (Debian 12+ / Ubuntu 22.04+, amd64/arm64)
+## Install
 
-One command (as root or with sudo):
+Debian 12+ or Ubuntu 24.04+, amd64 or arm64.
 
 ```sh
 curl -fsSL https://github.com/C7PEK/cypek.dev-panel/releases/latest/download/install.sh | sudo bash
 ```
 
-On a minimal Debian/Ubuntu (for example a fresh Proxmox LXC) logged in as
-root, where `curl` and `sudo` are missing:
+Logged in as root on a minimal system without `curl` or `sudo` (for example a fresh Proxmox LXC):
 
 ```sh
 apt update && apt install -y curl && curl -fsSL https://github.com/C7PEK/cypek.dev-panel/releases/latest/download/install.sh | bash
 ```
 
-It downloads the binary for your CPU (checksum-verified), creates the `homepanel`
-user, systemd units and polkit rule, starts the panel and prints the address and the
-one-time setup token. Open the address in a browser and create the owner account.
-Run the same command again to repair or upgrade; `... | sudo bash -s -- --uninstall`
-removes it.
+At the end the installer prints the panel address and a one-time setup token. Open the address, paste the token and create your account.
 
-See `docs/install.md` for paths, updates (`sudo homepanel update`) and uninstall.
+| | |
+|---|---|
+| Update | Settings in the panel, or `sudo homepanel update` |
+| Repair | run the install command again |
+| Other port | `... \| sudo bash -s -- --port 9000` |
+| Uninstall | `... \| sudo bash -s -- --uninstall` |
+| Forgot password | `sudo homepanel reset-password <user>` |
+
+More in [docs/install.md](docs/install.md).
+
+## What it runs
+
+| Category | Templates |
+|---|---|
+| Minecraft, plugins | Paper, Purpur, Folia |
+| Minecraft, mods | Forge, NeoForge, Fabric, Quilt |
+| Minecraft, other | Vanilla, Velocity proxy, Bedrock |
+| FiveM | FXServer, FXServer with txAdmin |
+| Discord bots | Node.js and Python, from your own files or a git repository |
+
+Java, Node.js and Python are downloaded by the panel, nothing has to be installed on the system. Templates from Pterodactyl, Pelican and PufferPanel can be imported, and you can write your own in YAML ([docs/templates.md](docs/templates.md)).
+
+## Features
+
+- Live console with command history, search and command hints
+- File manager with an editor, upload, download from a link (Google Drive, Dropbox, OneDrive, GitHub) and unzip
+- Built-in SFTP on port 2022 for WinSCP or FileZilla ([docs/sftp.md](docs/sftp.md))
+- Mods and plugins from Modrinth in one click ([docs/mods.md](docs/mods.md))
+- Scheduled restarts with in-game warnings, commands and backups
+- Backups to any folder, including a mounted NAS, with retention
+- MariaDB and phpMyAdmin for servers that need a database ([docs/database.md](docs/database.md))
+- Discord alerts when a server crashes and does not come back ([docs/alerts.md](docs/alerts.md))
+- Users, roles and per-server permissions, 2FA, API keys and an audit log
+- Servers that switch off after a set number of days (handy when you lend one to a friend)
+- Port conflict checks and the firewall command to open a port
+- English, Polish and German
 
 ## Development
 
-Requirements: Go 1.27+, Node 22+ with npm.
+Go 1.27+ and Node 22+.
 
 ```sh
-make dev          # Go backend on http://127.0.0.1:8420 (--dev) + Vite with hot reload
-make build        # frontend + backend -> bin/homepanel
-make test         # go vet + go test -race, tsc, oxlint
-make release      # linux/amd64 + linux/arm64 binaries + SHA256SUMS in dist/
+make dev       # backend on http://127.0.0.1:8420 with hot reload for the UI
+make build     # bin/homepanel
+make test      # go vet, go test, tsc, oxlint
+make release   # linux amd64 and arm64 binaries with SHA256SUMS in dist/
 ```
 
-In dev mode all data lives in `./.devdata/` (config, SQLite, server dirs). On first run
-the panel prints a one-time setup token; open the URL from the banner and create the
-owner account with it. The token is also saved as `.devdata/setup-token`.
+Dev mode keeps everything in `./.devdata/` and works without systemd.
 
-Other commands:
+Layout: `cmd/homepanel` (CLI), `internal/` (Go packages), `web/` (React, Vite, Tailwind, shadcn/ui), `templates/` (game templates), `packaging/` (installer, systemd units, polkit rule), `docs/`.
 
-```sh
-bin/homepanel serve --config /etc/homepanel/config.toml   # production
-bin/homepanel reset-password <username> [--dev]          # set a new password from the terminal
-bin/homepanel version
-```
+## Credits
 
-## Layout
-
-See `CLAUDE.md` §3. Short version: `cmd/homepanel` (CLI entry), `internal/*` (Go packages),
-`web/` (Vite + React + Tailwind + shadcn/ui), `templates/` (game templates), `packaging/`
-(install script, systemd units, polkit rule).
+Discord, FiveM, Node.js and Python icons come from [Simple Icons](https://simpleicons.org) (CC0 1.0). The trademarks belong to their owners. This project is not affiliated with Mojang, Microsoft, Cfx.re or Discord.
 
 ## License
 
-MIT, see `LICENSE`.
+MIT, see [LICENSE](LICENSE).

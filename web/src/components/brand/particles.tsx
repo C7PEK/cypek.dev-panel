@@ -1,7 +1,5 @@
 import { useEffect, useRef } from "react"
 
-// Port of cypek.dev's background particle network. Respects reduced motion
-// and pauses when the tab is hidden. Used only on the auth screens.
 export function Particles({ className }: { className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null)
 

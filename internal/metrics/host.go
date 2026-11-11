@@ -1,6 +1,3 @@
-// Package metrics samples host and per-server resource usage for the
-// dashboard. Servers are read through systemd's cgroup counters (or /proc in
-// dev mode); the host through gopsutil. Everything stays in memory.
 package metrics
 
 import (
@@ -14,7 +11,6 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 )
 
-// Host is one snapshot of the machine.
 type Host struct {
 	At            time.Time `json:"at"`
 	CPUPercent    float64   `json:"cpuPercent"`
@@ -32,8 +28,6 @@ type Host struct {
 	OS            string    `json:"os"`
 }
 
-// SampleHost reads the host counters. The CPU figure is the usage since the
-// previous call (gopsutil keeps the last reading), so call it periodically.
 func SampleHost(ctx context.Context, diskPath string) Host {
 	h := Host{At: time.Now(), DiskPath: diskPath}
 	if pcts, err := cpu.PercentWithContext(ctx, 0, false); err == nil && len(pcts) > 0 {

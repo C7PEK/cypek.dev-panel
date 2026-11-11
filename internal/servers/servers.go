@@ -1,5 +1,3 @@
-// Package servers stores server definitions and keeps each server's
-// .homepanel/run.json in sync with the database.
 package servers
 
 import (
@@ -19,7 +17,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/supervisor"
 )
 
-// Category groups templates for icons and defaults.
 type Category string
 
 const (
@@ -37,14 +34,12 @@ func (c Category) Valid() bool {
 	return false
 }
 
-// Port is a port the server listens on; shown to the user for forwarding.
 type Port struct {
 	Name     string `json:"name"`
 	Port     int    `json:"port"`
-	Protocol string `json:"protocol"` // tcp | udp | tcp+udp
+	Protocol string `json:"protocol"`
 }
 
-// InstallState tracks template installation; a server can only start when ready.
 type InstallState string
 
 const (
@@ -54,7 +49,6 @@ const (
 	InstallFailed     InstallState = "failed"
 )
 
-// Server is a server definition.
 type Server struct {
 	ID         string            `json:"id"`
 	Name       string            `json:"name"`
@@ -65,8 +59,7 @@ type Server struct {
 	Ports      []Port            `json:"ports"`
 	Autostart  bool              `json:"autostart"`
 	Limits     supervisor.Limits `json:"limits"`
-	// InstallState is "ready" for custom servers from the start; template
-	// servers go pending -> installing -> ready|failed.
+
 	InstallState InstallState `json:"installState"`
 	InstallError string       `json:"installError,omitempty"`
 	CreatedBy    *int64       `json:"createdBy,omitempty"`
@@ -87,11 +80,8 @@ const (
 
 var idRe = regexp.MustCompile(`^[a-z0-9]{8}$`)
 
-// ValidID reports whether id has the shape we generate. Used before any
-// id reaches a path or a unit name.
 func ValidID(id string) bool { return idRe.MatchString(id) }
 
-// ValidateName accepts 1–64 printable characters.
 func ValidateName(name string) error {
 	name = strings.TrimSpace(name)
 	if name == "" || len(name) > MaxNameLen || strings.ContainsAny(name, "\n\r\t") {
@@ -100,18 +90,15 @@ func ValidateName(name string) error {
 	return nil
 }
 
-// Store persists servers.
 type Store struct {
 	db         *sql.DB
 	serversDir string
 }
 
-// NewStore binds to the database and the directory holding server dirs.
 func NewStore(sqlDB *sql.DB, serversDir string) *Store {
 	return &Store{db: sqlDB, serversDir: serversDir}
 }
 
-// Dir returns the working directory of a server.
 func (s *Store) Dir(id string) string { return filepath.Join(s.serversDir, id) }
 
 func newID() (string, error) {
@@ -125,7 +112,6 @@ func newID() (string, error) {
 	return string(b), nil
 }
 
-// Create inserts the server, creates its directory and writes run.json.
 func (s *Store) Create(ctx context.Context, srv *Server) (*Server, error) {
 	if err := ValidateName(srv.Name); err != nil {
 		return nil, err
@@ -143,7 +129,7 @@ func (s *Store) Create(ctx context.Context, srv *Server) (*Server, error) {
 	if srv.InstallState == "" {
 		srv.InstallState = InstallReady
 	}
-	// The run config of a template server is only known once installed.
+
 	if srv.InstallState == InstallReady {
 		if err := srv.Run.Validate(); err != nil {
 			return nil, fmt.Errorf("run config: %w", err)
@@ -222,7 +208,6 @@ func scan(row interface{ Scan(...any) error }) (*Server, error) {
 	return &srv, nil
 }
 
-// Get returns one server.
 func (s *Store) Get(ctx context.Context, id string) (*Server, error) {
 	if !ValidID(id) {
 		return nil, ErrNotFound
@@ -234,7 +219,6 @@ func (s *Store) Get(ctx context.Context, id string) (*Server, error) {
 	return srv, err
 }
 
-// List returns all servers ordered by name; when ids is non-nil only those.
 func (s *Store) List(ctx context.Context, ids []string) ([]*Server, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+columns+` FROM servers ORDER BY name COLLATE NOCASE, id`)
 	if err != nil {
@@ -262,8 +246,6 @@ func (s *Store) List(ctx context.Context, ids []string) ([]*Server, error) {
 	return out, rows.Err()
 }
 
-// Update saves name, run config, variables, ports, autostart and limits, and
-// rewrites run.json. The caller applies limits/autostart to the supervisor.
 func (s *Store) Update(ctx context.Context, srv *Server) error {
 	if err := ValidateName(srv.Name); err != nil {
 		return err
@@ -293,7 +275,6 @@ func (s *Store) Update(ctx context.Context, srv *Server) error {
 	return nil
 }
 
-// SetInstallState records installation progress without touching anything else.
 func (s *Store) SetInstallState(ctx context.Context, id string, state InstallState, errMsg string) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE servers SET install_state = ?, install_error = ?, updated_at = ? WHERE id = ?`,
 		string(state), errMsg, db.Now(), id)
@@ -303,7 +284,6 @@ func (s *Store) SetInstallState(ctx context.Context, id string, state InstallSta
 	return nil
 }
 
-// Delete removes the row and, when removeFiles is set, the server directory.
 func (s *Store) Delete(ctx context.Context, id string, removeFiles bool) error {
 	if !ValidID(id) {
 		return ErrNotFound

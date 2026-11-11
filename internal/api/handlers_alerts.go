@@ -19,7 +19,6 @@ const (
 	CodeWebhookFailed = "webhook_failed"
 )
 
-// startAlerts runs the alert monitor on every metrics tick.
 func (s *Server) startAlerts() {
 	if s.alertStore == nil || s.metrics == nil {
 		return
@@ -49,7 +48,7 @@ func (s *Server) startAlerts() {
 	var busy atomic.Bool
 	s.metrics.Subscribe(func(_ metrics.Host, samples map[string]metrics.Sample) {
 		if !busy.CompareAndSwap(false, true) {
-			return // previous round still running
+			return
 		}
 		states := make(map[string]supervisor.State, len(samples))
 		for id, sm := range samples {

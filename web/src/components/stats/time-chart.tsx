@@ -3,17 +3,14 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 
 export interface ChartPoint {
-  t: number // epoch ms
-  v: number | null // null = no data (server stopped)
+  t: number
+  v: number | null
 }
 
 interface Props {
   points: ChartPoint[]
-  /** Window shown on the x axis, in ms (points outside are ignored). */
   windowMs: number
-  /** Upper bound of the y axis; the chart grows past it if data exceeds it. */
   yMax: number
-  /** Dashed reference line, e.g. the memory limit. */
   limit?: number
   limitLabel?: string
   formatY: (v: number) => string
@@ -21,15 +18,11 @@ interface Props {
   color: string
   height?: number
   className?: string
-  /** Whole numbers only on the axis (player counts). */
   integer?: boolean
 }
 
 const PAD = { top: 10, right: 10, bottom: 20, left: 52 }
 
-// A small, dependency-free time series chart: area + line, three grid lines
-// with labels, time labels, and a hover crosshair with the exact value.
-// Gaps (v = null) break the line so stopped periods stay visibly empty.
 export function TimeChart({ points, windowMs, yMax, limit, limitLabel, formatY, formatTime, color, height = 150, className, integer }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
@@ -56,7 +49,6 @@ export function TimeChart({ points, windowMs, yMax, limit, limitLabel, formatY, 
   const x = (t: number) => PAD.left + ((t - start) / windowMs) * w
   const y = (v: number) => PAD.top + h - (v / top) * h
 
-  // Split into continuous segments at gaps.
   const segments: ChartPoint[][] = []
   let cur: ChartPoint[] = []
   for (const p of visible) {
@@ -140,7 +132,7 @@ export function TimeChart({ points, windowMs, yMax, limit, limitLabel, formatY, 
           style={{ left: Math.min(Math.max(x(hovered.t) - 50, 0), Math.max(width - 110, 0)) }}
         >
           <div className="text-muted-foreground">{formatTime(hovered.t)}</div>
-          <div className="font-medium">{hovered.v === null ? "—" : formatY(hovered.v)}</div>
+          <div className="font-medium">{hovered.v === null ? "-" : formatY(hovered.v)}</div>
         </div>
       )}
     </div>

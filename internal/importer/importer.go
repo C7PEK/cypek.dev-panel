@@ -1,7 +1,3 @@
-// Package importer converts templates from other panels (Pterodactyl and
-// Pelican eggs, PufferPanel templates) into this panel's YAML template
-// format. The conversion is best-effort: anything that cannot be mapped is
-// reported as a warning so the admin can review the result before saving.
 package importer
 
 import (
@@ -20,7 +16,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/templates"
 )
 
-// Formats reported in Result.Format.
 const (
 	FormatPterodactyl = "pterodactyl"
 	FormatPelican     = "pelican"
@@ -28,10 +23,8 @@ const (
 	FormatNative      = "homepanel"
 )
 
-// MaxSize bounds imported documents (real eggs are a few KB).
 const MaxSize = 2 << 20
 
-// Result is a converted template ready for review.
 type Result struct {
 	YAML     []byte
 	Format   string
@@ -39,16 +32,13 @@ type Result struct {
 	Template *templates.Template
 }
 
-// ErrUnknownFormat means the document is none of the supported formats.
 var ErrUnknownFormat = errors.New("this file is not a Pterodactyl/Pelican egg, a PufferPanel template or a panel template")
 
-// Options carries metadata that is not part of the document itself.
 type Options struct {
 	SourceURL string
 	Now       time.Time
 }
 
-// Import detects the format of data and converts it.
 func Import(data []byte, opts Options) (*Result, error) {
 	if len(data) > MaxSize {
 		return nil, fmt.Errorf("the file is larger than %d MB", MaxSize>>20)
@@ -90,8 +80,6 @@ func Import(data []byte, opts Options) (*Result, error) {
 	return c.finish(opts)
 }
 
-// decodeDoc reads JSON (eggs, PufferPanel) or YAML (newer Pelican exports,
-// native templates) into generic maps.
 func decodeDoc(data []byte) (map[string]any, error) {
 	trimmed := bytes.TrimSpace(data)
 	var doc map[string]any
@@ -142,7 +130,6 @@ func detect(doc map[string]any) string {
 	return ""
 }
 
-// conv accumulates one conversion.
 type conv struct {
 	t        templates.Template
 	kind     string
@@ -172,8 +159,6 @@ func (c *conv) hasVar(key string) bool {
 
 var anyPlaceholder = regexp.MustCompile(`\{\{([A-Za-z][A-Za-z0-9_]*)(\.\.\.)?\}\}`)
 
-// finish adds hidden variables for leftover placeholders, stamps the source
-// and renders + re-parses the YAML so the result is known to be loadable.
 func (c *conv) finish(opts Options) (*Result, error) {
 	c.t.Source = &templates.Source{
 		Kind:       c.kind,
@@ -261,8 +246,6 @@ func formatName(kind string) string {
 	return kind
 }
 
-// --- shared helpers ---------------------------------------------------------
-
 func str(v any) string {
 	switch x := v.(type) {
 	case nil:
@@ -320,7 +303,6 @@ var (
 	spaceRe = regexp.MustCompile(`[ \t]+`)
 )
 
-// plainText strips HTML (PufferPanel descriptions) and CRLFs.
 func plainText(s string) string {
 	s = tagRe.ReplaceAllString(s, "")
 	s = strings.ReplaceAll(s, "\r\n", "\n")
@@ -328,8 +310,6 @@ func plainText(s string) string {
 	return strings.TrimSpace(s)
 }
 
-// tidyScript normalises line endings and trailing blanks so the YAML uses a
-// readable block scalar.
 func tidyScript(s string) string {
 	s = strings.ReplaceAll(s, "\r\n", "\n")
 	s = strings.ReplaceAll(s, "\r", "\n")
@@ -357,8 +337,6 @@ func guessCategory(texts ...string) servers.Category {
 	return servers.CategoryOther
 }
 
-// javaVersions extracts the Java feature version from container image names
-// such as ghcr.io/ptero-eggs/yolks:java_21 or eclipse-temurin:17.
 var (
 	javaImage   = regexp.MustCompile(`(?i)(?:java|jdk|jre|temurin|openjdk|graalvm)[_:-]?(\d{1,2})\b`)
 	nodeImage   = regexp.MustCompile(`(?i)(?:nodejs|node)[_:-]?(\d{2})\b`)
@@ -383,7 +361,6 @@ func runtimeFromImage(image string) (imageRuntime, bool) {
 	return imageRuntime{}, false
 }
 
-// sortVersionsDesc orders "25", "21", "8" newest first.
 func sortVersionsDesc(vs []string) {
 	sort.SliceStable(vs, func(i, j int) bool { return versionLess(vs[j], vs[i]) })
 }
@@ -403,8 +380,6 @@ func versionLess(a, b string) bool {
 
 func f64(v float64) *float64 { return &v }
 
-// orderedField reads one top-level object field keeping key order, which a
-// generic map decode loses (an egg's first docker image is its default).
 func orderedField(data []byte, field string) orderedMap {
 	trimmed := bytes.TrimSpace(data)
 	if len(trimmed) > 0 && trimmed[0] == '{' {

@@ -230,8 +230,6 @@ func runServe(args []string) error {
 	return nil
 }
 
-// loadConfig resolves the config for production or dev mode. Dev mode keeps
-// everything under ./.devdata and binds to localhost by default.
 func loadConfig(path string, dev bool) (*config.Config, error) {
 	if !dev {
 		cfg, err := config.Load(path)
@@ -262,7 +260,6 @@ func loadConfig(path string, dev bool) (*config.Config, error) {
 	return cfg, nil
 }
 
-// newSupervisor picks systemd (production) or local (dev / supervisor = "local").
 func newSupervisor(ctx context.Context, cfg *config.Config, log *slog.Logger) (supervisor.Supervisor, error) {
 	if cfg.Supervisor == "local" {
 		exe, err := os.Executable()
@@ -299,9 +296,6 @@ func printBanner(cfg *config.Config, setupToken string) {
 	fmt.Fprint(os.Stderr, b.String())
 }
 
-// autostartServers starts every server flagged autostart. The panel, not
-// systemd enablement, owns autostart: see Systemd.SetAutostart for why.
-// Servers already running (panel restart, not a reboot) are left alone.
 func autostartServers(ctx context.Context, store *servers.Store, registry *templates.Registry, sup supervisor.Supervisor, log *slog.Logger) {
 	list, err := store.List(ctx, nil)
 	if err != nil {
@@ -342,7 +336,6 @@ func autostartServers(ctx context.Context, store *servers.Store, registry *templ
 	}
 }
 
-// sessionJanitor purges expired sessions once an hour.
 func sessionJanitor(ctx context.Context, store *auth.Store, log *slog.Logger) {
 	t := time.NewTicker(time.Hour)
 	defer t.Stop()
@@ -368,7 +361,6 @@ func newLogger(level string) *slog.Logger {
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lvl}))
 }
 
-// portOf extracts the port from a listen address like ":2022".
 func portOf(listen string) int {
 	_, p, err := net.SplitHostPort(listen)
 	if err != nil {

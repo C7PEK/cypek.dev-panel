@@ -16,15 +16,14 @@ const (
 	CodePortInUseHost = "port_in_use_host"
 )
 
-// portConflict is one port another server (or another program) already uses.
 type portConflict struct {
 	Port       int    `json:"port"`
 	Protocol   string `json:"protocol"`
-	Name       string `json:"name"` // the port's name in our list (game, txadmin ...)
+	Name       string `json:"name"`
 	ServerID   string `json:"serverId,omitempty"`
 	ServerName string `json:"serverName,omitempty"`
 	Running    bool   `json:"running"`
-	Host       bool   `json:"host"` // another program on this machine
+	Host       bool   `json:"host"`
 	Suggestion int    `json:"suggestion,omitempty"`
 }
 
@@ -32,10 +31,6 @@ func protoOverlap(a, b string) bool {
 	return strings.Contains(a, "tcp") && strings.Contains(b, "tcp") || strings.Contains(a, "udp") && strings.Contains(b, "udp")
 }
 
-// portConflicts checks ports against the other servers' declared ports and
-// against sockets bound on the host that no active server of ours explains.
-// With runningOnly, only servers that are running count (used at start: two
-// servers may share a port as long as they never run together).
 func (s *Server) portConflicts(ctx context.Context, selfID string, ports []servers.Port, runningOnly bool) []portConflict {
 	if len(ports) == 0 {
 		return nil
@@ -91,7 +86,6 @@ func (s *Server) portConflicts(ctx context.Context, selfID string, ports []serve
 	return out
 }
 
-// freePort suggests the next port after p that nothing uses.
 func freePort(p servers.Port, list []*servers.Server, bound netinfo.Bound, panelPort int) int {
 	for cand := p.Port + 1; cand <= 65535 && cand <= p.Port+200; cand++ {
 		if bound.Has(cand, p.Protocol) || cand == panelPort {
@@ -125,8 +119,6 @@ func (s *Server) listenPort() int {
 	return 0
 }
 
-// writePortConflict answers 409 for the first conflict, hiding names of
-// servers the user cannot see.
 func (s *Server) writePortConflict(w http.ResponseWriter, r *http.Request, c portConflict, field string, forceHint bool) {
 	params := map[string]any{"port": c.Port, "protocol": c.Protocol, "suggestion": c.Suggestion, "canForce": forceHint}
 	code, msg := CodePortInUse, ""
@@ -175,7 +167,6 @@ func (s *Server) userSeesServer(r *http.Request, id string) bool {
 	return false
 }
 
-// handlePortsCheck lets the wizard warn while the user types.
 func (s *Server) handlePortsCheck(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Ports    []servers.Port `json:"ports"`

@@ -1,11 +1,7 @@
-// Thin fetch wrapper for /api/v1. Errors arrive as ApiError with the server's
-// stable error code, which the UI maps to translated messages.
-
 export class ApiError extends Error {
   status: number
   code: string
   field?: string
-  /** Values for the translated message (e.g. port, server name). */
   params?: Record<string, unknown>
 
   constructor(status: number, code: string, message: string, field?: string, params?: Record<string, unknown>) {
@@ -64,7 +60,6 @@ export async function api<T>(method: Method, path: string, body?: unknown): Prom
   return data as T
 }
 
-/** Name of the window event fired when the backend demands 2FA enrolment. */
 export const TOTP_REQUIRED_EVENT = "homepanel:totp-required"
 
 function notifyGlobalError(e: ApiError) {
@@ -77,10 +72,8 @@ export function isApiError(e: unknown): e is ApiError {
   return e instanceof ApiError
 }
 
-/** Base URL for same-origin links that bypass the JSON wrapper (downloads). */
 export const apiBase = "/api/v1"
 
-/** Sends a non-JSON body (text, FormData) with the CSRF header; returns the parsed JSON (or undefined on 204). */
 export async function apiRaw<T>(method: Method, path: string, body: BodyInit, contentType?: string): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" }
   if (contentType) headers["Content-Type"] = contentType
@@ -108,7 +101,6 @@ export async function apiRaw<T>(method: Method, path: string, body: BodyInit, co
   return data as T
 }
 
-/** Fetches a plain-text response (file content). */
 export async function apiText(path: string): Promise<string> {
   let res: Response
   try {
@@ -124,14 +116,12 @@ export async function apiText(path: string): Promise<string> {
       code = data.error?.code ?? code
       message = data.error?.message ?? message
     } catch {
-      // not JSON
     }
     throw new ApiError(res.status, code, message)
   }
   return res.text()
 }
 
-/** Current CSRF token, for XHR uploads that need progress events. */
 export function getCsrfToken() {
   return csrfToken
 }

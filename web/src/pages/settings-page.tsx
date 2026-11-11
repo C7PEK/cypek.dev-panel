@@ -15,8 +15,6 @@ import type { User } from "@/lib/types"
 const TABS = ["general", "appearance", "security", "alerts"] as const
 type Tab = (typeof TABS)[number]
 
-// Panel-wide settings (admin and owner): machine info and updates, login
-// security, Discord alerts. The dashboard stays servers-only.
 export function SettingsPage({ user }: { user: User }) {
   const { t } = useTranslation()
   const navigate = useNavigate()

@@ -10,7 +10,6 @@ import { isInstalling, useInstallJob, useReinstall } from "@/lib/servers"
 import type { Server } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-/** Shown instead of the console while a template server is being installed (or failed to). */
 export function InstallPanel({ server }: { server: Server }) {
   const { t } = useTranslation()
   const running = isInstalling(server)
@@ -25,7 +24,7 @@ export function InstallPanel({ server }: { server: Server }) {
   }, [lines.length])
 
   const failed = server.installState === "failed" || job.data?.state === "failed"
-  // Git updates run as install jobs; their log starts with the stop step.
+
   const isGitUpdate = !!server.gitUpdate && lines.some((l) => l.includes("Stopping the server for the update") || l.endsWith("Update finished."))
   const percent = job.data?.percent ?? -1
   const stepText =

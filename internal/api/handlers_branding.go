@@ -13,8 +13,6 @@ import (
 
 const brandingKey = "branding"
 
-// branding customises the panel's name and accent colour. Empty values mean
-// the defaults (panel.cypek.dev, #5865f2).
 type branding struct {
 	Name   string `json:"name"`
 	Accent string `json:"accent"`
@@ -47,7 +45,6 @@ func (s *Server) loadBranding(r *http.Request) branding {
 	return b
 }
 
-// handleGetBranding is public: the login page shows the name and colour too.
 func (s *Server) handleGetBranding(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.loadBranding(r))
 }

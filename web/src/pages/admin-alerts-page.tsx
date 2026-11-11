@@ -21,7 +21,6 @@ import { cn } from "@/lib/utils"
 
 const titleClass = "font-heading text-lg font-medium tracking-[0.04em] uppercase"
 
-// AlertsSettings is the "Powiadomienia" tab of the settings page.
 export function AlertsSettings() {
   const { t } = useTranslation()
   const q = useAlerts()
@@ -55,7 +54,7 @@ function SettingsForm({ settings }: { settings: AlertSettings }) {
   const [notifyAutoRestart, setNotifyAutoRestart] = useState(settings.notifyAutoRestart)
   const [includeLogs, setIncludeLogs] = useState(settings.includeLogs)
   const [notifyErrors, setNotifyErrors] = useState(settings.notifyErrors)
-  const [language, setLanguage] = useState<"pl" | "en">(settings.language || "pl")
+  const [language, setLanguage] = useState<"pl" | "en" | "de">(settings.language || "pl")
   const [panelUrl, setPanelUrl] = useState(settings.panelUrl || window.location.origin)
 
   const graceNum = Number(grace)
@@ -179,9 +178,10 @@ function SettingsForm({ settings }: { settings: AlertSettings }) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="alerts-language">{t("alerts.language")}</Label>
-              <NativeSelect id="alerts-language" value={language} onChange={(v) => setLanguage(v === "en" ? "en" : "pl")}>
+              <NativeSelect id="alerts-language" value={language} onChange={(v) => setLanguage(v === "en" || v === "de" ? v : "pl")}>
                 <option value="pl">Polski</option>
                 <option value="en">English</option>
+                <option value="de">Deutsch</option>
               </NativeSelect>
             </div>
             <div className="flex flex-col gap-1.5">

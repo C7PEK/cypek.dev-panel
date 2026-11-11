@@ -25,7 +25,6 @@ import {
 } from "@codemirror/view"
 import { useEffect, useRef } from "react"
 
-/** Picks a language extension from the file name; plain text when unknown. */
 export function languageFor(name: string): Extension {
   const n = name.toLowerCase()
   if (/\.(ya?ml)$/.test(n)) return yaml()
@@ -38,7 +37,6 @@ export function languageFor(name: string): Extension {
   return []
 }
 
-// Dark palette mirrors the console: near-black ground, light text, blurple accent.
 const darkTheme = EditorView.theme(
   {
     "&": { backgroundColor: "#050506", color: "#f4f4f6", fontSize: "13px", height: "100%" },
@@ -56,7 +54,6 @@ const darkTheme = EditorView.theme(
     ".cm-panels input, .cm-panels button": { color: "#f4f4f6", backgroundColor: "#1a1a1f", border: "1px solid rgba(255,255,255,0.14)" },
     ".cm-searchMatch": { backgroundColor: "rgba(0, 240, 255, 0.25)" },
     ".cm-searchMatch.cm-searchMatch-selected": { backgroundColor: "rgba(255, 0, 200, 0.35)" },
-    // The default highlight palette is tuned for light backgrounds; lift it.
     ".cm-line span[class^='ͼ'], .cm-line span[class*=' ͼ']": { filter: "brightness(1.9) saturate(0.85)" },
   },
   { dark: true },
@@ -80,7 +77,6 @@ interface Props {
   className?: string
 }
 
-/** CodeMirror 6 editor. `value` is applied only when it differs from the document, so typing stays local. */
 export function CodeEditor({ fileName, value, onChange, onSave, readOnly = false, className }: Props) {
   const hostRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -92,8 +88,6 @@ export function CodeEditor({ fileName, value, onChange, onSave, readOnly = false
   onChangeRef.current = onChange
   onSaveRef.current = onSave
 
-  // defaultHighlightStyle is the only palette available without adding
-  // @lezer/highlight as a direct dependency; the dark theme brightens it via CSS below.
   const themeExt = () => (isDark() ? [darkTheme, syntaxHighlighting(defaultHighlightStyle)] : [lightTheme, syntaxHighlighting(defaultHighlightStyle)])
 
   useEffect(() => {
@@ -134,7 +128,7 @@ export function CodeEditor({ fileName, value, onChange, onSave, readOnly = false
     })
     const view = new EditorView({ state, parent: host })
     viewRef.current = view
-    // Follow theme toggles without recreating the editor.
+
     const mo = new MutationObserver(() => view.dispatch({ effects: themeCompartment.current.reconfigure(themeExt()) }))
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] })
     return () => {
@@ -142,7 +136,6 @@ export function CodeEditor({ fileName, value, onChange, onSave, readOnly = false
       view.destroy()
       viewRef.current = null
     }
-    // The editor is created once per file; value changes are synced below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileName])
 

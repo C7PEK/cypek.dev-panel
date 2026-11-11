@@ -9,7 +9,6 @@ import { describeError } from "@/lib/errors"
 import { useTemplateYaml } from "@/lib/templates"
 import type { Template } from "@/lib/types"
 
-/** Read-only YAML of a (built-in) template, with a way to duplicate it. */
 export function ViewYamlDialog({
   template,
   onClose,

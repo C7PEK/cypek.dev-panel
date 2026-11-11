@@ -17,8 +17,6 @@ const COLORS = {
   players: "#34d399",
 }
 
-// Resource history under the console: RAM (with the memory limit), CPU and
-// players, over 5/15/60 minutes, with averages and peaks for the window.
 export function ResourceCharts({ serverId }: { serverId: string }) {
   const { t, i18n } = useTranslation()
   const [minutes, setMinutes] = useState<(typeof RANGES)[number]>(15)
@@ -80,7 +78,7 @@ export function ResourceCharts({ serverId }: { serverId: string }) {
                     {t("stats.ram")}
                   </h4>
                   <div className="flex gap-4">
-                    {stat(t("history.now"), last && live(last) ? formatBytes(last.memoryBytes) : "—", memLimit ? `/ ${formatBytes(memLimit)}` : undefined)}
+                    {stat(t("history.now"), last && live(last) ? formatBytes(last.memoryBytes) : "-", memLimit ? `/ ${formatBytes(memLimit)}` : undefined)}
                     {stat(t("history.avg"), formatBytes(data?.summary.avgMemoryBytes ?? 0))}
                     {stat(t("history.peak"), formatBytes(peakMem))}
                   </div>
@@ -104,7 +102,7 @@ export function ResourceCharts({ serverId }: { serverId: string }) {
                     <span className="text-xs font-normal text-muted-foreground">{t("history.cpuHint", { cores })}</span>
                   </h4>
                   <div className="flex gap-4">
-                    {stat(t("history.now"), last && live(last) ? formatPercent(last.cpuPercent) : "—")}
+                    {stat(t("history.now"), last && live(last) ? formatPercent(last.cpuPercent) : "-")}
                     {stat(t("history.avg"), formatPercent(data?.summary.avgCpuPercent ?? 0))}
                     {stat(t("history.peak"), formatPercent(data?.summary.peakCpuPercent ?? 0))}
                   </div>
@@ -127,7 +125,7 @@ export function ResourceCharts({ serverId }: { serverId: string }) {
                     {t("history.players")}
                   </h4>
                   <div className="flex gap-4">
-                    {stat(t("history.now"), last && (last.players ?? -1) >= 0 ? String(last.players) : "—")}
+                    {stat(t("history.now"), last && (last.players ?? -1) >= 0 ? String(last.players) : "-")}
                     {stat(t("history.peak"), String(data?.summary.peakPlayers ?? 0))}
                   </div>
                 </div>

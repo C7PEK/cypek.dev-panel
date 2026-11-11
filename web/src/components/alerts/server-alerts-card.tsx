@@ -16,7 +16,6 @@ import { isApiError } from "@/lib/api"
 import { describeError } from "@/lib/errors"
 import type { ServerAlerts } from "@/lib/types"
 
-/** Discord alert settings of one server; hidden without the settings permission. */
 export function ServerAlertsCard({ serverId, admin }: { serverId: string; admin: boolean }) {
   const q = useServerAlerts(serverId)
   if (q.isError && isApiError(q.error) && (q.error.status === 403 || q.error.status === 404)) return null

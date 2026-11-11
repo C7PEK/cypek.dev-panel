@@ -7,30 +7,34 @@ icon: minecraft
 description:
   pl: Proxy od PaperMC, które łączy kilka serwerów Minecraft (np. lobby i survival) pod jednym adresem. Serwery dodajesz w velocity.toml. Java jest pobierana automatycznie.
   en: PaperMC's proxy that joins several Minecraft servers (e.g. lobby and survival) under one address. Add servers in velocity.toml. Java is downloaded automatically.
+  de: Der Proxy von PaperMC, der mehrere Minecraft-Server (z. B. Lobby und Survival) unter einer Adresse verbindet. Server trägst du in velocity.toml ein. Java wird automatisch heruntergeladen.
 
 variables:
   - key: VELOCITY_VERSION
-    label: { pl: Wersja Velocity, en: Velocity version }
+    label: { pl: Wersja Velocity, en: Velocity version, de: Velocity-Version }
     help:
       pl: Wersje SNAPSHOT to wersje testowe. Velocity obsługuje wiele wersji Minecrafta naraz.
       en: SNAPSHOT versions are test builds. Velocity supports many Minecraft versions at once.
+      de: SNAPSHOT-Versionen sind Testbuilds. Velocity unterstützt viele Minecraft-Versionen gleichzeitig.
     type: select
     source: velocity-versions
     default: latest
   - key: RAM_MB
-    label: { pl: Pamięć RAM (MB), en: Memory (MB) }
+    label: { pl: Pamięć RAM (MB), en: Memory (MB), de: Arbeitsspeicher (MB) }
     help:
       pl: Proxy potrzebuje mało pamięci. 512 MB wystarcza na kilkudziesięciu graczy.
       en: A proxy needs little memory. 512 MB is enough for dozens of players.
+      de: Ein Proxy braucht wenig Speicher. 512 MB reichen für Dutzende Spieler.
     type: number
     default: 512
     min: 256
     max: 65536
   - key: PORT
-    label: { pl: Port proxy, en: Proxy port }
+    label: { pl: Port proxy, en: Proxy port, de: Proxy-Port }
     help:
       pl: Gracze łączą się na ten port. Serwery za proxy ustaw na inne porty i najlepiej nie przekierowuj ich na routerze.
       en: Players connect to this port. Give the servers behind the proxy other ports and preferably do not forward those on your router.
+      de: Spieler verbinden sich mit diesem Port. Gib den Servern hinter dem Proxy andere Ports und leite diese möglichst nicht im Router weiter.
     type: number
     default: 25577
     min: 1024
@@ -54,7 +58,6 @@ start:
     - "{{JVM_FLAGS...}}"
     - "-jar"
     - "velocity.jar"
-    # Overrides the bind port from velocity.toml.
     - "--port"
     - "{{PORT}}"
 stop:
@@ -69,8 +72,8 @@ query: { kind: minecraft-ping, port: "{{PORT}}" }
 
 console:
   commands:
-    - { name: velocity, args: "<version|plugins|dump|heap|info>", help: { pl: Informacje o proxy, en: Proxy information } }
-    - { name: server, args: "[server]", help: { pl: Lista serwerów za proxy, en: Servers behind the proxy } }
-    - { name: glist, args: "[all|server]", help: { pl: Gracze na wszystkich serwerach, en: Players on all servers } }
-    - { name: send, args: "<player|all|current> <server>", help: { pl: Przenieś gracza na inny serwer, en: Move a player to another server } }
-    - { name: shutdown, args: "[reason...]", help: { pl: Zatrzymaj proxy, en: Stop the proxy } }
+    - { name: velocity, args: "<version|plugins|dump|heap|info>", help: { pl: Informacje o proxy, en: Proxy information, de: Proxy-Informationen } }
+    - { name: server, args: "[server]", help: { pl: Lista serwerów za proxy, en: Servers behind the proxy, de: Server hinter dem Proxy } }
+    - { name: glist, args: "[all|server]", help: { pl: Gracze na wszystkich serwerach, en: Players on all servers, de: Spieler auf allen Servern } }
+    - { name: send, args: "<player|all|current> <server>", help: { pl: Przenieś gracza na inny serwer, en: Move a player to another server, de: Spieler auf einen anderen Server verschieben } }
+    - { name: shutdown, args: "[reason...]", help: { pl: Zatrzymaj proxy, en: Stop the proxy, de: Proxy stoppen } }

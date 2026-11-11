@@ -18,9 +18,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/templates"
 )
 
-// A loader install: the Forge installer is downloaded and verified, the
-// Java version comes from Mojang's metadata, and Java is ready before the
-// exec step that runs the installer.
 func TestForgeInstallerPreparesJavaFirst(t *testing.T) {
 	srv, _ := fakeUpstream(t)
 	installer := []byte("pretend forge installer")
@@ -96,7 +93,6 @@ start: {command: "{{JAVA}}", args: ["@libraries/net/minecraftforge/forge/{{LOADE
 		t.Errorf("log order:\n%s", log)
 	}
 
-	// A wrong checksum fails the install.
 	sum[0] ^= 0xff
 	m2 := New(Deps{Paper: &providers.Paper{BaseURL: srv.URL, Project: "paper"}, Forge: &providers.Forge{PromotionsURL: forge.PromotionsURL, MavenURL: forge.MavenURL},
 		Mojang: &providers.Mojang{ManifestURL: srv.URL + "/mojang/manifest.json"},

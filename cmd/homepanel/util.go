@@ -5,7 +5,6 @@ import (
 	"io/fs"
 )
 
-// mustSub is for embedded directories whose presence is guaranteed at build time.
 func mustSub(efs embed.FS, dir string) fs.FS {
 	sub, err := fs.Sub(efs, dir)
 	if err != nil {

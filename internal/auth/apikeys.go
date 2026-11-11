@@ -12,25 +12,21 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/db"
 )
 
-// APIKey is a long-lived credential for automation. It acts as its user,
-// optionally narrowed to a set of per-server permissions (scope).
 type APIKey struct {
 	ID         int64    `json:"id"`
 	UserID     int64    `json:"userId"`
 	Name       string   `json:"name"`
 	Prefix     string   `json:"prefix"`
-	Scope      []string `json:"scope"` // ["*"] or permission names
+	Scope      []string `json:"scope"`
 	CreatedAt  string   `json:"createdAt"`
 	ExpiresAt  string   `json:"expiresAt,omitempty"`
 	LastUsedAt string   `json:"lastUsedAt,omitempty"`
 }
 
-// APIKeyPrefix makes keys recognisable in logs and secret scanners.
 const APIKeyPrefix = "hp_"
 
 var ErrAPIKeyInvalid = errors.New("invalid api key")
 
-// AllowsPermission reports whether the scope covers perm.
 func (k *APIKey) AllowsPermission(perm Permission) bool {
 	for _, s := range k.Scope {
 		if s == "*" || s == string(perm) {
@@ -40,11 +36,10 @@ func (k *APIKey) AllowsPermission(perm Permission) bool {
 	return false
 }
 
-// CreateAPIKey mints a key; the plaintext is returned exactly once.
 func (s *Store) CreateAPIKey(ctx context.Context, userID int64, name string, scope []string, expires *time.Time) (plaintext string, key *APIKey, err error) {
 	name = strings.TrimSpace(name)
 	if name == "" || len(name) > 64 {
-		return "", nil, errors.New("key name must be 1–64 characters")
+		return "", nil, errors.New("key name must be 1-64 characters")
 	}
 	if len(scope) == 0 {
 		scope = []string{"*"}
@@ -96,7 +91,6 @@ func (s *Store) getAPIKey(ctx context.Context, id int64) (*APIKey, error) {
 	return scanAPIKey(s.db.QueryRowContext(ctx, `SELECT `+apiKeyCols+` FROM api_keys WHERE id = ?`, id))
 }
 
-// ListAPIKeys returns a user's keys.
 func (s *Store) ListAPIKeys(ctx context.Context, userID int64) ([]*APIKey, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+apiKeyCols+` FROM api_keys WHERE user_id = ? ORDER BY id`, userID)
 	if err != nil {
@@ -114,7 +108,6 @@ func (s *Store) ListAPIKeys(ctx context.Context, userID int64) ([]*APIKey, error
 	return out, rows.Err()
 }
 
-// DeleteAPIKey removes one of the user's keys.
 func (s *Store) DeleteAPIKey(ctx context.Context, userID, id int64) error {
 	res, err := s.db.ExecContext(ctx, `DELETE FROM api_keys WHERE id = ? AND user_id = ?`, id, userID)
 	if err != nil {
@@ -126,7 +119,6 @@ func (s *Store) DeleteAPIKey(ctx context.Context, userID, id int64) error {
 	return nil
 }
 
-// LookupAPIKey resolves a bearer token to its key and user.
 func (s *Store) LookupAPIKey(ctx context.Context, plaintext string) (*APIKey, *User, error) {
 	if !strings.HasPrefix(plaintext, APIKeyPrefix) {
 		return nil, nil, ErrAPIKeyInvalid

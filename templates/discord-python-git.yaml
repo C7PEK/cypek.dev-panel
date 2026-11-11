@@ -7,40 +7,42 @@ icon: discord
 description:
   pl: Bot w Pythonie z repozytorium git (np. discord.py). Panel pobiera Pythona, tworzy venv w katalogu serwera i instaluje requirements.txt. Token bota trafia do zmiennej środowiskowej DISCORD_TOKEN.
   en: A Python bot from a git repository (e.g. discord.py). The panel downloads Python, creates a venv in the server folder and installs requirements.txt. The bot token is passed as the DISCORD_TOKEN environment variable.
+  de: Ein Python-Bot aus einem git-Repository (z. B. discord.py). Das Panel lädt Python herunter, erstellt ein venv im Serverordner und installiert requirements.txt. Der Bot-Token wird als Umgebungsvariable DISCORD_TOKEN übergeben.
 
 variables:
   - key: REPO_URL
-    label: { pl: Adres repozytorium git (https), en: Git repository URL (https) }
+    label: { pl: Adres repozytorium git (https), en: Git repository URL (https), de: URL des git-Repositorys (https) }
     type: string
     required: true
     maxLength: 300
     pattern: '^https://[^\s]+$'
   - key: BRANCH
-    label: { pl: Gałąź, en: Branch }
+    label: { pl: Gałąź, en: Branch, de: Branch }
     type: string
     default: main
     maxLength: 100
     pattern: '^[A-Za-z0-9._/-]+$'
   - key: GIT_TOKEN
-    label: { pl: Token do prywatnego repo (opcjonalnie), en: Token for a private repo (optional) }
+    label: { pl: Token do prywatnego repo (opcjonalnie), en: Token for a private repo (optional), de: Token für ein privates Repo (optional) }
     type: secret
     maxLength: 200
   - key: DISCORD_TOKEN
-    label: { pl: Token bota Discord, en: Discord bot token }
+    label: { pl: Token bota Discord, en: Discord bot token, de: Discord-Bot-Token }
     help:
       pl: Bot odczyta go przez os.environ["DISCORD_TOKEN"].
       en: Read it in the bot via os.environ["DISCORD_TOKEN"].
+      de: Im Bot liest du ihn über os.environ["DISCORD_TOKEN"].
     type: secret
     maxLength: 200
   - key: START_FILE
-    label: { pl: Plik startowy, en: Entry file }
-    help: { pl: "Względem katalogu repo, np. bot.py lub main.py.", en: "Relative to the repo folder, e.g. bot.py or main.py." }
+    label: { pl: Plik startowy, en: Entry file, de: Startdatei }
+    help: { pl: "Względem katalogu repo, np. bot.py lub main.py.", en: "Relative to the repo folder, e.g. bot.py or main.py.", de: "Relativ zum Repo-Ordner, z. B. bot.py oder main.py." }
     type: string
     default: bot.py
     maxLength: 200
     pattern: '^[^\s/][^\s]*\.py$'
   - key: PY_VERSION
-    label: { pl: Wersja Pythona, en: Python version }
+    label: { pl: Wersja Pythona, en: Python version, de: Python-Version }
     type: select
     options: ["3.12", "3.13"]
     default: "3.12"

@@ -15,7 +15,6 @@ func TestWriteNeverFollowsLinks(t *testing.T) {
 	os.MkdirAll(root, 0o755)
 	os.WriteFile(outside, []byte("SECRET"), 0o600)
 
-	// A symlink at the target is replaced, not followed.
 	os.Symlink(outside, filepath.Join(root, "server.properties"))
 	if err := WriteFile(root, "server.properties", []byte("motd=x"), 0o640); err != nil {
 		t.Fatal(err)
@@ -23,14 +22,14 @@ func TestWriteNeverFollowsLinks(t *testing.T) {
 	if b, _ := os.ReadFile(outside); string(b) != "SECRET" {
 		t.Fatalf("wrote through symlink: %q", b)
 	}
-	// A hardlinked target is replaced by rename, the other name keeps its data.
+
 	os.WriteFile(filepath.Join(root, "a"), []byte("one"), 0o640)
 	os.Link(filepath.Join(root, "a"), filepath.Join(root, "b"))
 	WriteFile(root, "a", []byte("two"), 0o640)
 	if b, _ := os.ReadFile(filepath.Join(root, "b")); string(b) != "one" {
 		t.Fatalf("modified hardlink: %q", b)
 	}
-	// A symlinked folder pointing outside is refused.
+
 	os.Symlink(base, filepath.Join(root, ".homepanel"))
 	if err := WriteFile(root, ".homepanel/run.json", []byte("{}"), 0o600); err == nil {
 		t.Fatal("wrote through a folder symlink to outside")

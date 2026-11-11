@@ -11,10 +11,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/shim"
 )
 
-// TestSystemdReal drives the real homepanel-server@ template unit over D-Bus.
-// It needs an installed binary, the unit, the polkit rule and write access to
-// /var/lib/homepanel/servers, so it only runs when HOMEPANEL_SYSTEMD_TEST=1
-// (ideally as the homepanel user, to exercise the polkit rule).
 func TestSystemdReal(t *testing.T) {
 	if os.Getenv("HOMEPANEL_SYSTEMD_TEST") != "1" {
 		t.Skip("set HOMEPANEL_SYSTEMD_TEST=1 to run against the real systemd")
@@ -35,7 +31,7 @@ func TestSystemdReal(t *testing.T) {
 		_ = sup.Remove(context.Background(), id)
 		os.RemoveAll(dir)
 	})
-	// /bin/cat echoes stdin and exits on SIGTERM: a minimal "game".
+
 	cfg := &shim.RunConfig{Command: "/bin/cat", Stop: shim.StopConfig{TimeoutSec: 10}}
 	if err := shim.SaveRunConfig(dir, cfg); err != nil {
 		t.Fatal(err)

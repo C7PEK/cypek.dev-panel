@@ -50,8 +50,6 @@ func (s *Server) dbInstallState(ctx context.Context) dbInstallState {
 	return st
 }
 
-// handleDatabaseStatus reports whether MariaDB/phpMyAdmin are installed and
-// the installer's progress.
 func (s *Server) handleDatabaseStatus(w http.ResponseWriter, r *http.Request) {
 	st := s.databases.Status(r.Context())
 	resp := map[string]any{"status": st, "install": s.dbInstallState(r.Context()), "systemd": false}
@@ -68,7 +66,6 @@ func (s *Server) handleDatabaseStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// handleDatabaseInstall starts the oneshot installer unit (owner only).
 func (s *Server) handleDatabaseInstall(w http.ResponseWriter, r *http.Request) {
 	_, user := sessionFromContext(r.Context())
 	a, ok := s.addons()
@@ -190,7 +187,6 @@ func (s *Server) handleCreateServerDatabase(w http.ResponseWriter, r *http.Reque
 			return
 		}
 	} else {
-		// Derive from the server name, adding _2, _3, … until it is free.
 		base := database.Slug(srv.Name)
 		for i := 1; i < 100; i++ {
 			candidate := base
@@ -261,7 +257,6 @@ func (s *Server) dbRecordFromRequest(w http.ResponseWriter, r *http.Request) (*d
 }
 
 type dbCredentials struct {
-	// FiveMConfig is ready to paste into server.cfg (connection + threshold).
 	FiveMConfig     string `json:"fivemConfig"`
 	Database        string `json:"database"`
 	User            string `json:"user"`
@@ -281,14 +276,13 @@ func (s *Server) credentials(rec *database.Record, password string, creds *datab
 	}
 	return dbCredentials{
 		ID: rec.ID, Database: rec.Name, User: rec.Name, Password: password, Host: host, Port: port, PhpMyAdminPort: pma,
-		// oxmysql / mysql-async; 127.0.0.1 (TCP) avoids socket and DNS surprises.
+
 		FiveMConnString: fmt.Sprintf("set mysql_connection_string \"mysql://%s:%s@%s:%d/%s?charset=utf8mb4\"", rec.Name, password, host, port, rec.Name),
 		JDBCURL:         fmt.Sprintf("jdbc:mysql://%s:%d/%s?useSSL=false&characterEncoding=utf8", host, port, rec.Name),
 		FiveMConfig:     fmt.Sprintf("set mysql_connection_string \"mysql://%s:%s@%s:%d/%s?charset=utf8mb4\"\nset mysql_slow_query_warning 1500", rec.Name, password, host, port, rec.Name),
 	}
 }
 
-// handleDatabaseCredentials reveals the password (audited).
 func (s *Server) handleDatabaseCredentials(w http.ResponseWriter, r *http.Request) {
 	_, user := sessionFromContext(r.Context())
 	rec, ok := s.dbRecordFromRequest(w, r)
@@ -345,7 +339,6 @@ func (s *Server) handleDeleteServerDatabase(w http.ResponseWriter, r *http.Reque
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// dropServerDatabases removes every database of a deleted server (best effort).
 func (s *Server) dropServerDatabases(ctx context.Context, serverID string) {
 	if s.dbRecords == nil {
 		return
@@ -370,16 +363,14 @@ func (s *Server) rootPasswordEnabled(ctx context.Context) bool {
 	return v != ""
 }
 
-// handleGetRootLogin reports whether root may log in with a password.
 func (s *Server) handleGetRootLogin(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"enabled": s.rootPasswordEnabled(r.Context()), "user": "root"})
 }
 
 type rootPasswordRequest struct {
-	Password string `json:"password"` // empty = generate
+	Password string `json:"password"`
 }
 
-// handleSetRootLogin enables (or changes) the root password and returns it once.
 func (s *Server) handleSetRootLogin(w http.ResponseWriter, r *http.Request) {
 	_, user := sessionFromContext(r.Context())
 	var req rootPasswordRequest
@@ -417,7 +408,6 @@ func (s *Server) handleSetRootLogin(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"enabled": true, "user": "root", "password": password})
 }
 
-// handleRevealRootLogin shows the stored root password (audited).
 func (s *Server) handleRevealRootLogin(w http.ResponseWriter, r *http.Request) {
 	_, user := sessionFromContext(r.Context())
 	sealed, _ := s.store.GetSetting(r.Context(), settingDBRootPassword)
@@ -434,7 +424,6 @@ func (s *Server) handleRevealRootLogin(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"enabled": true, "user": "root", "password": password})
 }
 
-// handleDisableRootLogin returns root to socket-only authentication.
 func (s *Server) handleDisableRootLogin(w http.ResponseWriter, r *http.Request) {
 	_, user := sessionFromContext(r.Context())
 	if !s.requireDatabase(w, r) {
@@ -452,8 +441,6 @@ func (s *Server) handleDisableRootLogin(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// repairDatabaseAccounts brings databases created by older versions up to
-// the current account set (e.g. the ::1 login added for "localhost").
 func (s *Server) repairDatabaseAccounts(ctx context.Context) {
 	if !s.databases.Status(ctx).Reachable {
 		return

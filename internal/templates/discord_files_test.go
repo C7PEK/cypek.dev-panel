@@ -9,9 +9,6 @@ import (
 	"time"
 )
 
-// runStart builds the start command of a template and runs it in dir with
-// fake tools on PATH; returns combined output, the tools' call log and the
-// exit code.
 func runStart(t *testing.T, tplFile, dir string, vars map[string]string) (string, string, int) {
 	t.Helper()
 	b, err := os.ReadFile(tplFile)
@@ -55,12 +52,12 @@ func TestNodeBotFromFiles(t *testing.T) {
 	}
 	tpl := "../../templates/discord-node.yaml"
 	dir := t.TempDir()
-	// No files yet: a clear message and exit 78 (systemd does not restart-loop).
+
 	out, _, code := runStart(t, tpl, dir, map[string]string{})
 	if code != 78 || !strings.Contains(out, "Files tab") {
 		t.Fatalf("empty folder: %d %q", code, out)
 	}
-	// Files uploaded with a lockfile: npm ci, then node; the empty token is unset.
+
 	os.WriteFile(filepath.Join(dir, "package.json"), []byte("{}"), 0o644)
 	os.WriteFile(filepath.Join(dir, "package-lock.json"), []byte("{}"), 0o644)
 	os.WriteFile(filepath.Join(dir, "index.js"), []byte(""), 0o644)
@@ -68,19 +65,19 @@ func TestNodeBotFromFiles(t *testing.T) {
 	if code != 0 || !strings.Contains(calls, "npm ci --no-fund") || !strings.Contains(calls, "node index.js token=unset") {
 		t.Fatalf("first start: %d %q", code, calls)
 	}
-	// Second start: dependencies are up to date, no npm.
+
 	_, calls, _ = runStart(t, tpl, dir, map[string]string{"DISCORD_TOKEN": "abc.def.ghi"})
 	if strings.Contains(calls, "npm ci") || !strings.Contains(calls, "node index.js token=abc.def.ghi") {
 		t.Fatalf("second start: %q", calls)
 	}
-	// package.json changed: install again.
+
 	time.Sleep(1100 * time.Millisecond)
 	os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"x":1}`), 0o644)
 	_, calls, _ = runStart(t, tpl, dir, map[string]string{})
 	if !strings.Contains(calls, "npm ci") {
 		t.Fatalf("after package.json change: %q", calls)
 	}
-	// A "start" script wins over guessing; an explicit entry file wins over both.
+
 	os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"scripts": {"start": "node index.js"}}`), 0o644)
 	_, calls, _ = runStart(t, tpl, dir, map[string]string{})
 	if !strings.Contains(calls, "npm start") {

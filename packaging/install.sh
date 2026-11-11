@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# panel.cypek.dev installer. Usage:
-#   curl -fsSL https://github.com/C7PEK/cypek.dev-panel/releases/latest/download/install.sh | sudo bash
-#   sudo bash install.sh [--port 8420] [--version vX.Y.Z] [--uninstall [--purge]]
-# Idempotent: run it again to repair an installation or to upgrade.
 set -euo pipefail
 
 REPO="${HOMEPANEL_REPO:-C7PEK/cypek.dev-panel}"
@@ -13,13 +9,29 @@ LOGS=/var/log/homepanel
 USER_NAME=homepanel
 PORT=8420
 REL="${HOMEPANEL_VERSION:-latest}"
-BIN_URL="${HOMEPANEL_BIN_URL:-}"      # override for local testing (file:///path or http URL)
+BIN_URL="${HOMEPANEL_BIN_URL:-}"
 UNINSTALL=0
 PURGE=0
 
 say()  { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33mwarning:\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
+
+usage() {
+  cat <<'USAGE'
+panel.cypek.dev installer
+
+  curl -fsSL https://github.com/C7PEK/cypek.dev-panel/releases/latest/download/install.sh | sudo bash
+
+Options (after "bash -s --" when piped):
+  --port N          panel port (default 8420)
+  --version vX.Y.Z  install a specific release
+  --uninstall       remove the panel (asks before deleting data)
+  --purge           with --uninstall: also delete servers, worlds and backups
+
+Run it again at any time to repair or upgrade.
+USAGE
+}
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -28,7 +40,7 @@ while [ $# -gt 0 ]; do
     --uninstall) UNINSTALL=1; shift ;;
     --purge) PURGE=1; shift ;;
     --bin-url) BIN_URL="$2"; shift 2 ;;
-    -h|--help) sed -n '2,6p' "$0"; exit 0 ;;
+    -h|--help) usage; exit 0 ;;
     *) die "unknown option: $1" ;;
   esac
 done
@@ -46,13 +58,12 @@ case "$ARCH" in
 esac
 
 if [ -r /etc/os-release ]; then
-  # os-release defines VERSION/ID/...; read it in a subshell so nothing here is clobbered.
   OS_ID="$(. /etc/os-release && echo "${ID:-}")"
   OS_VER="$(. /etc/os-release && echo "${VERSION_ID:-0}")"
   OS_NAME="$(. /etc/os-release && echo "${PRETTY_NAME:-unknown}")"
   case "$OS_ID" in
     debian) [ "${OS_VER%%.*}" -ge 12 ] 2>/dev/null || die "Debian $OS_VER is too old; Debian 12+ is required" ;;
-    ubuntu) [ "${OS_VER%%.*}" -ge 22 ] 2>/dev/null || die "Ubuntu $OS_VER is too old; Ubuntu 22.04+ is required" ;;
+    ubuntu) [ "${OS_VER%%.*}" -ge 24 ] 2>/dev/null || die "Ubuntu $OS_VER is not supported: its polkit is too old to let the panel control game servers. Use Ubuntu 24.04+ or Debian 12+" ;;
     *) warn "untested distribution: $OS_NAME; continuing" ;;
   esac
 fi
@@ -116,8 +127,6 @@ install -m 755 "$TMP/homepanel" "$BIN"
 say "Writing config, systemd units and polkit rule"
 "$BIN" init-config --port "$PORT"
 "$BIN" install-files
-# /etc/homepanel belongs to root (group-readable by the panel): root-run
-# helpers write there, so the panel user must not be able to plant links.
 chown root:"$USER_NAME" /etc/homepanel
 chmod 750 /etc/homepanel
 chown "$USER_NAME:$USER_NAME" "$CONFIG"
@@ -126,7 +135,6 @@ chown -R "$USER_NAME:$USER_NAME" "$DATA" "$LOGS"
 chmod 750 "$DATA"
 systemctl daemon-reload
 
-# polkit >= 0.106 is needed for the JavaScript rule (Debian 12+, Ubuntu 23.10+).
 PK="$(pkaction --version 2>/dev/null | awk '{print $NF}' || true)"
 if [ -z "$PK" ]; then
   warn "polkit is not installed; installing polkitd"
@@ -135,7 +143,7 @@ if [ -z "$PK" ]; then
   PK="$(pkaction --version 2>/dev/null | awk '{print $NF}' || true)"
 fi
 case "$PK" in
-  0.105*|0.10[0-4]*) warn "polkit $PK cannot scope rules per unit (Ubuntu 22.04). Game servers will not start until the sudoers helper lands; see docs/systemd-permissions.md" ;;
+  0.105*|0.10[0-4]*) warn "polkit $PK is too old: game servers will not start. Debian 12+ or Ubuntu 24.04+ is needed" ;;
 esac
 command -v xz >/dev/null 2>&1 || warn "xz is not installed; FiveM artifacts will extract slowly (apt install xz-utils)"
 

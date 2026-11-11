@@ -11,8 +11,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/selfupdate"
 )
 
-// runUpdate replaces this binary with the newest GitHub release and restarts
-// only homepanel.service (game servers are separate units and keep running).
 func runUpdate(args []string) error {
 	fs := flag.NewFlagSet("update", flag.ContinueOnError)
 	check := fs.Bool("check", false, "only report whether an update is available")
@@ -69,9 +67,9 @@ func doUpdate(check, noRestart bool, st *selfupdate.Status) error {
 		fmt.Println("restart the panel with: systemctl restart homepanel")
 		return nil
 	}
-	// systemctl here is fine: this runs as root from a terminal, not inside the panel.
+
 	st.State = "done"
-	// The status is final before the restart: the panel reads it on boot.
+
 	if out, err := exec.CommandContext(ctx, "systemctl", "restart", "homepanel").CombinedOutput(); err != nil {
 		return fmt.Errorf("restart homepanel.service: %v: %s", err, out)
 	}

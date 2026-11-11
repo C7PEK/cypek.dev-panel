@@ -9,8 +9,6 @@ import (
 	"testing"
 )
 
-// A minimal Pterodactyl egg: the script writes a file from a variable whose
-// default is a shell injection attempt; the start command echoes stdin.
 func testEgg(t *testing.T) string {
 	t.Helper()
 	egg := map[string]any{
@@ -46,7 +44,6 @@ func TestTemplateLibraryImportInstallAndDelete(t *testing.T) {
 	e := newEnv(t)
 	e.completeSetup("owner", "password123")
 
-	// Invalid YAML is rejected with a readable message.
 	resp, body := e.do(http.MethodPost, "/api/v1/templates/validate", map[string]any{"yaml": "id: x\n"})
 	if resp.StatusCode != 422 || errCode(body) != CodeTemplateInvalid {
 		t.Fatalf("validate invalid: %d %v", resp.StatusCode, body)
@@ -64,7 +61,6 @@ func TestTemplateLibraryImportInstallAndDelete(t *testing.T) {
 		t.Fatalf("import loopback url: %d %v", resp.StatusCode, body)
 	}
 
-	// Import converts the egg; the YAML is saved as a custom template.
 	resp, body = e.do(http.MethodPost, "/api/v1/templates/import", map[string]any{"content": testEgg(t)})
 	if resp.StatusCode != 200 || body["format"] != "pterodactyl" {
 		t.Fatalf("import: %d %v", resp.StatusCode, body)
@@ -86,7 +82,7 @@ func TestTemplateLibraryImportInstallAndDelete(t *testing.T) {
 	if resp.StatusCode != 200 || body["editable"] != true || !strings.Contains(body["yaml"].(string), "egg-echo-game") {
 		t.Fatalf("yaml: %d %v", resp.StatusCode, body)
 	}
-	// Editing must keep the id.
+
 	resp, _ = e.do(http.MethodPut, "/api/v1/templates/egg-echo-game", map[string]any{"yaml": strings.Replace(yamlText, "id: egg-echo-game", "id: egg-other", 1)})
 	if resp.StatusCode != 400 {
 		t.Fatalf("rename via PUT: %d", resp.StatusCode)
@@ -96,7 +92,6 @@ func TestTemplateLibraryImportInstallAndDelete(t *testing.T) {
 		t.Fatalf("update: %d %v", resp.StatusCode, body)
 	}
 
-	// Built-ins are read-only.
 	resp, _ = e.do(http.MethodPut, "/api/v1/templates/minecraft-paper", map[string]any{"yaml": yamlText})
 	if resp.StatusCode != 403 {
 		t.Fatalf("PUT builtin: %d", resp.StatusCode)
@@ -106,7 +101,6 @@ func TestTemplateLibraryImportInstallAndDelete(t *testing.T) {
 		t.Fatalf("DELETE builtin: %d", resp.StatusCode)
 	}
 
-	// Install runs the script in the server's own (local) supervisor unit.
 	resp, body = e.do(http.MethodPost, "/api/v1/servers", map[string]any{
 		"name": "Echo", "templateId": "egg-echo-game",
 		"variables": map[string]string{"SERVER_PORT": "25599", "GREETING": "$(touch pwned)`touch pwned2`"},
@@ -138,7 +132,6 @@ func TestTemplateLibraryImportInstallAndDelete(t *testing.T) {
 		t.Errorf("server.properties = %q", props)
 	}
 
-	// The start command runs through bash with values from the environment.
 	resp, body = e.do(http.MethodPost, "/api/v1/servers/"+id+"/power", map[string]any{"action": "start"})
 	if resp.StatusCode != 200 && resp.StatusCode != 202 && resp.StatusCode != 204 {
 		t.Fatalf("start: %d %v", resp.StatusCode, body)
@@ -154,7 +147,6 @@ func TestTemplateLibraryImportInstallAndDelete(t *testing.T) {
 	e.do(http.MethodPost, "/api/v1/servers/"+id+"/power", map[string]any{"action": "stop"})
 	e.waitServerState(id, "stopped")
 
-	// Deleting a template in use needs force.
 	resp, body = e.do(http.MethodDelete, "/api/v1/templates/egg-echo-game", nil)
 	if resp.StatusCode != 409 || errCode(body) != CodeTemplateInUse {
 		t.Fatalf("delete in use: %d %v", resp.StatusCode, body)
@@ -190,8 +182,6 @@ func TestTemplateLibraryNeedsAdmin(t *testing.T) {
 	}
 }
 
-// Install exec steps run through the server's supervisor unit (the sandbox
-// in production), not as a child of the panel.
 func TestExecStepRunsThroughServerUnit(t *testing.T) {
 	e := newEnv(t)
 	e.completeSetup("owner", "password123")
@@ -213,7 +203,7 @@ func TestExecStepRunsThroughServerUnit(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(e.cfg.ServersDir(), id, "made-by-exec")); err != nil {
 		t.Fatal("exec step did not run")
 	}
-	// The shim's console log only exists when the shim ran the program.
+
 	logs, _ := filepath.Glob(filepath.Join(e.cfg.ServersDir(), id, "logs", "console-*.log"))
 	if len(logs) == 0 {
 		t.Fatal("exec step ran outside the server unit (no shim console log)")

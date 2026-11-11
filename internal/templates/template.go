@@ -1,8 +1,3 @@
-// Package templates loads, validates and renders game templates. A template
-// is YAML (built-in from /templates or user-provided) describing variables,
-// install steps and how to start/stop the server. Rendering is deliberately
-// dumb: {{KEY}} is replaced only with known variables, only in the fields
-// listed here, and never through a shell.
 package templates
 
 import (
@@ -23,10 +18,8 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/servers"
 )
 
-// Text is a translated string; the UI picks the user's language with English as fallback.
 type Text map[string]string
 
-// Get returns the text in lang, falling back to en, then any.
 func (t Text) Get(lang string) string {
 	if v, ok := t[lang]; ok {
 		return v
@@ -40,7 +33,6 @@ func (t Text) Get(lang string) string {
 	return ""
 }
 
-// VarType is a variable's input type.
 type VarType string
 
 const (
@@ -51,35 +43,32 @@ const (
 	TypeSecret VarType = "secret"
 )
 
-// Variable is a user-facing input shown in the creation wizard.
 type Variable struct {
 	Key     string  `yaml:"key" json:"key"`
 	Label   Text    `yaml:"label" json:"label"`
 	Help    Text    `yaml:"help,omitempty" json:"help,omitempty"`
 	Type    VarType `yaml:"type" json:"type"`
 	Default string  `yaml:"default,omitempty" json:"default,omitempty"`
-	// Options for select without a Source.
+
 	Options []string `yaml:"options,omitempty" json:"options,omitempty"`
-	// Source names a dynamic option provider (e.g. paper-versions).
+
 	Source    string   `yaml:"source,omitempty" json:"source,omitempty"`
 	Min       *float64 `yaml:"min,omitempty" json:"min,omitempty"`
 	Max       *float64 `yaml:"max,omitempty" json:"max,omitempty"`
 	MaxLength int      `yaml:"maxLength,omitempty" json:"maxLength,omitempty"`
 	Pattern   string   `yaml:"pattern,omitempty" json:"pattern,omitempty"`
 	Required  bool     `yaml:"required,omitempty" json:"required,omitempty"`
-	// Consent marks a bool the user must switch on (EULA, license terms).
+
 	Consent bool `yaml:"consent,omitempty" json:"consent,omitempty"`
-	// Hidden variables are not shown in forms; their default is used.
+
 	Hidden bool `yaml:"hidden,omitempty" json:"hidden,omitempty"`
 }
 
-// Runtime names the interpreter the server needs.
 type Runtime struct {
-	Kind    string `yaml:"kind" json:"kind"`                           // java | node | python | none
-	Version string `yaml:"version,omitempty" json:"version,omitempty"` // auto or a major version
+	Kind    string `yaml:"kind" json:"kind"`
+	Version string `yaml:"version,omitempty" json:"version,omitempty"`
 }
 
-// Step is one install step; exactly one field is set.
 type Step struct {
 	Download   *DownloadStep   `yaml:"download,omitempty" json:"download,omitempty"`
 	Extract    *ExtractStep    `yaml:"extract,omitempty" json:"extract,omitempty"`
@@ -90,48 +79,32 @@ type Step struct {
 	Script     *ScriptStep     `yaml:"script,omitempty" json:"script,omitempty"`
 }
 
-// ScriptStep runs a bash script inside the server's own sandbox (the same
-// systemd unit the game runs in: write access to the server directory only,
-// as the panel user, no root). Template variables are passed as environment
-// variables, never spliced into the script text. Used by imported eggs.
 type ScriptStep struct {
 	Content    string `yaml:"content" json:"content"`
 	TimeoutSec int    `yaml:"timeoutSec,omitempty" json:"timeoutSec,omitempty"`
 }
 
-// GitStep clones a repository (or updates it when already present).
 type GitStep struct {
 	URL    string `yaml:"url" json:"url"`
 	Branch string `yaml:"branch,omitempty" json:"branch,omitempty"`
-	// Token is an optional secret variable reference for private repos.
+
 	Token string `yaml:"token,omitempty" json:"token,omitempty"`
 	To    string `yaml:"to" json:"to"`
 }
 
-// ExecStep runs a program (never a shell) inside the server directory,
-// e.g. npm install or pip install. The command is rendered, so it can be a
-// runtime builtin like {{NPM}}.
 type ExecStep struct {
 	Command string            `yaml:"command" json:"command"`
 	Args    []string          `yaml:"args,omitempty" json:"args,omitempty"`
 	Dir     string            `yaml:"dir,omitempty" json:"dir,omitempty"`
 	Env     map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
-	// IfExists skips the step unless this file (relative to Dir) exists.
+
 	IfExists string `yaml:"ifExists,omitempty" json:"ifExists,omitempty"`
-	// IfMissing skips the step when this file exists (npm ci vs install).
+
 	IfMissing string `yaml:"ifMissing,omitempty" json:"ifMissing,omitempty"`
-	// TimeoutSec bounds the run (default 900).
+
 	TimeoutSec int `yaml:"timeoutSec,omitempty" json:"timeoutSec,omitempty"`
 }
 
-// DownloadStep fetches an artifact through a named provider:
-//
-//	paper  - PaperMC build for Version (checksummed)
-//	mojang - vanilla server jar for Version (SHA-1 from Mojang)
-//	fabric - Fabric server launcher for Version (latest = newest supported)
-//	purpur - newest Purpur build for Version (MD5 from Purpur)
-//	fivem  - FXServer Linux artifact for Version (recommended|latest|build)
-//	url    - a fixed https URL (optional Sha256)
 type DownloadStep struct {
 	Provider string `yaml:"provider" json:"provider"`
 	Version  string `yaml:"version,omitempty" json:"version,omitempty"`
@@ -140,21 +113,17 @@ type DownloadStep struct {
 	To       string `yaml:"to" json:"to"`
 }
 
-// ExtractStep unpacks an archive (tar.gz, tar.xz, zip) inside the server dir.
 type ExtractStep struct {
 	From string `yaml:"from" json:"from"`
-	To   string `yaml:"to" json:"to"` // "." for the server directory itself
-	// Strip drops leading path components (GitHub zips have one top folder).
+	To   string `yaml:"to" json:"to"`
+
 	Strip int `yaml:"strip,omitempty" json:"strip,omitempty"`
-	// Delete removes the archive afterwards (default true).
+
 	Delete *bool `yaml:"delete,omitempty" json:"delete,omitempty"`
-	// Keep lists files (path.Match globs, relative to To) that are not
-	// overwritten when they already exist: the user's config survives a
-	// reinstall over a fresh server archive.
+
 	Keep []string `yaml:"keep,omitempty" json:"keep,omitempty"`
 }
 
-// Keeps reports whether rel (slash-separated, relative to To) is kept.
 func (e *ExtractStep) Keeps(rel string) bool {
 	for _, k := range e.Keep {
 		if ok, _ := path.Match(k, rel); ok {
@@ -164,47 +133,35 @@ func (e *ExtractStep) Keeps(rel string) bool {
 	return false
 }
 
-// WriteStep writes a small text file; with RequireConsent naming a bool
-// variable that must be true (the user, not the panel, accepts the terms).
 type WriteStep struct {
 	Path           string `yaml:"path" json:"path"`
 	Content        string `yaml:"content" json:"content"`
 	RequireConsent string `yaml:"requireConsent,omitempty" json:"requireConsent,omitempty"`
 }
 
-// PropertiesStep sets key=value lines in a Java-properties style file,
-// keeping everything else in it.
 type PropertiesStep struct {
 	Path string            `yaml:"path" json:"path"`
 	Set  map[string]string `yaml:"set" json:"set"`
 }
 
-// Start describes the process; command and args are rendered.
 type Start struct {
 	Command string            `yaml:"command,omitempty" json:"command"`
 	Args    []string          `yaml:"args,omitempty" json:"args"`
 	Env     map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
-	// Dir is the working directory relative to the server dir.
+
 	Dir string `yaml:"dir,omitempty" json:"dir,omitempty"`
-	// Shell is an alternative to Command/Args: a bash command line, as used
-	// by Pterodactyl/PufferPanel. {{KEY}} becomes "${KEY}" and every variable
-	// is exported to the environment, so values can never become code.
+
 	Shell string `yaml:"shell,omitempty" json:"shell,omitempty"`
 }
 
-// ConfigFile sets values in a config file before every start (Pterodactyl's
-// "config.files"). Parsers: properties, ini (key=value lines), file (lines
-// starting with the key are replaced by the value), yaml and json (dotted
-// keys). Values are rendered with the server's variables.
 type ConfigFile struct {
 	Path   string            `yaml:"path" json:"path"`
 	Parser string            `yaml:"parser" json:"parser"`
 	Set    map[string]string `yaml:"set" json:"set"`
 }
 
-// Source records where a template came from (imports from other panels).
 type Source struct {
-	Kind       string   `yaml:"kind" json:"kind"` // custom | pterodactyl | pelican | pufferpanel
+	Kind       string   `yaml:"kind" json:"kind"`
 	Original   string   `yaml:"original,omitempty" json:"original,omitempty"`
 	Author     string   `yaml:"author,omitempty" json:"author,omitempty"`
 	URL        string   `yaml:"url,omitempty" json:"url,omitempty"`
@@ -212,60 +169,46 @@ type Source struct {
 	Warnings   []string `yaml:"warnings,omitempty" json:"warnings,omitempty"`
 }
 
-// Stop describes graceful shutdown.
 type Stop struct {
 	Command    string `yaml:"command,omitempty" json:"command,omitempty"`
 	TimeoutSec int    `yaml:"timeoutSec,omitempty" json:"timeoutSec,omitempty"`
 }
 
-// Port is a listening port; Port may be a template.
 type Port struct {
 	Name     string `yaml:"name" json:"name"`
 	Port     string `yaml:"port" json:"port"`
 	Protocol string `yaml:"protocol" json:"protocol"`
 }
 
-// Query tells internal/query how to count players.
 type Query struct {
 	Kind string `yaml:"kind" json:"kind"`
 	Port string `yaml:"port" json:"port"`
 }
 
-// Command is a console hint: the UI suggests it while typing and completes
-// its arguments. Args uses a tiny grammar: <required>, [optional], <a|b|c>
-// for choices, <player>/[player] for an online player, <text...> for the rest
-// of the line.
 type Command struct {
 	Name string `yaml:"name" json:"name"`
 	Args string `yaml:"args,omitempty" json:"args,omitempty"`
 	Help Text   `yaml:"help,omitempty" json:"help,omitempty"`
 }
 
-// ConfigDefault is a line the panel keeps present in the server's config
-// files: before every start, each file matching Files that has no
-// uncommented line containing Key gets Line prepended. Existing settings are
-// never changed, so the user can always override the default.
 type ConfigDefault struct {
-	Files []string `yaml:"files" json:"files"` // globs relative to the server dir
+	Files []string `yaml:"files" json:"files"`
 	Key   string   `yaml:"key" json:"key"`
 	Line  string   `yaml:"line" json:"line"`
 }
 
-// Console groups console-related hints.
 type Console struct {
 	Commands []Command `yaml:"commands,omitempty" json:"commands,omitempty"`
 }
 
-// Template is a parsed template file.
 type Template struct {
 	ID       string           `yaml:"id" json:"id"`
 	Name     string           `yaml:"name" json:"name"`
 	Category servers.Category `yaml:"category" json:"category"`
 	Icon     string           `yaml:"icon,omitempty" json:"icon,omitempty"`
-	// Group sorts templates inside a category in the wizard (minecraft:
-	// plugins, mods, vanilla, proxy, bedrock; discord-bot: node, python).
+
 	Group string `yaml:"group,omitempty" json:"group,omitempty"`
-	// Order ranks templates inside a group (lower first, default 100).
+
 	Order       int        `yaml:"order,omitempty" json:"order,omitempty"`
 	Description Text       `yaml:"description,omitempty" json:"description,omitempty"`
 	Variables   []Variable `yaml:"variables" json:"variables"`
@@ -278,15 +221,15 @@ type Template struct {
 	WarnCommand string     `yaml:"warnCommand,omitempty" json:"warnCommand,omitempty"`
 	Query       *Query     `yaml:"query,omitempty" json:"query,omitempty"`
 	Console     Console    `yaml:"console,omitempty" json:"console"`
-	// ConfigDefaults are applied before every start (see ConfigDefault).
+
 	ConfigDefaults []ConfigDefault `yaml:"configDefaults,omitempty" json:"configDefaults,omitempty"`
-	// ConfigFiles are applied before every start (see ConfigFile).
+
 	ConfigFiles []ConfigFile `yaml:"configFiles,omitempty" json:"configFiles,omitempty"`
-	// Source describes imported templates.
+
 	Source *Source `yaml:"source,omitempty" json:"source,omitempty"`
-	// Builtin is true for templates embedded in the binary.
+
 	Builtin bool `yaml:"-" json:"builtin"`
-	// Raw is the YAML the template was parsed from.
+
 	Raw []byte `yaml:"-" json:"-"`
 }
 
@@ -296,7 +239,6 @@ var (
 	groupRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
 )
 
-// Parse decodes and validates one template.
 func Parse(data []byte) (*Template, error) {
 	var t Template
 	dec := yaml.NewDecoder(strings.NewReader(string(data)))
@@ -311,7 +253,6 @@ func Parse(data []byte) (*Template, error) {
 	return &t, nil
 }
 
-// Validate checks structure; it does not resolve dynamic sources.
 func (t *Template) Validate() error {
 	if !idRe.MatchString(t.ID) {
 		return fmt.Errorf("template id %q must be lowercase letters, digits and dashes", t.ID)
@@ -501,7 +442,7 @@ func (t *Template) Validate() error {
 	if t.Query != nil && t.Query.Kind != "minecraft-ping" && t.Query.Kind != "fivem-http" {
 		return fmt.Errorf("template %s: unknown query kind %q", t.ID, t.Query.Kind)
 	}
-	// Every {{KEY}} used anywhere must be a variable or a builtin.
+
 	for _, s := range t.allTemplatedStrings() {
 		for _, k := range placeholders(s) {
 			if !seen[k] && !isBuiltinKey(k) {
@@ -512,7 +453,6 @@ func (t *Template) Validate() error {
 	return nil
 }
 
-// safeRelPath accepts simple relative paths inside the server directory.
 func safeRelPath(p string) error {
 	if p == "" || filepath.IsAbs(p) || strings.Contains(p, "..") || strings.ContainsAny(p, "\x00\n") {
 		return fmt.Errorf("path %q must be relative and inside the server directory", p)
@@ -568,22 +508,20 @@ func (t *Template) allTemplatedStrings() []string {
 	return out
 }
 
-// Builtin keys are provided by the installer/runtime, never by the user.
 const (
-	KeyJava     = "JAVA"      // path to the java binary
-	KeyJVMFlags = "JVM_FLAGS" // list (JSON array) of recommended JVM flags
+	KeyJava     = "JAVA"
+	KeyJVMFlags = "JVM_FLAGS"
 	KeyNode     = "NODE"
 	KeyNPM      = "NPM"
 	KeyNPX      = "NPX"
-	KeyPython   = "PYTHON" // the venv interpreter once created
+	KeyPython   = "PYTHON"
 	KeyPip      = "PIP"
-	KeyMessage  = "message" // warnCommand only
-	// KeyServerDir is the absolute server directory; KeyRuntimeBin the bin
-	// directory of the prepared runtime (java/node/python), for PATH.
+	KeyMessage  = "message"
+
 	KeyServerDir  = "SERVER_DIR"
 	KeyRuntimeBin = "RUNTIME_BIN"
 	KeyJavaHome   = "JAVA_HOME"
-	// Set by version-resolving download steps (paper, forge, neoforge, ...).
+
 	KeyMCVersion     = "MC_VERSION_RESOLVED"
 	KeyLoaderVersion = "LOADER_VERSION"
 )
@@ -606,11 +544,8 @@ func placeholders(s string) []string {
 	return out
 }
 
-// ErrMissingVariable is returned when rendering hits an unset placeholder.
 var ErrMissingVariable = errors.New("missing variable")
 
-// Render substitutes {{KEY}} with vars[KEY]. Unknown keys are an error, so a
-// typo never silently produces an empty string in a command line.
 func Render(s string, vars map[string]string) (string, error) {
 	var err error
 	out := placeholderRe.ReplaceAllStringFunc(s, func(m string) string {
@@ -625,8 +560,6 @@ func Render(s string, vars map[string]string) (string, error) {
 	return out, err
 }
 
-// RenderArgs renders each argument; an argument that is exactly "{{KEY...}}"
-// expands to the JSON array stored in vars[KEY] (used for JVM flag lists).
 func RenderArgs(args []string, vars map[string]string) ([]string, error) {
 	out := make([]string, 0, len(args))
 	for _, a := range args {
@@ -653,9 +586,6 @@ func RenderArgs(args []string, vars map[string]string) ([]string, error) {
 
 var spreadRe = regexp.MustCompile(`^\{\{([A-Za-z][A-Za-z0-9_]*)\.\.\.\}\}$`)
 
-// ValidateValues checks user-supplied values against the variable schema and
-// returns the normalised map (defaults filled in). Select values backed by a
-// source are checked by the caller, which knows the live option list.
 func (t *Template) ValidateValues(in map[string]string) (map[string]string, error) {
 	out := map[string]string{}
 	for _, v := range t.Variables {
@@ -725,7 +655,6 @@ func (t *Template) ValidateValues(in map[string]string) (map[string]string, erro
 	return out, nil
 }
 
-// ValueError reports which variable failed validation.
 type ValueError struct {
 	Key     string
 	Message string
@@ -734,9 +663,6 @@ type ValueError struct {
 
 func (e *ValueError) Error() string { return e.Key + " " + e.Message }
 
-// UsesScript reports whether installation runs a shell script.
-// UsesGit reports whether the install fetches code from git (bots), which
-// enables the "update from git" action.
 func (t *Template) UsesGit() bool {
 	for _, st := range t.Install {
 		if st.Git != nil {
@@ -755,7 +681,6 @@ func (t *Template) UsesScript() bool {
 	return false
 }
 
-// Variable returns the variable with key, or nil.
 func (t *Template) Variable(key string) *Variable {
 	for i := range t.Variables {
 		if t.Variables[i].Key == key {
@@ -765,7 +690,6 @@ func (t *Template) Variable(key string) *Variable {
 	return nil
 }
 
-// SecretKeys lists variables of type secret.
 func (t *Template) SecretKeys() []string {
 	var out []string
 	for _, v := range t.Variables {
@@ -787,22 +711,16 @@ func contains(list []string, s string) bool {
 	return false
 }
 
-// Registry holds the built-in and user templates. It is safe for concurrent
-// use; user templates can be added, replaced and removed at runtime.
 type Registry struct {
 	mu        sync.RWMutex
 	builtinFS fs.FS
 	userDir   string
 	templates map[string]*Template
 	builtins  map[string]*Template
-	// overrides marks user templates that replace a built-in id.
+
 	overrides map[string]bool
 }
 
-// Load reads built-in templates from builtin and user templates (*.yaml)
-// from userDir, which may not exist. A user template with the same id as a
-// built-in one overrides it. Broken user files are skipped (and reported by
-// LoadErrors) so one bad file cannot keep the panel from starting.
 func Load(builtin fs.FS, userDir string) (*Registry, error) {
 	r := &Registry{builtinFS: builtin, userDir: userDir}
 	if err := r.reload(); err != nil {
@@ -811,10 +729,8 @@ func Load(builtin fs.FS, userDir string) (*Registry, error) {
 	return r, nil
 }
 
-// loadErrors holds per-file problems of the last reload.
 var loadErrors = map[string]string{}
 
-// LoadErrors returns problems with user template files (file -> error).
 func (r *Registry) LoadErrors() map[string]string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -877,7 +793,6 @@ func (r *Registry) reload() error {
 	return nil
 }
 
-// Get returns a template by id.
 func (r *Registry) Get(id string) (*Template, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -885,7 +800,6 @@ func (r *Registry) Get(id string) (*Template, bool) {
 	return t, ok
 }
 
-// Builtin returns the embedded template with id, even when overridden.
 func (r *Registry) Builtin(id string) (*Template, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -893,14 +807,12 @@ func (r *Registry) Builtin(id string) (*Template, bool) {
 	return t, ok
 }
 
-// Overrides reports whether a user template replaces the built-in id.
 func (r *Registry) Overrides(id string) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.overrides[id]
 }
 
-// List returns templates sorted by name.
 func (r *Registry) List() []*Template {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -912,10 +824,8 @@ func (r *Registry) List() []*Template {
 	return out
 }
 
-// ErrNoUserDir means templates cannot be saved (no writable directory).
 var ErrNoUserDir = errors.New("no directory for user templates is configured")
 
-// Save validates yaml and writes it as <userDir>/<id>.yaml, then reloads.
 func (r *Registry) Save(data []byte) (*Template, error) {
 	if r.userDir == "" {
 		return nil, ErrNoUserDir
@@ -942,7 +852,6 @@ func (r *Registry) Save(data []byte) (*Template, error) {
 	return saved, nil
 }
 
-// IsUser reports whether id is backed by a user file.
 func (r *Registry) IsUser(id string) bool {
 	if r.userDir == "" || !idRe.MatchString(id) {
 		return false
@@ -951,7 +860,6 @@ func (r *Registry) IsUser(id string) bool {
 	return err == nil
 }
 
-// Delete removes the user file for id (a built-in override reverts to the built-in).
 func (r *Registry) Delete(id string) error {
 	if !r.IsUser(id) {
 		return os.ErrNotExist
@@ -962,7 +870,6 @@ func (r *Registry) Delete(id string) error {
 	return r.reload()
 }
 
-// decodeList parses a JSON array of strings (how list builtins are stored).
 func decodeList(raw string) ([]string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {

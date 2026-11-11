@@ -47,7 +47,6 @@ export interface DatabaseCredentials {
   host: string
   port: number
   fivemConnectionString: string
-  /** Connection string plus the slow-query threshold, ready for server.cfg. */
   fivemConfig?: string
   jdbcUrl: string
   phpMyAdminPort: number
@@ -117,13 +116,11 @@ export function useDeleteDatabase(id: string) {
   })
 }
 
-/** Link to phpMyAdmin on the same host the panel is reached through. */
 export function phpMyAdminUrl(port: number | undefined) {
   if (!port) return ""
   return `${window.location.protocol}//${window.location.hostname}:${port}/`
 }
 
-/** The full database name the backend will create: hp_<name>. */
 export function previewName(name: string, suggested: string) {
   const s = name.trim().toLowerCase() || suggested || "db"
   return `hp_${s}`

@@ -142,7 +142,6 @@ func TestSessions(t *testing.T) {
 		t.Errorf("empty token: %v", err)
 	}
 
-	// Expired sessions are rejected and deleted.
 	past := time.Now().UTC().Add(-time.Hour)
 	if _, err := s.db.Exec(`UPDATE sessions SET expires_at = ? WHERE id = ?`, fmtTime(past), sess.ID); err != nil {
 		t.Fatal(err)
@@ -156,7 +155,6 @@ func TestSessions(t *testing.T) {
 		t.Errorf("expired session not deleted, %d rows", n)
 	}
 
-	// Password change revokes sessions.
 	token2, _, _ := s.CreateSession(ctx, u.ID, "", "")
 	if err := s.SetPassword(ctx, u.ID, "newpassword123"); err != nil {
 		t.Fatal(err)
@@ -168,7 +166,6 @@ func TestSessions(t *testing.T) {
 		t.Errorf("new password rejected: %v", err)
 	}
 
-	// Disabled users cannot use sessions.
 	token3, _, _ := s.CreateSession(ctx, u.ID, "", "")
 	if _, err := s.db.Exec(`UPDATE users SET disabled = 1 WHERE id = ?`, u.ID); err != nil {
 		t.Fatal(err)
@@ -194,12 +191,12 @@ func TestSetupFlow(t *testing.T) {
 	if err != nil || string(b) != token {
 		t.Fatalf("token file = %q, %v", b, err)
 	}
-	// Restart: same token comes back, not regenerated.
+
 	again, generated, err := s.EnsureSetupToken(ctx, dataDir)
 	if err != nil || generated || again != token {
 		t.Fatalf("second EnsureSetupToken = %q, %v, %v", again, generated, err)
 	}
-	// Plaintext lost: token rotates instead of locking the owner out.
+
 	os.Remove(filepath.Join(dataDir, SetupTokenFile))
 	rotated, generated, err := s.EnsureSetupToken(ctx, dataDir)
 	if err != nil || !generated || rotated == token {

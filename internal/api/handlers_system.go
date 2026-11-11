@@ -21,8 +21,6 @@ type portHint struct {
 	Commands []string `json:"commands"`
 }
 
-// handleFirewall reports the host firewall and the commands to open the
-// given ports (?port=25565/tcp&port=30120/tcp+udp). Advice only, never applied.
 func (s *Server) handleFirewall(w http.ResponseWriter, r *http.Request) {
 	fw := netinfo.DetectFirewall(r.Context())
 	hints := []portHint{}

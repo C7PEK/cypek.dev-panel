@@ -6,11 +6,6 @@ import (
 	"unicode"
 )
 
-// PufferPanel guards install steps and run commands with small expressions
-// (govaluate-style): modlauncher == 'fabric' && file_exists('server.jar').
-// They are translated into bash conditions. Variables are read from the
-// environment, so no user value is ever pasted into the script text.
-
 type tokKind int
 
 const (
@@ -89,7 +84,7 @@ func lex(s string) ([]token, error) {
 type exprParser struct {
 	toks []token
 	pos  int
-	// vars are the template's variable names; env is fixed to "host".
+
 	vars map[string]bool
 }
 
@@ -103,13 +98,11 @@ func (p *exprParser) accept(op string) bool {
 	return false
 }
 
-// value is either a string-valued bash word (inside double quotes) or a
-// boolean bash condition.
 type value struct {
-	word    string // content for "..." when isWord
+	word    string
 	cond    string
 	isWord  bool
-	literal bool // word is a constant
+	literal bool
 	ident   string
 }
 
@@ -264,8 +257,7 @@ func (p *exprParser) primary() (value, error) {
 		if !validKey(t.val) {
 			return value{}, fmt.Errorf("unsupported name %q", t.val)
 		}
-		// Undefined names are runtime variables (outputVariable of a step):
-		// plain bash variables, empty when unset.
+
 		return value{isWord: true, word: "${" + t.val + "}", ident: t.val}, nil
 	}
 	return value{}, fmt.Errorf("unexpected %q", t.val)
@@ -278,7 +270,6 @@ func asCond(v value) string {
 	return fmt.Sprintf(`[[ "%s" == "true" || "%s" == "1" ]]`, v.word, v.word)
 }
 
-// bashCondition translates a PufferPanel expression.
 func bashCondition(expr string, vars map[string]bool) (string, error) {
 	toks, err := lex(expr)
 	if err != nil {
@@ -295,15 +286,11 @@ func bashCondition(expr string, vars map[string]bool) (string, error) {
 	return asCond(v), nil
 }
 
-// dqEscape escapes text for a bash double-quoted string.
 func dqEscape(s string) string {
 	r := strings.NewReplacer(`\`, `\\`, `"`, `\"`, "`", "\\`", `$`, `\$`)
 	return r.Replace(s)
 }
 
-// bashWord turns a PufferPanel string with ${var} references into a bash
-// double-quoted word: literal text is escaped, references stay expansions.
-// With glob, '*' is left outside the quotes so it still matches files.
 func bashWord(s string, glob bool) string {
 	var b strings.Builder
 	b.WriteByte('"')
@@ -335,7 +322,6 @@ func bashWord(s string, glob bool) string {
 	return b.String()
 }
 
-// foldAnd/foldOr drop constant operands such as env == 'host'.
 func foldAnd(l, r value) value {
 	a, b := asCond(l), asCond(r)
 	switch {

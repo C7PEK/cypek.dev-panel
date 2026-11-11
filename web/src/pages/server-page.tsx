@@ -73,9 +73,9 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
   const ready = s.installState === "ready"
   const running = s.status.state === "running" || s.status.state === "starting"
   const ramMax = s.limits?.memoryMb > 0 ? s.limits.memoryMb * 1024 * 1024 : undefined
-  // The Files tab keeps its folder while the page stays open.
+
   const [filesPath, setFilesPath] = useState("")
-  // Plugins/mods tab: Minecraft only, and hidden when the API refuses (no files.read).
+
   const isMinecraft = s.category === "minecraft"
   const mods = useMods(s.id, isMinecraft && ready)
   const modsRefused = isApiError(mods.error) && (mods.error.status === 403 || mods.error.code === "not_minecraft")
@@ -182,7 +182,6 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
   )
 }
 
-/** "Minecraft (Paper) · Minecraft" for template servers, just the category for custom ones. */
 function TemplateLabel({ server }: { server: Server }) {
   const { t } = useTranslation()
   const templates = useTemplates()

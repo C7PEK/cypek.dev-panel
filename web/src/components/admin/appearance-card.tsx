@@ -16,8 +16,6 @@ import { cn } from "@/lib/utils"
 
 const titleClass = "font-heading text-lg font-medium tracking-[0.04em] uppercase"
 
-// Panel name and accent colour; the colour previews live on the whole panel
-// and is reverted when leaving without saving.
 export function AppearanceCard() {
   const saved = useBranding()
   if (!saved.data) return null
@@ -32,7 +30,6 @@ function AppearanceForm({ initialName, initialAccent }: { initialName: string; i
   const [hexText, setHexText] = useState(initialAccent || DEFAULT_ACCENT)
   const dirty = name.trim() !== initialName || accent !== (initialAccent || DEFAULT_ACCENT)
 
-  // Live preview; restore the saved colour if the page is left unsaved.
   useEffect(() => {
     applyAccent(accent)
   }, [accent])

@@ -22,14 +22,12 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/providers"
 )
 
-// Errors the API maps to codes.
 var (
 	ErrPlatformUnknown = errors.New("the server type could not be detected; choose it first")
 	ErrNoCompatible    = errors.New("no version is compatible with this server")
 	ErrNotFound        = errors.New("no such file")
 )
 
-// MaxFileSize bounds a single plugin/mod download.
 const MaxFileSize = 256 << 20
 
 const (
@@ -37,8 +35,6 @@ const (
 	disabledEx = ".disabled"
 )
 
-// fileMeta is what the panel remembers about an installed jar, keyed by the
-// enabled file name (without ".disabled").
 type fileMeta struct {
 	SHA1          string `json:"sha1"`
 	Size          int64  `json:"size"`
@@ -49,7 +45,7 @@ type fileMeta struct {
 	IconURL       string `json:"iconUrl,omitempty"`
 	VersionID     string `json:"versionId,omitempty"`
 	VersionNumber string `json:"versionNumber,omitempty"`
-	Unknown       bool   `json:"unknown,omitempty"` // not on Modrinth
+	Unknown       bool   `json:"unknown,omitempty"`
 }
 
 type state struct {
@@ -58,7 +54,6 @@ type state struct {
 	Files       map[string]*fileMeta `json:"files,omitempty"`
 }
 
-// loadState never fails: the file is a cache plus the admin's override.
 func loadState(dir string) *state {
 	st := &state{}
 	if b, err := safefs.ReadFile(dir, filepath.Join(".homepanel", stateFile), 4<<20); err == nil {
@@ -78,7 +73,6 @@ func saveState(dir string, st *state) error {
 	return safefs.WriteFile(dir, filepath.Join(".homepanel", stateFile), b, 0o640)
 }
 
-// Manager serialises changes per server.
 type Manager struct {
 	API *providers.Modrinth
 	mu  sync.Mutex
@@ -101,7 +95,6 @@ func (m *Manager) lock(dir string) func() {
 	return l.Unlock
 }
 
-// SetPlatform stores (or with empty values clears) the admin's override.
 func (m *Manager) SetPlatform(dir, loader, gameVersion string) error {
 	if loader != "" && !KnownLoader(loader) {
 		return fmt.Errorf("unknown server type %q", loader)
@@ -115,7 +108,6 @@ func (m *Manager) SetPlatform(dir, loader, gameVersion string) error {
 	return saveState(dir, st)
 }
 
-// Installed describes one jar in the plugins/mods folder.
 type Installed struct {
 	File       string      `json:"file"`
 	Enabled    bool        `json:"enabled"`
@@ -139,8 +131,6 @@ type VersionRef struct {
 	Number string `json:"number"`
 }
 
-// List returns the installed jars, identifying new ones on Modrinth by
-// hash (results are cached in .homepanel/mods.json).
 func (m *Manager) List(ctx context.Context, dir string, p Platform) ([]Installed, error) {
 	if !p.Known() {
 		return []Installed{}, nil
@@ -158,10 +148,9 @@ func (m *Manager) List(ctx context.Context, dir string, p Platform) ([]Installed
 		}
 	}
 	if len(unknown) > 0 && m.API != nil {
-		// Offline Modrinth must not hide the list; retry next time.
 		_ = m.identify(ctx, st, unknown)
 	}
-	// Forget metadata of jars that are gone.
+
 	present := map[string]bool{}
 	for _, it := range items {
 		present[it.key] = true
@@ -185,7 +174,6 @@ func (it *Installed) fill() {
 	}
 }
 
-// scan lists the jars and refreshes hashes of changed files.
 func scan(dir string, p Platform, st *state) ([]Installed, error) {
 	root, err := files.ResolveSafe(dir, p.Dir)
 	if err != nil {
@@ -206,7 +194,7 @@ func scan(dir string, p Platform, st *state) ([]Installed, error) {
 			continue
 		}
 		if !e.Type().IsRegular() {
-			continue // no symlinks or folders
+			continue
 		}
 		info, err := e.Info()
 		if err != nil {
@@ -274,14 +262,12 @@ func (m *Manager) identify(ctx context.Context, st *state, sha1s []string) error
 	return nil
 }
 
-// Update is an available newer version of an installed jar.
 type Update struct {
 	VersionID string `json:"versionId"`
 	Number    string `json:"number"`
 	Name      string `json:"name"`
 }
 
-// Updates checks Modrinth for newer compatible versions (keyed by file).
 func (m *Manager) Updates(ctx context.Context, dir string, p Platform) (map[string]Update, error) {
 	items, err := m.List(ctx, dir, p)
 	if err != nil {
@@ -310,7 +296,6 @@ func (m *Manager) Updates(ctx context.Context, dir string, p Platform) (map[stri
 	return out, nil
 }
 
-// InstalledFile is one jar written by an install.
 type InstalledFile struct {
 	File       string `json:"file"`
 	Title      string `json:"title"`
@@ -318,15 +303,12 @@ type InstalledFile struct {
 	Dependency bool   `json:"dependency"`
 }
 
-// Result of an install or update.
 type Result struct {
 	Installed []InstalledFile `json:"installed"`
 	Removed   []string        `json:"removed"`
 	Warnings  []string        `json:"warnings,omitempty"`
 }
 
-// Install adds a project (a specific version, or the newest compatible
-// release) plus its required dependencies.
 func (m *Manager) Install(ctx context.Context, dir string, p Platform, projectID, versionID string) (*Result, error) {
 	if !p.Known() {
 		return nil, ErrPlatformUnknown
@@ -348,7 +330,6 @@ func (m *Manager) Install(ctx context.Context, dir string, p Platform, projectID
 	return res, saveState(dir, st)
 }
 
-// UpdateFile replaces an installed jar with its newest compatible version.
 func (m *Manager) UpdateFile(ctx context.Context, dir string, p Platform, file string) (*Result, error) {
 	if !p.Known() {
 		return nil, ErrPlatformUnknown
@@ -425,7 +406,6 @@ func (m *Manager) pickVersion(ctx context.Context, p Platform, projectID, versio
 	return pick, nil
 }
 
-// CompatibleVersions lists versions installable on this server.
 func (m *Manager) CompatibleVersions(ctx context.Context, p Platform, projectID string) ([]providers.ModrinthVersion, error) {
 	if !p.Known() {
 		return nil, ErrPlatformUnknown
@@ -478,8 +458,6 @@ func (m *Manager) installTree(ctx context.Context, dir string, p Platform, st *s
 		}
 		dv, err := m.pickVersion(ctx, p, d.ProjectID, d.VersionID)
 		if err != nil {
-			// A pinned dependency version may target another loader; fall
-			// back to the newest compatible one.
 			if d.VersionID != "" && d.ProjectID != "" {
 				dv, err = m.pickVersion(ctx, p, d.ProjectID, "")
 			}
@@ -507,8 +485,6 @@ func installedProject(st *state, projectID string) bool {
 	return false
 }
 
-// installVersion downloads the version's primary jar (SHA-512 verified) and
-// removes older files of the same project.
 func (m *Manager) installVersion(ctx context.Context, dir string, p Platform, st *state, v *providers.ModrinthVersion, dep bool, res *Result) error {
 	f := v.PrimaryFile()
 	if f == nil {
@@ -539,7 +515,7 @@ func (m *Manager) installVersion(ctx context.Context, dir string, p Platform, st
 	if err := providers.DownloadVerified(ctx, f.URL, dest, h, want, MaxFileSize, nil); err != nil {
 		return fmt.Errorf("download %s: %w", name, err)
 	}
-	// Drop other files of the same project (older versions, a disabled copy).
+
 	for key, meta := range st.Files {
 		if meta.ProjectID != v.ProjectID {
 			continue
@@ -578,7 +554,6 @@ func (m *Manager) installVersion(ctx context.Context, dir string, p Platform, st
 	return nil
 }
 
-// SetEnabled renames file to/from "<name>.jar.disabled"; returns the new name.
 func (m *Manager) SetEnabled(dir string, p Platform, file string, enabled bool) (string, error) {
 	if !p.Known() {
 		return "", ErrPlatformUnknown
@@ -606,7 +581,6 @@ func (m *Manager) SetEnabled(dir string, p Platform, file string, enabled bool) 
 	return target, os.Rename(src, dst)
 }
 
-// Remove deletes an installed jar.
 func (m *Manager) Remove(dir string, p Platform, file string) error {
 	if !p.Known() {
 		return ErrPlatformUnknown
@@ -624,8 +598,6 @@ func (m *Manager) Remove(dir string, p Platform, file string) error {
 	return saveState(dir, st)
 }
 
-// jarPath validates a file name from the API: a plain name of a jar that
-// exists in the add-on folder.
 func (m *Manager) jarPath(dir string, p Platform, file string) (string, error) {
 	lower := strings.ToLower(file)
 	if file == "" || filepath.Base(file) != file || strings.ContainsAny(file, `/\`) ||
@@ -643,7 +615,6 @@ func (m *Manager) jarPath(dir string, p Platform, file string) (string, error) {
 	return path, nil
 }
 
-// InstalledProjects returns the Modrinth project ids present (for search).
 func InstalledProjects(dir string) map[string]bool {
 	out := map[string]bool{}
 	for _, meta := range loadState(dir).Files {

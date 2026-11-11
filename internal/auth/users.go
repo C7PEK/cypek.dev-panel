@@ -1,4 +1,3 @@
-// Package auth implements users, sessions, roles and the first-run setup flow.
 package auth
 
 import (
@@ -12,7 +11,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/db"
 )
 
-// Role is a global role.
 type Role string
 
 const (
@@ -21,19 +19,15 @@ const (
 	RoleUser  Role = "user"
 )
 
-// Valid reports whether r is a known role.
 func (r Role) Valid() bool {
 	return r == RoleOwner || r == RoleAdmin || r == RoleUser
 }
 
-// AtLeast reports whether r has at least the privileges of min
-// (owner > admin > user).
 func (r Role) AtLeast(min Role) bool {
 	rank := map[Role]int{RoleUser: 1, RoleAdmin: 2, RoleOwner: 3}
 	return rank[r] >= rank[min]
 }
 
-// User is a panel account. PasswordHash is never serialised to the API.
 type User struct {
 	ID           int64  `json:"id"`
 	Username     string `json:"username"`
@@ -53,7 +47,6 @@ var (
 
 var usernameRe = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]{1,31}$`)
 
-// ValidateUsername accepts 2–32 chars of letters, digits, dot, underscore, dash.
 func ValidateUsername(u string) error {
 	if !usernameRe.MatchString(u) {
 		return ErrInvalidUsername
@@ -61,18 +54,14 @@ func ValidateUsername(u string) error {
 	return nil
 }
 
-// Store persists users and sessions.
 type Store struct {
 	db *sql.DB
 }
 
-// NewStore wraps a migrated database.
 func NewStore(sqlDB *sql.DB) *Store { return &Store{db: sqlDB} }
 
-// DB exposes the underlying handle for sibling packages (audit log, settings).
 func (s *Store) DB() *sql.DB { return s.db }
 
-// CreateUser hashes the password and inserts the user.
 func (s *Store) CreateUser(ctx context.Context, username, password string, role Role) (*User, error) {
 	if err := ValidateUsername(username); err != nil {
 		return nil, err
@@ -101,7 +90,6 @@ func (s *Store) CreateUser(ctx context.Context, username, password string, role 
 	return s.GetUserByID(ctx, id)
 }
 
-// CountUsers returns the number of accounts; zero means setup has not run.
 func (s *Store) CountUsers(ctx context.Context) (int, error) {
 	var n int
 	if err := s.db.QueryRowContext(ctx, `SELECT count(*) FROM users`).Scan(&n); err != nil {
@@ -128,7 +116,6 @@ func scanUser(row interface{ Scan(...any) error }) (*User, error) {
 	return &u, nil
 }
 
-// GetUserByID looks a user up by primary key.
 func (s *Store) GetUserByID(ctx context.Context, id int64) (*User, error) {
 	u, err := scanUser(s.db.QueryRowContext(ctx, `SELECT `+userColumns+` FROM users WHERE id = ?`, id))
 	if err != nil && !errors.Is(err, ErrNotFound) {
@@ -137,7 +124,6 @@ func (s *Store) GetUserByID(ctx context.Context, id int64) (*User, error) {
 	return u, err
 }
 
-// GetUserByUsername looks a user up by (case-insensitive) username.
 func (s *Store) GetUserByUsername(ctx context.Context, username string) (*User, error) {
 	u, err := scanUser(s.db.QueryRowContext(ctx, `SELECT `+userColumns+` FROM users WHERE username = ?`, username))
 	if err != nil && !errors.Is(err, ErrNotFound) {
@@ -146,7 +132,6 @@ func (s *Store) GetUserByUsername(ctx context.Context, username string) (*User, 
 	return u, err
 }
 
-// ListUsers returns all users ordered by id.
 func (s *Store) ListUsers(ctx context.Context) ([]*User, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+userColumns+` FROM users ORDER BY id`)
 	if err != nil {
@@ -164,7 +149,6 @@ func (s *Store) ListUsers(ctx context.Context) ([]*User, error) {
 	return out, rows.Err()
 }
 
-// SetPassword replaces a user's password and invalidates all their sessions.
 func (s *Store) SetPassword(ctx context.Context, userID int64, password string) error {
 	if err := ValidatePassword(password); err != nil {
 		return err
@@ -188,14 +172,13 @@ func (s *Store) SetPassword(ctx context.Context, userID int64, password string) 
 	if _, err := tx.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, userID); err != nil {
 		return fmt.Errorf("revoke sessions for user %d: %w", userID, err)
 	}
-	// A key minted with a stolen session must not outlive the new password.
+
 	if _, err := tx.ExecContext(ctx, `DELETE FROM api_keys WHERE user_id = ?`, userID); err != nil {
 		return fmt.Errorf("revoke API keys for user %d: %w", userID, err)
 	}
 	return tx.Commit()
 }
 
-// SetRole changes a user's global role.
 func (s *Store) SetRole(ctx context.Context, userID int64, role Role) error {
 	if !role.Valid() {
 		return fmt.Errorf("invalid role %q", role)
@@ -210,7 +193,6 @@ func (s *Store) SetRole(ctx context.Context, userID int64, role Role) error {
 	return nil
 }
 
-// SetDisabled blocks or unblocks an account; disabling also ends its sessions.
 func (s *Store) SetDisabled(ctx context.Context, userID int64, disabled bool) error {
 	d := 0
 	if disabled {
@@ -229,7 +211,6 @@ func (s *Store) SetDisabled(ctx context.Context, userID int64, disabled bool) er
 	return nil
 }
 
-// DeleteUser removes an account; sessions and grants cascade.
 func (s *Store) DeleteUser(ctx context.Context, userID int64) error {
 	res, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, userID)
 	if err != nil {
@@ -241,9 +222,6 @@ func (s *Store) DeleteUser(ctx context.Context, userID int64) error {
 	return nil
 }
 
-// Authenticate verifies credentials. A wrong username and a wrong password
-// both return ErrInvalidCredentials, and both cost one argon2 computation so
-// usernames cannot be enumerated by timing.
 func (s *Store) Authenticate(ctx context.Context, username, password string) (*User, error) {
 	u, err := s.GetUserByUsername(ctx, username)
 	if errors.Is(err, ErrNotFound) {
@@ -266,7 +244,6 @@ func (s *Store) Authenticate(ctx context.Context, username, password string) (*U
 	return u, nil
 }
 
-// TouchLogin records a successful login time.
 func (s *Store) TouchLogin(ctx context.Context, userID int64) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE users SET last_login_at = ? WHERE id = ?`, db.Now(), userID)
 	if err != nil {
@@ -280,8 +257,6 @@ var (
 	ErrAccountDisabled    = errors.New("account disabled")
 )
 
-// dummyHash is a valid argon2id hash of a random string, used to equalise the
-// cost of a login attempt against a non-existent user.
 const dummyHash = "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
 func isUniqueViolation(err error) bool {

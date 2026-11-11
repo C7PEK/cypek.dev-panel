@@ -13,12 +13,6 @@ import (
 	"time"
 )
 
-// Paper talks to PaperMC's Fill v3 API.
-// Verified 2026-11-08 against https://fill.papermc.io/v3/projects/paper:
-//
-//	GET /v3/projects/paper                      -> {"versions": {"1.21": ["1.21.11", ...], "26.3": [...]}}
-//	GET /v3/projects/paper/versions/{v}         -> {"version": {"java": {"version": {"minimum": 21}, "flags": {"recommended": [...]}}}, "builds": [244, ...]}
-//	GET /v3/projects/paper/versions/{v}/builds  -> [{"id": 132, "channel": "STABLE", "downloads": {"server:default": {"name", "checksums": {"sha256"}, "url"}}}, ...] newest first
 type Paper struct {
 	BaseURL string
 	Project string
@@ -29,8 +23,6 @@ type Paper struct {
 	siblings map[string]*Paper
 }
 
-// ForProject returns the client for another PaperMC project on the same
-// API (folia, velocity), keeping one per project so its cache survives.
 func (p *Paper) ForProject(name string) *Paper {
 	if name == p.Project {
 		return p
@@ -48,12 +40,10 @@ func (p *Paper) ForProject(name string) *Paper {
 	return s
 }
 
-// NewPaper returns a client for the paper project.
 func NewPaper() *Paper {
 	return &Paper{BaseURL: "https://fill.papermc.io/v3", Project: "paper"}
 }
 
-// PaperVersionInfo is what the installer needs to know about a version.
 type PaperVersionInfo struct {
 	Version      string
 	JavaMinimum  int
@@ -64,8 +54,6 @@ type PaperVersionInfo struct {
 	SHA256       string
 }
 
-// Versions lists all versions, newest first, stable releases before
-// pre-releases of the same line. Cached for 10 minutes.
 func (p *Paper) Versions(ctx context.Context) ([]string, error) {
 	p.mu.Lock()
 	if time.Since(p.fetched) < 10*time.Minute && p.versions != nil {
@@ -98,7 +86,6 @@ func (p *Paper) Versions(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
-// StableVersions filters out pre-releases, release candidates and snapshots.
 func StableVersions(all []string) []string {
 	var out []string
 	for _, v := range all {
@@ -110,14 +97,11 @@ func StableVersions(all []string) []string {
 	return out
 }
 
-// IsPrerelease reports whether v looks like a test build.
 func IsPrerelease(v string) bool {
 	l := strings.ToLower(v)
 	return strings.Contains(l, "-pre") || strings.Contains(l, "-rc") || strings.Contains(l, "snapshot") || strings.Contains(l, "-beta") || strings.Contains(l, "-alpha")
 }
 
-// Resolve turns "latest" or a concrete version into download details using
-// the newest STABLE build (falling back to the newest build of any channel).
 func (p *Paper) Resolve(ctx context.Context, version string) (*PaperVersionInfo, error) {
 	if version == "" || version == "latest" {
 		all, err := p.Versions(ctx)
@@ -161,7 +145,7 @@ func (p *Paper) Resolve(ctx context.Context, version string) (*PaperVersionInfo,
 	if len(builds) == 0 {
 		return nil, fmt.Errorf("paper: version %s has no builds", version)
 	}
-	// Newest first; prefer the newest STABLE build.
+
 	sort.SliceStable(builds, func(i, j int) bool { return builds[i].ID > builds[j].ID })
 	chosen := builds[0]
 	for _, b := range builds {
@@ -189,7 +173,6 @@ func (p *Paper) Resolve(ctx context.Context, version string) (*PaperVersionInfo,
 	return info, nil
 }
 
-// fallbackJavaFor is used only when the API does not state a minimum.
 func fallbackJavaFor(version string) int {
 	parts := strings.SplitN(version, ".", 3)
 	major, _ := strconv.Atoi(parts[0])
@@ -209,9 +192,6 @@ func fallbackJavaFor(version string) int {
 	}
 }
 
-// compareVersions orders "26.3" > "1.21.11" > "1.21.11-rc3" > "1.21.10".
-// Numeric segments compare as numbers; a pre-release suffix sorts below the
-// release it belongs to.
 func compareVersions(a, b string) int {
 	ab, as := splitPre(a)
 	bb, bs := splitPre(b)

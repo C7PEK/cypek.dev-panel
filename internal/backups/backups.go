@@ -1,7 +1,3 @@
-// Package backups creates and restores tar.zst snapshots of server
-// directories. Archives are written atomically, excluded paths are globs
-// relative to the server root, and restores go through a staging directory
-// so a failed restore never leaves a half-written server behind.
 package backups
 
 import (
@@ -23,20 +19,16 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/files"
 )
 
-// Settings are per-server backup preferences.
 type Settings struct {
-	// Excludes are glob patterns relative to the server dir; a trailing "/"
-	// marks a directory. Examples: "cache/", "logs/", "*.log".
 	Excludes []string `json:"excludes"`
-	// KeepLast keeps the newest N backups (0 = unlimited).
+
 	KeepLast int `json:"keepLast"`
-	// KeepDays deletes backups older than N days (0 = unlimited).
+
 	KeepDays int `json:"keepDays"`
-	// FlushMinecraft sends save-off/save-all before and save-on after.
+
 	FlushMinecraft bool `json:"flushMinecraft"`
 }
 
-// DefaultSettings for a new server.
 func DefaultSettings(category string) Settings {
 	s := Settings{Excludes: []string{"logs/", "cache/", "crash-reports/"}, KeepLast: 7, KeepDays: 0}
 	switch category {
@@ -48,7 +40,6 @@ func DefaultSettings(category string) Settings {
 	return s
 }
 
-// Validate normalises settings.
 func (s *Settings) Validate() error {
 	if s.KeepLast < 0 || s.KeepLast > 1000 || s.KeepDays < 0 || s.KeepDays > 3650 {
 		return errors.New("retention values out of range")
@@ -76,8 +67,6 @@ func (s *Settings) Validate() error {
 	return nil
 }
 
-// Excluded reports whether rel (slash-separated, dirs without trailing /)
-// matches any pattern. Directory patterns ("cache/") exclude the whole tree.
 func Excluded(patterns []string, rel string, isDir bool) bool {
 	for _, p := range patterns {
 		dirOnly := strings.HasSuffix(p, "/")
@@ -103,11 +92,8 @@ func matchPath(pattern, rel string) bool {
 	return ok
 }
 
-// Progress reports bytes written so far.
 type Progress func(files int, bytes int64)
 
-// Create writes a tar.zst of srcDir to destPath. Sockets, pid files and the
-// panel's own temp files are always skipped.
 func Create(ctx context.Context, srcDir, destPath string, settings Settings, progress Progress) (int64, error) {
 	if err := os.MkdirAll(filepath.Dir(destPath), 0o750); err != nil {
 		return 0, err
@@ -130,7 +116,7 @@ func Create(ctx context.Context, srcDir, destPath string, settings Settings, pro
 	var bytes int64
 	walkErr := filepath.WalkDir(srcDir, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
-			return nil // unreadable entries are skipped, not fatal
+			return nil
 		}
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -140,8 +126,7 @@ func Create(ctx context.Context, srcDir, destPath string, settings Settings, pro
 		}
 		rel, _ := filepath.Rel(srcDir, p)
 		rel = filepath.ToSlash(rel)
-		// .homepanel holds run.json with plaintext secrets (bot tokens); the
-		// panel rebuilds it from its database after a restore.
+
 		if rel == ".homepanel" || strings.HasPrefix(rel, ".homepanel/") || Excluded(settings.Excludes, rel, d.IsDir()) {
 			if d.IsDir() {
 				return filepath.SkipDir
@@ -191,7 +176,7 @@ func Create(ctx context.Context, srcDir, destPath string, settings Settings, pro
 			hdr.Name = rel
 			return tw.WriteHeader(hdr)
 		default:
-			return nil // sockets, devices
+			return nil
 		}
 	})
 	if walkErr != nil {
@@ -226,10 +211,6 @@ func Create(ctx context.Context, srcDir, destPath string, settings Settings, pro
 	return st.Size(), nil
 }
 
-// Restore replaces the contents of serverDir with the archive. It extracts
-// into a sibling staging directory first, then swaps; the previous contents
-// are removed only after the swap succeeded. The .homepanel directory from
-// the current installation is kept when the archive has none.
 func Restore(ctx context.Context, archivePath, serverDir string) error {
 	serverDir = filepath.Clean(serverDir)
 	parent := filepath.Dir(serverDir)
@@ -248,7 +229,7 @@ func Restore(ctx context.Context, archivePath, serverDir string) error {
 		os.RemoveAll(staging)
 		return ctx.Err()
 	}
-	// Keep panel metadata if the archive predates it.
+
 	if _, err := os.Stat(filepath.Join(staging, ".homepanel")); err != nil {
 		if _, err := os.Stat(filepath.Join(serverDir, ".homepanel")); err == nil {
 			_ = copyDir(filepath.Join(serverDir, ".homepanel"), filepath.Join(staging, ".homepanel"))
@@ -259,7 +240,7 @@ func Restore(ctx context.Context, archivePath, serverDir string) error {
 		return fmt.Errorf("move current files aside: %w", err)
 	}
 	if err := os.Rename(staging, serverDir); err != nil {
-		_ = os.Rename(old, serverDir) // roll back
+		_ = os.Rename(old, serverDir)
 		os.RemoveAll(staging)
 		return fmt.Errorf("install restored files: %w", err)
 	}
@@ -289,13 +270,10 @@ func copyDir(src, dst string) error {
 	})
 }
 
-// FileName builds the archive name for a server backup.
 func FileName(serverID string, at time.Time) string {
 	return fmt.Sprintf("%s-%s.tar.zst", serverID, at.UTC().Format("20060102-150405"))
 }
 
-// Prune returns the file names to delete to satisfy retention, given
-// backups newest first as (name, createdAt).
 func Prune(settings Settings, items []Item, now time.Time) []Item {
 	sort.Slice(items, func(i, j int) bool { return items[i].CreatedAt.After(items[j].CreatedAt) })
 	var out []Item
@@ -311,14 +289,12 @@ func Prune(settings Settings, items []Item, now time.Time) []Item {
 	return out
 }
 
-// Item is the minimum Prune needs to know about a backup.
 type Item struct {
 	ID        int64
 	FileName  string
 	CreatedAt time.Time
 }
 
-// CheckWritable verifies the backup destination exists and accepts files.
 func CheckWritable(dir string) error {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create %s: %w", dir, err)

@@ -1,5 +1,3 @@
-// Package config loads and generates the panel configuration file
-// (/etc/homepanel/config.toml in production, ./.devdata/config.toml in dev mode).
 package config
 
 import (
@@ -24,59 +22,47 @@ const (
 	configDirMode  = 0o750
 )
 
-// Config is the on-disk panel configuration.
 type Config struct {
-	// Listen is the HTTP listen address, e.g. ":8420" or "127.0.0.1:8420".
 	Listen string `toml:"listen"`
-	// DataDir holds panel.db, servers/, runtimes/, backups/ and templates/.
+
 	DataDir string `toml:"data_dir"`
-	// LogDir holds panel logs (server console logs live in each server dir).
+
 	LogDir string `toml:"log_dir"`
-	// SessionSecret signs session-related material. Base64, 32 random bytes.
+
 	SessionSecret string `toml:"session_secret"`
-	// EncryptionKey encrypts secrets stored in the database. Base64, 32 random bytes.
+
 	EncryptionKey string `toml:"encryption_key"`
-	// Supervisor is "systemd" (default) or "local" (shims as plain child
-	// processes, no sandbox; what --dev uses).
+
 	Supervisor string `toml:"supervisor"`
-	// MaxUploadMB caps a single file upload in the file manager (default 1024).
+
 	MaxUploadMB int `toml:"max_upload_mb"`
-	// BackupsDirOverride replaces <data_dir>/backups, e.g. a mounted NAS
-	// path. The panel does not mount anything itself.
+
 	BackupsDirOverride string `toml:"backups_dir"`
 
 	TLS TLSConfig `toml:"tls"`
-	// SFTP is the built-in SFTP server for game server files.
+
 	SFTP SFTPConfig `toml:"sftp"`
 
-	// Dev is set by `serve --dev`; never read from the file.
 	Dev bool `toml:"-"`
-	// Path the config was loaded from; never read from the file.
+
 	Path string `toml:"-"`
 }
 
-// TLSConfig enables optional HTTPS with a user-provided certificate
-// (e.g. from `tailscale cert`) or a generated self-signed one.
 type TLSConfig struct {
 	Enabled  bool   `toml:"enabled"`
 	CertFile string `toml:"cert_file"`
 	KeyFile  string `toml:"key_file"`
-	// SelfSigned generates <data_dir>/tls/self-signed.{crt,key} when no
-	// cert_file/key_file are given.
+
 	SelfSigned bool `toml:"self_signed"`
 }
 
-// SFTPConfig: panel logins over SFTP (WinSCP, FileZilla, ...), one folder
-// per server the user may read.
 type SFTPConfig struct {
 	Enabled bool   `toml:"enabled"`
 	Listen  string `toml:"listen"`
 }
 
-// DefaultSFTPPort matches Pterodactyl/Pelican and stays off the system SSH port.
 const DefaultSFTPPort = 2022
 
-// Default returns the production defaults without secrets.
 func Default() *Config {
 	return &Config{
 		Listen:  fmt.Sprintf(":%d", DefaultPort),
@@ -86,7 +72,6 @@ func Default() *Config {
 	}
 }
 
-// Load reads the config file at path and validates it.
 func Load(path string) (*Config, error) {
 	cfg := Default()
 	meta, err := toml.DecodeFile(path, cfg)
@@ -103,8 +88,6 @@ func Load(path string) (*Config, error) {
 	return cfg, nil
 }
 
-// LoadOrCreate loads the config, generating a fresh one with random secrets
-// when the file does not exist yet.
 func LoadOrCreate(path string, base *Config) (*Config, error) {
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 		if err := Generate(path, base); err != nil {
@@ -116,8 +99,6 @@ func LoadOrCreate(path string, base *Config) (*Config, error) {
 	return Load(path)
 }
 
-// Generate writes a new config file based on base, filling in random secrets.
-// It refuses to overwrite an existing file.
 func Generate(path string, base *Config) error {
 	if base == nil {
 		base = Default()
@@ -151,7 +132,6 @@ func Generate(path string, base *Config) error {
 	return nil
 }
 
-// Validate checks required fields.
 func (c *Config) Validate() error {
 	if c.Listen == "" {
 		return errors.New("listen must not be empty")
@@ -180,21 +160,16 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// SecretKeyBytes decodes EncryptionKey into raw bytes.
 func (c *Config) SecretKeyBytes() ([]byte, error) {
 	return base64.StdEncoding.DecodeString(c.EncryptionKey)
 }
 
-// DBPath returns the SQLite database path.
 func (c *Config) DBPath() string { return filepath.Join(c.DataDir, "panel.db") }
 
-// ServersDir returns the directory holding server working directories.
 func (c *Config) ServersDir() string { return filepath.Join(c.DataDir, "servers") }
 
-// RuntimesDir returns the directory holding downloaded runtimes.
 func (c *Config) RuntimesDir() string { return filepath.Join(c.DataDir, "runtimes") }
 
-// BackupsDir returns the backup destination (backups_dir or <data>/backups).
 func (c *Config) BackupsDir() string {
 	if c.BackupsDirOverride != "" {
 		return c.BackupsDirOverride
@@ -202,13 +177,10 @@ func (c *Config) BackupsDir() string {
 	return filepath.Join(c.DataDir, "backups")
 }
 
-// UserTemplatesDir returns the directory for user-provided templates.
 func (c *Config) UserTemplatesDir() string { return filepath.Join(c.DataDir, "templates") }
 
-// LocalRunDir holds console sockets when the local supervisor is used.
 func (c *Config) LocalRunDir() string { return filepath.Join(c.DataDir, "run") }
 
-// EnsureDirs creates the data directory layout.
 func (c *Config) EnsureDirs() error {
 	dirs := []string{c.DataDir, c.ServersDir(), c.RuntimesDir(), c.BackupsDir(), c.UserTemplatesDir()}
 	if c.Supervisor == "local" {

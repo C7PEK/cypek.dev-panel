@@ -28,7 +28,6 @@ interface NameDialogProps {
   onSubmit: (name: string) => void
 }
 
-/** One-field dialog used for new folder, new file and rename. */
 export function NameDialog({ open, onOpenChange, title, description, label, initial = "", submitLabel, pending, error, onSubmit }: NameDialogProps) {
   const [name, setName] = useState(initial)
   useEffect(() => {

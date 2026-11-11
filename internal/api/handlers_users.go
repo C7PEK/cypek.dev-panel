@@ -18,8 +18,6 @@ const (
 	CodeWrongPassword  = "wrong_password"
 )
 
-// Who may touch whom: the owner may manage everyone but cannot be changed;
-// admins manage users only; nobody edits their own role or disables themselves.
 func canManage(actor, target *auth.User) bool {
 	if target.Role == auth.RoleOwner {
 		return false
@@ -191,8 +189,6 @@ type changePasswordRequest struct {
 	New     string `json:"new"`
 }
 
-// handleChangePassword lets any user rotate their own password; other
-// sessions are logged out, the current one is re-issued.
 func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
 	_, user := sessionFromContext(r.Context())
 	var req changePasswordRequest
@@ -212,8 +208,6 @@ func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
 	s.audit.Log(r.Context(), audit.Entry{UserID: &user.ID, Username: user.Username, Action: "user.password", Target: user.Username, IP: clientIP(r)})
 	s.startSession(w, r, user, "auth.login")
 }
-
-// --- per-server permissions ----------------------------------------------
 
 type serverUserGrant struct {
 	User        *auth.User        `json:"user"`

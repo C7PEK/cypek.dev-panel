@@ -13,7 +13,7 @@ CREATE TABLE users (
 );
 
 CREATE TABLE sessions (
-    id           TEXT    PRIMARY KEY,          -- sha256 of the cookie token
+    id           TEXT    PRIMARY KEY,
     user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     csrf_token   TEXT    NOT NULL,
     created_at   TEXT    NOT NULL,

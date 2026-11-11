@@ -31,9 +31,8 @@ func TestServerExpiry(t *testing.T) {
 	}
 	e.waitServerState(id, "running")
 
-	// The loop runs on the real clock; drive it with a fake "now".
 	srv := e.api()
-	srv.checkExpiries(context.Background(), exp.Add(-48*time.Hour)) // warning only
+	srv.checkExpiries(context.Background(), exp.Add(-48*time.Hour))
 	if _, body = e.do(http.MethodGet, "/api/v1/servers/"+id, nil); body["expired"] != false {
 		t.Fatalf("expired too early: %v", body)
 	}
@@ -48,7 +47,6 @@ func TestServerExpiry(t *testing.T) {
 		t.Fatalf("start expired: %d %v", resp.StatusCode, body)
 	}
 
-	// A user with every server permission still cannot change the end date.
 	friend, _ := e.store.CreateUser(t.Context(), "kolega", "password123", auth.RoleUser)
 	_ = e.store.GrantPermissions(t.Context(), id, friend.ID, auth.AllPermissions)
 	owner := e.client
@@ -64,7 +62,6 @@ func TestServerExpiry(t *testing.T) {
 	}
 	e.client, e.csrf = owner, ownerCSRF
 
-	// Admin extends: unlocked, new date counts from now.
 	resp, body = e.do(http.MethodPut, "/api/v1/servers/"+id+"/expiry", map[string]any{"extendDays": 7})
 	if resp.StatusCode != 200 || body["expired"] != false {
 		t.Fatalf("extend: %d %v", resp.StatusCode, body)

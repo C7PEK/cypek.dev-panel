@@ -42,11 +42,10 @@ func (s *Server) writeScheduleError(w http.ResponseWriter, r *http.Request, err 
 	case errors.Is(err, scheduler.ErrInvalidCron):
 		writeFieldError(w, CodeInvalidCron, "cron", err.Error())
 	case errors.Is(err, scheduler.ErrInvalidName):
-		writeFieldError(w, CodeValidation, "name", "Name must be 1–80 characters.")
+		writeFieldError(w, CodeValidation, "name", "Name must be 1-80 characters.")
 	case errors.Is(err, scheduler.ErrNotFound):
 		writeError(w, http.StatusNotFound, CodeNotFound, "Schedule not found.")
 	default:
-		// Validation errors from the chain are user-facing messages.
 		writeFieldError(w, CodeValidation, "actions", err.Error())
 	}
 }
@@ -104,9 +103,6 @@ func (in *scheduleInput) apply(sch *scheduler.Schedule) {
 	}
 }
 
-// scheduleAllowed checks that the user may do what every action of the
-// schedule does: a schedule must not become a way around console.write,
-// power or backups.
 func (s *Server) scheduleAllowed(w http.ResponseWriter, r *http.Request, serverID string, actions []scheduler.Action) bool {
 	_, user := sessionFromContext(r.Context())
 	key := apiKeyFromContext(r)
@@ -239,8 +235,6 @@ func (s *Server) handleScheduleRuns(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": runs})
 }
 
-// handleCronPreview returns the next fire times for an expression, so the
-// UI can show "next: Tuesday 04:00" while the user types.
 func (s *Server) handleCronPreview(w http.ResponseWriter, r *http.Request) {
 	expr := r.URL.Query().Get("expr")
 	loc := s.scheduleEngine.Location()

@@ -16,7 +16,6 @@ interface Props {
   onClose: () => void
 }
 
-/** Loads a text file, edits it in CodeMirror and saves it back (Ctrl/Cmd+S or the button). */
 export function FileEditor({ serverId, path, onClose }: Props) {
   const { t } = useTranslation()
   const write = useWriteFile(serverId)
@@ -44,7 +43,6 @@ export function FileEditor({ serverId, path, onClose }: Props) {
     }
   }, [serverId, path])
 
-  // Warn on tab close with unsaved changes.
   useEffect(() => {
     if (!dirty) return
     const handler = (e: BeforeUnloadEvent) => {

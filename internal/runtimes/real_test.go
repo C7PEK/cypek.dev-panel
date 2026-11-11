@@ -12,8 +12,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/providers"
 )
 
-// TestRealNodeAndPython downloads real Node.js and CPython builds and runs
-// them. Opt-in: HOMEPANEL_REAL_INSTALL=1, HOMEPANEL_REAL_DIR optional.
 func TestRealNodeAndPython(t *testing.T) {
 	if os.Getenv("HOMEPANEL_REAL_INSTALL") != "1" {
 		t.Skip("set HOMEPANEL_REAL_INSTALL=1 to download real runtimes")

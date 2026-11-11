@@ -78,7 +78,6 @@ export function useCancelSchedule(serverId: string) {
   })
 }
 
-/** Next fire times for a cron expression; `enabled` lets callers debounce. */
 export function useCronPreview(expr: string, enabled: boolean) {
   return useQuery({
     queryKey: ["cron", "preview", expr],
@@ -88,8 +87,6 @@ export function useCronPreview(expr: string, enabled: boolean) {
     staleTime: 60_000,
   })
 }
-
-// --- Presets -----------------------------------------------------------------
 
 export interface CronPreset {
   key: string
@@ -103,12 +100,10 @@ export const CRON_PRESETS: CronPreset[] = [
   { key: "monday5", cron: "0 5 * * 1" },
 ]
 
-/** Preset key matching a cron expression, or "custom". */
 export function presetFor(cron: string): string {
   return CRON_PRESETS.find((p) => p.cron === cron.trim())?.key ?? "custom"
 }
 
-/** The "restart with warnings" chain (warn 10/5/1 min, then restart). */
 export function restartWithWarnings(messages: { ten: string; five: string; one: string }): ScheduleAction[] {
   return [
     { type: "warn", message: messages.ten },
@@ -121,16 +116,10 @@ export function restartWithWarnings(messages: { ten: string; five: string; one: 
   ]
 }
 
-/** Total time a chain spends waiting, in seconds. */
 export function chainWaitSeconds(actions: ScheduleAction[]): number {
   return actions.reduce((sum, a) => sum + (a.type === "wait" ? a.seconds ?? 0 : 0), 0)
 }
 
-/**
- * Human summary for the common shapes ("daily at 04:00", "every 6 hours",
- * "every hour", "Mondays at 05:00"); returns null for anything else so the
- * UI falls back to the raw expression.
- */
 export function describeCron(cron: string): { key: string; params?: Record<string, string | number> } | null {
   const parts = cron.trim().split(/\s+/)
   if (parts.length !== 5) return null

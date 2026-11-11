@@ -11,7 +11,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/db"
 )
 
-// Record is a stored backup.
 type Record struct {
 	ID        int64  `json:"id"`
 	ServerID  string `json:"serverId"`
@@ -23,15 +22,12 @@ type Record struct {
 	CreatedAt string `json:"createdAt"`
 }
 
-// ErrNotFound is returned for unknown backup ids.
 var ErrNotFound = errors.New("backup not found")
 
-// Store persists backup records and per-server settings.
 type Store struct {
 	db *sql.DB
 }
 
-// NewStore wraps a migrated database.
 func NewStore(sqlDB *sql.DB) *Store { return &Store{db: sqlDB} }
 
 func (s *Store) Insert(ctx context.Context, r *Record) (*Record, error) {
@@ -69,7 +65,6 @@ func (s *Store) Get(ctx context.Context, id int64) (*Record, error) {
 	return r, err
 }
 
-// List returns a server's backups, newest first.
 func (s *Store) List(ctx context.Context, serverID string) ([]*Record, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+cols+` FROM backups WHERE server_id = ? ORDER BY id DESC`, serverID)
 	if err != nil {
@@ -98,7 +93,6 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-// Settings reads a server's backup settings, falling back to defaults.
 func (s *Store) Settings(ctx context.Context, serverID, category string) (Settings, error) {
 	var raw string
 	err := s.db.QueryRowContext(ctx, `SELECT backup_settings FROM servers WHERE id = ?`, serverID).Scan(&raw)
@@ -118,7 +112,6 @@ func (s *Store) Settings(ctx context.Context, serverID, category string) (Settin
 	return st, nil
 }
 
-// SaveSettings validates and stores settings.
 func (s *Store) SaveSettings(ctx context.Context, serverID string, st Settings) error {
 	if err := st.Validate(); err != nil {
 		return err
@@ -131,7 +124,6 @@ func (s *Store) SaveSettings(ctx context.Context, serverID string, st Settings) 
 	return nil
 }
 
-// Items converts records for Prune.
 func Items(records []*Record) []Item {
 	out := make([]Item, 0, len(records))
 	for _, r := range records {

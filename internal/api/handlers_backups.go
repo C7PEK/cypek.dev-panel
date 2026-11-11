@@ -26,9 +26,8 @@ const (
 	CodeBackupsDir    = "backups_dir_unwritable"
 )
 
-// backupJob is the in-memory state of a running backup or restore.
 type backupJob struct {
-	Kind      string    `json:"kind"` // backup | restore
+	Kind      string    `json:"kind"`
 	StartedAt time.Time `json:"startedAt"`
 	Files     int       `json:"files"`
 	Bytes     int64     `json:"bytes"`
@@ -38,7 +37,7 @@ type backupJob struct {
 
 type backupJobs struct {
 	mu   sync.Mutex
-	jobs map[string]*backupJob // by server id
+	jobs map[string]*backupJob
 }
 
 func (b *backupJobs) get(id string) *backupJob {
@@ -74,8 +73,6 @@ func (s *Server) backupDir(serverID string) string {
 	return filepath.Join(s.cfg.BackupsDir(), serverID)
 }
 
-// createBackup runs a backup synchronously (callers decide whether to wrap
-// it in a goroutine). It handles the Minecraft save flush and retention.
 func (s *Server) createBackup(ctx context.Context, srv *servers.Server, trigger, note string, userID *int64, logf func(string, ...any)) (*backups.Record, error) {
 	settings, err := s.backups.Settings(ctx, srv.ID, string(srv.Category))
 	if err != nil {
@@ -122,7 +119,7 @@ func (s *Server) createBackup(ctx context.Context, srv *servers.Server, trigger,
 		return nil, err
 	}
 	logf("Backup done: %s (%d MB)", name, size>>20)
-	// Retention.
+
 	all, err := s.backups.List(ctx, srv.ID)
 	if err == nil {
 		for _, old := range backups.Prune(settings, backups.Items(all), time.Now()) {
@@ -281,8 +278,6 @@ func (s *Server) handleRestoreBackup(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			s.log.Error("restore failed", "server", srv.ID, "err", err)
 		} else if cur, gerr := s.servers.Get(ctx, srv.ID); gerr == nil && cur.InstallState == servers.InstallReady {
-			// Older backups carried .homepanel/run.json; the database is the
-			// source of truth for what the server runs.
 			if werr := shim.SaveRunConfig(s.servers.Dir(srv.ID), &cur.Run); werr != nil {
 				s.log.Warn("rewrite run config after restore", "server", srv.ID, "err", werr)
 			}
@@ -313,7 +308,6 @@ func (s *Server) handleBackupSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, saved)
 }
 
-// scheduledBackup is the scheduler's backup action.
 func (s *Server) scheduledBackup(ctx context.Context, serverID string, logf func(string, ...any)) error {
 	srv, err := s.servers.Get(ctx, serverID)
 	if err != nil {

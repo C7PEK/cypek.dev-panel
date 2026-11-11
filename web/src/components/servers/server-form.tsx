@@ -10,9 +10,6 @@ import { isApiError } from "@/lib/api"
 import { describeError } from "@/lib/errors"
 import type { CreateServerInput, Server } from "@/lib/types"
 
-// Shared by the create dialog and the Settings tab. Multi-line fields are kept
-// as text while editing; build() parses and validates them into the API shape.
-
 export type FormField =
   | "name"
   | "command"
@@ -68,7 +65,6 @@ export function valuesFromServer(s: Server): ServerFormValues {
   }
 }
 
-// API field paths (dotted, possibly indexed) -> form fields.
 const FIELD_MAP: Record<string, FormField> = {
   name: "name",
   "run.command": "command",
@@ -99,10 +95,8 @@ interface Props {
   formId: string
   initial: ServerFormValues
   onSubmit: (input: CreateServerInput) => void
-  /** Error from the mutation; field errors land next to their input. */
   error: unknown
   autoFocusName?: boolean
-  /** Rendered under the fields, e.g. a submit button for inline forms. */
   footer?: ReactNode
 }
 

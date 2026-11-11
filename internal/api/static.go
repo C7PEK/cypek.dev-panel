@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-// spaHandler serves a built single-page app from an fs.FS: real files as-is,
-// anything else falls back to index.html so client-side routes work.
 func spaHandler(dist fs.FS) http.Handler {
 	fileServer := http.FileServer(http.FS(dist))
 	_, indexErr := fs.Stat(dist, "index.html")
@@ -29,7 +27,6 @@ func spaHandler(dist fs.FS) http.Handler {
 		}
 		if info, err := fs.Stat(dist, p); err == nil && !info.IsDir() {
 			if strings.HasPrefix(p, "assets/") {
-				// Vite content-hashes everything under assets/.
 				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 			} else {
 				w.Header().Set("Cache-Control", "no-cache")
@@ -44,10 +41,6 @@ func spaHandler(dist fs.FS) http.Handler {
 	})
 }
 
-// devHandler forwards non-API requests (including the HMR websocket) to the
-// Vite dev server, falling back to the embedded build while Vite is down.
-// `make dev` starts both at once, so Vite is often not up yet when the panel
-// takes its first request; the reachability check is cached briefly.
 func devHandler(target string, fallback http.Handler) (http.Handler, error) {
 	u, err := url.Parse(target)
 	if err != nil {

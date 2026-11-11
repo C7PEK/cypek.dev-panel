@@ -22,8 +22,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/shim"
 )
 
-// The test binary is reused as the shim (`<bin> shim ...`) and, with
-// HOMEPANEL_FAKE_GAME=1, as the game itself.
 func TestMain(m *testing.M) {
 	if os.Getenv("HOMEPANEL_FAKE_GAME") == "1" {
 		fmt.Println("Done (0.01s)!")
@@ -89,7 +87,6 @@ func TestServerLifecycleAPI(t *testing.T) {
 	e := newEnv(t)
 	e.completeSetup("owner", "password123")
 
-	// Validation.
 	resp, body := e.do(http.MethodPost, "/api/v1/servers", map[string]any{"name": "", "run": map[string]any{"command": "x"}})
 	if resp.StatusCode != 422 || body["error"].(map[string]any)["field"] != "name" {
 		t.Fatalf("empty name: %d %v", resp.StatusCode, body)
@@ -105,7 +102,6 @@ func TestServerLifecycleAPI(t *testing.T) {
 		t.Fatalf("bad limits: %d %v", resp.StatusCode, body)
 	}
 
-	// Create.
 	resp, body = e.do(http.MethodPost, "/api/v1/servers", fakeServerBody("Test server"))
 	if resp.StatusCode != 201 {
 		t.Fatalf("create: %d %v", resp.StatusCode, body)
@@ -122,7 +118,6 @@ func TestServerLifecycleAPI(t *testing.T) {
 		t.Fatalf("list: %d %v", resp.StatusCode, body)
 	}
 
-	// Power.
 	resp, body = e.do(http.MethodPost, "/api/v1/servers/"+id+"/power", map[string]string{"action": "stop"})
 	if resp.StatusCode != 409 || errCode(body) != CodeConflict {
 		t.Fatalf("stop while stopped: %d %v", resp.StatusCode, body)
@@ -145,19 +140,16 @@ func TestServerLifecycleAPI(t *testing.T) {
 		t.Fatalf("bogus action: %d %v", resp.StatusCode, body)
 	}
 
-	// Console over WebSocket.
 	out := e.consoleSession(id, "hello from test\n", true)
 	if !strings.Contains(out, "Done") || !strings.Contains(out, "> hello from test") {
 		t.Errorf("console output = %q", out)
 	}
 
-	// Patch.
 	resp, body = e.do(http.MethodPatch, "/api/v1/servers/"+id, map[string]any{"name": "Renamed", "autostart": true, "limits": map[string]any{"memoryMb": 512, "cpuPercent": 50}})
 	if resp.StatusCode != 200 || body["name"] != "Renamed" || body["autostart"] != true {
 		t.Fatalf("patch: %d %v", resp.StatusCode, body)
 	}
 
-	// Stop + delete.
 	resp, body = e.do(http.MethodPost, "/api/v1/servers/"+id+"/power", map[string]string{"action": "stop"})
 	if resp.StatusCode != 200 {
 		t.Fatalf("stop: %d %v", resp.StatusCode, body)
@@ -175,7 +167,6 @@ func TestServerLifecycleAPI(t *testing.T) {
 		t.Errorf("get after delete: %d", resp.StatusCode)
 	}
 
-	// Audit captured the lifecycle.
 	_, body = e.do(http.MethodGet, "/api/v1/audit", nil)
 	var actions []string
 	for _, it := range body["items"].([]any) {
@@ -189,8 +180,6 @@ func TestServerLifecycleAPI(t *testing.T) {
 	}
 }
 
-// consoleSession connects to the console WS, optionally sends a command, and
-// returns the output collected within a short window.
 func (e *testEnv) consoleSession(id, command string, expectEcho bool) string {
 	e.t.Helper()
 	u, _ := url.Parse(e.srv.URL)
@@ -297,7 +286,6 @@ func TestServerPermissionMatrix(t *testing.T) {
 		}
 	}
 
-	// Grant power: the user can start it and read the console, but not type.
 	if err := e.store.GrantPermissions(ctx, id, plain.ID, []auth.Permission{auth.PermConsoleRead, auth.PermPower}); err != nil {
 		t.Fatal(err)
 	}
@@ -313,7 +301,6 @@ func TestServerPermissionMatrix(t *testing.T) {
 		t.Errorf("console.read backlog = %q", out)
 	}
 
-	// Owner cleans up.
 	e.loginAs("owner")
 	resp, _ = e.do(http.MethodPost, "/api/v1/servers/"+id+"/power", map[string]string{"action": "kill"})
 	if resp.StatusCode != 200 {
@@ -356,7 +343,7 @@ func TestConsoleWaitsForStoppedServer(t *testing.T) {
 	if m.Type != "state" || m.State != "stopped" {
 		t.Fatalf("first frame = %s", data)
 	}
-	// Start the server; the open socket should attach by itself.
+
 	resp, body = e.do(http.MethodPost, "/api/v1/servers/"+id+"/power", map[string]string{"action": "start"})
 	if resp.StatusCode != 200 {
 		t.Fatalf("start: %d %v", resp.StatusCode, body)
@@ -438,7 +425,7 @@ func TestEventsWebSocket(t *testing.T) {
 	if !found {
 		t.Errorf("snapshot missing server: %s", data)
 	}
-	// Unauthenticated sockets are refused before the upgrade.
+
 	_, resp2, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(e.srv.URL, "http")+"/api/v1/events", nil)
 	if err == nil || resp2 == nil || resp2.StatusCode != 401 {
 		t.Errorf("anonymous events: err=%v status=%v", err, resp2)
@@ -480,7 +467,6 @@ func TestSchedulesAPI(t *testing.T) {
 		t.Errorf("patch: %d %v", resp.StatusCode, body)
 	}
 
-	// Run now against the stopped fake server: command fails (not running) -> failed run recorded.
 	resp, _ = e.do(http.MethodPost, base+"/"+sid+"/run", nil)
 	if resp.StatusCode != 202 {
 		t.Fatalf("run: %d", resp.StatusCode)
@@ -499,7 +485,6 @@ func TestSchedulesAPI(t *testing.T) {
 		t.Errorf("runs = %v", runs)
 	}
 
-	// Permission: plain user without `schedules` gets 403; with it, 200.
 	plain, _ := e.store.CreateUser(t.Context(), "plain", "password123", auth.RoleUser)
 	_ = e.store.GrantPermissions(t.Context(), id, plain.ID, []auth.Permission{auth.PermConsoleRead})
 	e.loginAs("plain")

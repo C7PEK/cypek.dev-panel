@@ -34,7 +34,7 @@ type serverResponse struct {
 	Status    supervisor.Status `json:"status"`
 	Variables map[string]string `json:"variables"`
 	Players   *query.Players    `json:"players,omitempty"`
-	// GitUpdate: the server's code comes from git ("Update from git").
+
 	GitUpdate bool `json:"gitUpdate"`
 	expiryView
 }
@@ -55,10 +55,6 @@ func (s *Server) toResponse(ctx context.Context, srv *servers.Server) serverResp
 	return resp
 }
 
-// redactRun returns the server with its run config safe to show: values of
-// secret variables (rendered into env/args, e.g. DISCORD_TOKEN) are masked
-// for everyone, and env/args are hidden entirely from viewers without the
-// settings permission.
 func (s *Server) redactRun(ctx context.Context, srv *servers.Server, tpl *templates.Template) *servers.Server {
 	cp := *srv
 	cp.Run.Env = make(map[string]string, len(srv.Run.Env))
@@ -100,14 +96,10 @@ func (s *Server) redactRun(ctx context.Context, srv *servers.Server, tpl *templa
 	return &cp
 }
 
-// playersOf queries the game for its player count when the template told us
-// how; nil when unsupported or the server does not answer (still starting).
 func (s *Server) playersOf(ctx context.Context, srv *servers.Server) *query.Players {
 	kind := srv.Variables[templates.KeyQueryKind]
 	port, _ := strconv.Atoi(srv.Variables[templates.KeyQueryPort])
 	if kind == "" || port == 0 {
-		// Servers installed before the query builtins existed: derive the
-		// spec from the template and the stored user variables.
 		tpl, ok := s.templates.Get(srv.TemplateID)
 		if !ok || !isTemplateServer(srv) {
 			return nil
@@ -127,23 +119,18 @@ func (s *Server) playersOf(ctx context.Context, srv *servers.Server) *query.Play
 	return p
 }
 
-// serverInput mirrors the Server JSON. On create the required fields must be
-// present; on patch only the provided ones change. Pointers tell the two apart.
 type serverInput struct {
 	Name      *string         `json:"name"`
 	Run       *runInput       `json:"run"`
 	Limits    *limitsInput    `json:"limits"`
 	Autostart *bool           `json:"autostart"`
 	Ports     *[]servers.Port `json:"ports"`
-	// TemplateID + Variables create a server from a template (create only);
-	// Variables alone reconfigure a template server (patch).
+
 	TemplateID *string            `json:"templateId"`
 	Variables  *map[string]string `json:"variables"`
-	// ForcePorts saves even though another server uses the same port (they
-	// then must not run at the same time).
+
 	ForcePorts bool `json:"forcePorts"`
-	// ExpiresInDays (create only) stops and locks the server after that
-	// many days; it is never deleted automatically.
+
 	ExpiresInDays *int `json:"expiresInDays"`
 }
 
@@ -167,12 +154,10 @@ type limitsInput struct {
 
 var envKeyRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
-// apply validates in and merges it into srv. It returns the offending field
-// path and a message on validation failure.
 func (in *serverInput) apply(srv *servers.Server, creating bool) (field, msg string) {
 	if in.Name != nil {
 		if err := servers.ValidateName(*in.Name); err != nil {
-			return "name", "Name must be 1–64 characters."
+			return "name", "Name must be 1-64 characters."
 		}
 		srv.Name = strings.TrimSpace(*in.Name)
 	} else if creating {
@@ -209,7 +194,7 @@ func (in *serverInput) apply(srv *servers.Server, creating bool) (field, msg str
 		}
 		for i, p := range *in.Ports {
 			if p.Port < 1 || p.Port > 65535 || (p.Protocol != "tcp" && p.Protocol != "udp" && p.Protocol != "tcp+udp") {
-				return "ports", "Port " + itoa(i) + " must be 1–65535 with protocol tcp, udp or tcp+udp."
+				return "ports", "Port " + itoa(i) + " must be 1-65535 with protocol tcp, udp or tcp+udp."
 			}
 		}
 		srv.Ports = *in.Ports
@@ -292,14 +277,11 @@ func (in *runInput) apply(run *shim.RunConfig, creating bool) (field, msg string
 
 func itoa(i int) string { return strconv.Itoa(i) }
 
-// serverFromContext returns the server loaded by withServer.
 func serverFromContext(ctx context.Context) *servers.Server {
 	srv, _ := ctx.Value(ctxServer).(*servers.Server)
 	return srv
 }
 
-// withServer loads {id}, enforces the per-server permission and stores the
-// server in the context. Every /servers/{id} route goes through it.
 func (s *Server) withServer(perm auth.Permission) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -332,8 +314,6 @@ func (s *Server) withServer(perm auth.Permission) func(http.Handler) http.Handle
 	}
 }
 
-// statusOf fetches state plus live counters; failures degrade to "unknown"
-// rather than failing the whole request.
 func (s *Server) statusOf(ctx context.Context, id string) supervisor.Status {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -495,8 +475,7 @@ func (s *Server) handleUpdateServer(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &in) {
 		return
 	}
-	// The start command decides what runs on the machine: admins only. A
-	// "settings" user changes template variables and limits.
+
 	if in.Run != nil && !user.IsAdmin() {
 		writeError(w, http.StatusForbidden, CodeForbidden, "Only admins can change the start command.")
 		return
@@ -552,9 +531,6 @@ func (s *Server) handleUpdateServer(w http.ResponseWriter, r *http.Request) {
 	s.respondServer(w, r, http.StatusOK, srv)
 }
 
-// applyVariables validates new template variables, re-applies the
-// template's config steps and rebuilds the run config in place. It returns a
-// user-facing (code, field, message) on validation problems.
 func (s *Server) applyVariables(ctx context.Context, srv *servers.Server, given map[string]string) (code, field, msg string, err error) {
 	tpl, ok := s.templates.Get(srv.TemplateID)
 	if !ok {
@@ -564,7 +540,7 @@ func (s *Server) applyVariables(ctx context.Context, srv *servers.Server, given 
 	if err != nil {
 		return "", "", "", err
 	}
-	// Secrets shown masked come back masked: keep the stored value then.
+
 	merged := map[string]string{}
 	for k, v := range current {
 		merged[k] = v
@@ -586,7 +562,7 @@ func (s *Server) applyVariables(ctx context.Context, srv *servers.Server, given 
 	for i := range tpl.Variables {
 		v := &tpl.Variables[i]
 		if v.Source == "" || vals[v.Key] == current[v.Key] {
-			continue // unchanged dynamic values need no upstream round trip
+			continue
 		}
 		if err := s.validateSourceValue(ctx, v, vals[v.Key]); err != nil {
 			var ve *templates.ValueError
@@ -617,8 +593,6 @@ func (s *Server) applyVariables(ctx context.Context, srv *servers.Server, given 
 	return "", "", "", nil
 }
 
-// applySupervisorSettings pushes limits and autostart to the supervisor when
-// those fields were part of the request.
 func (s *Server) applySupervisorSettings(ctx context.Context, srv *servers.Server, limits, autostart bool) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -709,8 +683,7 @@ func (s *Server) handlePower(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	// The action must finish even if the browser stops waiting (a stop can
-	// take a minute); only the timeout bounds it.
+
 	bg := context.WithoutCancel(r.Context())
 	ctx, cancel := context.WithTimeout(bg, timeout)
 	defer cancel()
@@ -755,8 +728,6 @@ func samePorts(a, b []servers.Port) bool {
 	return true
 }
 
-// newPorts keeps only ports that were not there before, so saving other
-// settings is not blocked by an old, accepted conflict.
 func newPorts(old, cur []servers.Port) []servers.Port {
 	var out []servers.Port
 	for _, p := range cur {

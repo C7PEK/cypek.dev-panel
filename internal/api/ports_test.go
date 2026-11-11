@@ -33,7 +33,7 @@ func TestPortConflicts(t *testing.T) {
 	if !strings.Contains(errBody["message"].(string), `"FiveM A"`) {
 		t.Errorf("message: %v", errBody["message"])
 	}
-	// UDP-only on a TCP port of another server is fine; forcing is allowed.
+
 	resp, _ = e.do(http.MethodPost, "/api/v1/servers", map[string]any{"name": "UDP", "run": map[string]any{"command": "/bin/true"},
 		"ports": []map[string]any{{"name": "voice", "port": 9987, "protocol": "udp"}}})
 	if resp.StatusCode != 201 {
@@ -45,7 +45,6 @@ func TestPortConflicts(t *testing.T) {
 	}
 	idB := body["id"].(string)
 
-	// Both may exist, but not run together.
 	resp, body = e.do(http.MethodPost, "/api/v1/servers/"+idA+"/power", map[string]any{"action": "start"})
 	if resp.StatusCode >= 300 {
 		t.Fatalf("start A: %d %v", resp.StatusCode, body)
@@ -55,13 +54,12 @@ func TestPortConflicts(t *testing.T) {
 	if resp.StatusCode != 409 || errCode(body) != CodePortInUse || body["error"].(map[string]any)["params"].(map[string]any)["running"] != true {
 		t.Fatalf("start B while A runs: %d %v", resp.StatusCode, body)
 	}
-	// A restart of A itself is not blocked by its own port.
+
 	resp, body = e.do(http.MethodPost, "/api/v1/servers/"+idA+"/power", map[string]any{"action": "stop"})
 	if resp.StatusCode >= 300 {
 		t.Fatalf("stop A: %d %v", resp.StatusCode, body)
 	}
 
-	// Saving unrelated settings keeps working; changing to a taken port does not.
 	resp, _ = e.do(http.MethodPatch, "/api/v1/servers/"+idB, map[string]any{"name": "FiveM B2"})
 	if resp.StatusCode != 200 {
 		t.Fatalf("rename with old conflict: %d", resp.StatusCode)
@@ -71,7 +69,6 @@ func TestPortConflicts(t *testing.T) {
 		t.Fatalf("patch to taken port: %d %v", resp.StatusCode, body)
 	}
 
-	// Another program on the host.
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Skip(err)

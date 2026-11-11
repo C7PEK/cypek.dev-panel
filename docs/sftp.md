@@ -50,7 +50,7 @@ enabled = false
 
 ## Big files: download from a link instead
 
-SFTP itself is fast (about 170–230 MB/s upload and 400 MB/s download
+SFTP itself is fast (about 170-230 MB/s upload and 400 MB/s download
 measured locally). When uploads take ages, the bottleneck is the path from
 your computer to the server: home upload speed, Wi-Fi, or a Tailscale relay.
 For big worlds or modpacks use **Files → Download from link**. The server

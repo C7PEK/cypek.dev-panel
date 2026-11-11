@@ -19,7 +19,6 @@ const (
 	maxExpiry         = 10 * 365 * 24 * time.Hour
 )
 
-// expiryView is what the API shows about a server's end date.
 type expiryView struct {
 	ExpiresAt string `json:"expiresAt,omitempty"`
 	Expired   bool   `json:"expired"`
@@ -37,8 +36,6 @@ func viewExpiry(e *servers.Expiry) expiryView {
 	return v
 }
 
-// runExpiryLoop stops and locks servers whose end date passed and sends
-// the "expires soon" notice. It never deletes anything.
 func (s *Server) runExpiryLoop(ctx context.Context) {
 	t := time.NewTicker(time.Minute)
 	defer t.Stop()
@@ -69,7 +66,6 @@ func (s *Server) checkExpiries(ctx context.Context, now time.Time) {
 		info := alerts.ServerInfo{ID: srv.ID, Name: srv.Name, Dir: s.servers.Dir(srv.ID)}
 		switch {
 		case !now.Before(e.ExpiresAt):
-			// Lock first so nothing can start it while it is being stopped.
 			if err := s.servers.MarkExpired(ctx, srv.ID, now); err != nil {
 				s.log.Warn("mark expired", "server", srv.ID, "err", err)
 				continue
@@ -96,11 +92,8 @@ func (s *Server) checkExpiries(ctx context.Context, now time.Time) {
 }
 
 type expiryInput struct {
-	// ExpiresAt sets an exact date (RFC 3339 or YYYY-MM-DD, end of that
-	// day); null or "" removes the end date.
 	ExpiresAt *string `json:"expiresAt"`
-	// ExtendDays adds days to the current end date (or to now when it
-	// already passed).
+
 	ExtendDays int `json:"extendDays"`
 }
 
@@ -115,8 +108,6 @@ func parseExpiry(raw string) (time.Time, error) {
 	return time.Time{}, errors.New("use a date like 2026-12-31")
 }
 
-// handleSetExpiry (admin) sets, extends or removes a server's end date. A
-// date in the future unlocks an expired server.
 func (s *Server) handleSetExpiry(w http.ResponseWriter, r *http.Request) {
 	srv := serverFromContext(r.Context())
 	var in expiryInput

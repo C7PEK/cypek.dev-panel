@@ -23,7 +23,7 @@ func setup(t *testing.T) (*Manager, string, string) {
 	_ = os.WriteFile(filepath.Join(root, "server.properties"), []byte("motd=hi\n"), 0o640)
 	_ = os.WriteFile(filepath.Join(root, ".homepanel", "run.json"), []byte("{}"), 0o600)
 	_ = os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("outside"), 0o640)
-	// Symlinks: a file link and a directory link both pointing outside, one inside.
+
 	_ = os.Symlink(filepath.Join(outside, "secret.txt"), filepath.Join(root, "leak.txt"))
 	_ = os.Symlink(outside, filepath.Join(root, "leakdir"))
 	_ = os.Symlink("plugins", filepath.Join(root, "plugins-link"))
@@ -40,7 +40,6 @@ func TestResolveSafeMalicious(t *testing.T) {
 	for _, p := range bad {
 		abs, err := ResolveSafe(root, p)
 		if err == nil && (abs == root || strings.HasPrefix(abs, root+string(filepath.Separator))) {
-			// Inside root is acceptable only if it really is inside after resolving.
 			if real, rerr := filepath.EvalSymlinks(abs); rerr == nil && !strings.HasPrefix(real, root) {
 				t.Errorf("%q resolved outside via symlink: %s", p, real)
 			}
@@ -50,7 +49,7 @@ func TestResolveSafeMalicious(t *testing.T) {
 			t.Errorf("%q resolved to %s without error", p, abs)
 		}
 	}
-	// The plain Clean+Join of "%2e%2e/x" stays inside: it is a literal dir name, which is fine.
+
 	good := map[string]string{"": root, "plugins": filepath.Join(root, "plugins"), "/plugins/": filepath.Join(root, "plugins"),
 		"zażółć gęślą": filepath.Join(root, "zażółć gęślą"),
 		"plugins-link": filepath.Join(root, "plugins"), "new/deep/file.txt": filepath.Join(root, "new", "deep", "file.txt")}
@@ -175,7 +174,6 @@ func TestCRUD(t *testing.T) {
 		t.Errorf("upload into outward symlink: %v", err)
 	}
 
-	// Deleting a symlink removes the link, not the target.
 	if err := m.Delete("leakdir"); err != nil && !errors.Is(err, ErrOutsideRoot) {
 		t.Errorf("delete symlink: %v", err)
 	}
@@ -192,7 +190,6 @@ func TestCRUD(t *testing.T) {
 		t.Errorf("delete missing: %v", err)
 	}
 
-	// Extract with a zip-slip entry must not write outside.
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
 	w, _ := zw.Create("ok/a.txt")

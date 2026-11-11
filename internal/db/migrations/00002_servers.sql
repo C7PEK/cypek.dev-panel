@@ -1,15 +1,15 @@
 -- +goose Up
 CREATE TABLE servers (
-    id          TEXT    PRIMARY KEY,                 -- short [a-z0-9] id, used in paths and unit names
+    id          TEXT    PRIMARY KEY,
     name        TEXT    NOT NULL,
     template_id TEXT    NOT NULL DEFAULT 'custom',
     category    TEXT    NOT NULL DEFAULT 'other' CHECK (category IN ('fivem', 'minecraft', 'discord-bot', 'other')),
     autostart   INTEGER NOT NULL DEFAULT 0,
     memory_mb   INTEGER NOT NULL DEFAULT 0,
     cpu_percent INTEGER NOT NULL DEFAULT 0,
-    run_config  TEXT    NOT NULL,                    -- JSON, mirrors .homepanel/run.json
-    variables   TEXT    NOT NULL DEFAULT '{}',       -- JSON, template variables (secrets encrypted)
-    ports       TEXT    NOT NULL DEFAULT '[]',       -- JSON, [{name, port, protocol}] shown for forwarding
+    run_config  TEXT    NOT NULL,
+    variables   TEXT    NOT NULL DEFAULT '{}',
+    ports       TEXT    NOT NULL DEFAULT '[]',
     created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at  TEXT    NOT NULL,
     updated_at  TEXT    NOT NULL

@@ -59,7 +59,7 @@ func TestAlertsAPI(t *testing.T) {
 	if resp.StatusCode != 200 || st["webhookSet"] != true || st["webhookHint"] != "…/9876" || st["panelUrl"] != "http://192.168.1.5:8420" {
 		t.Fatalf("save: %d %v", resp.StatusCode, body)
 	}
-	// The webhook never comes back; omitting it keeps it.
+
 	resp, body = e.do(http.MethodPut, "/api/v1/alerts", map[string]any{"mention": "", "graceSec": 25})
 	_, raw := e.do(http.MethodGet, "/api/v1/alerts", nil)
 	if resp.StatusCode != 200 || raw["settings"].(map[string]any)["webhookSet"] != true {
@@ -83,7 +83,6 @@ func TestAlertsAPI(t *testing.T) {
 		t.Errorf("history: %v", h)
 	}
 
-	// Per server.
 	resp, body = e.do(http.MethodPost, "/api/v1/servers", map[string]any{"name": "Bot", "run": map[string]any{"command": "/bin/true"}})
 	id := body["id"].(string)
 	resp, body = e.do(http.MethodGet, "/api/v1/servers/"+id+"/alerts", nil)
@@ -104,7 +103,6 @@ func TestAlertsAPI(t *testing.T) {
 		t.Errorf("server test message: %+v", last)
 	}
 
-	// Permissions: plain users cannot see global settings; server alerts need settings.
 	plain, _ := e.store.CreateUser(t.Context(), "plain", "password123", auth.RoleUser)
 	_ = e.store.GrantPermissions(t.Context(), id, plain.ID, []auth.Permission{auth.PermConsoleRead})
 	e.loginAs("plain")

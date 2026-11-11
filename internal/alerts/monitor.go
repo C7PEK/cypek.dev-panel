@@ -14,7 +14,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/supervisor"
 )
 
-// Alert kinds.
 const (
 	KindDown      = "down"
 	KindRecovered = "recovered"
@@ -24,30 +23,23 @@ const (
 )
 
 const (
-	// stableFor is how long a server must run before an incident is over.
 	stableFor = 30 * time.Second
-	// crashLoop crashes in one incident (no stable run in between) count as
-	// down even if the server happens to be starting again at the check.
+
 	crashLoop = 2
-	// catchUpWindow: a crash that happened while the panel was down is
-	// still reported if it is this recent.
+
 	catchUpWindow = 10 * time.Minute
 	errorCooldown = 10 * time.Minute
 	historySize   = 50
 )
 
-// ServerInfo is what the monitor needs to know about a server.
 type ServerInfo struct {
 	ID   string
 	Name string
 	Dir  string
-	// CleanExitIsDown: a process ending with code 0 means the server is
-	// down (bots). Game servers end with 0 after a console "stop", which is
-	// intentional.
+
 	CleanExitIsDown bool
 }
 
-// HistoryItem records one delivery attempt.
 type HistoryItem struct {
 	At         time.Time `json:"at"`
 	ServerID   string    `json:"serverId"`
@@ -57,14 +49,13 @@ type HistoryItem struct {
 	Error      string    `json:"error,omitempty"`
 }
 
-// Monitor turns status samples and shim events into alerts.
 type Monitor struct {
 	Store   *Store
 	Sender  Sender
 	Servers func(ctx context.Context) ([]ServerInfo, error)
 	Log     *slog.Logger
 	Now     func() time.Time
-	// ReadEvents defaults to shim.ReadEvents.
+
 	ReadEvents func(dir string, limit int) ([]shim.Event, error)
 
 	mu       sync.Mutex
@@ -90,7 +81,7 @@ type tracker struct {
 type incident struct {
 	start        time.Time
 	last         time.Time
-	kind         string // crash | exit
+	kind         string
 	exitCode     *int
 	crashes      int
 	downSent     bool
@@ -115,8 +106,6 @@ func (m *Monitor) start() {
 	})
 }
 
-// worker delivers messages in order so a "down" never arrives after its
-// "recovered".
 func (m *Monitor) worker() {
 	for j := range m.queue {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -141,7 +130,6 @@ func (m *Monitor) worker() {
 	}
 }
 
-// History returns recent deliveries, newest first.
 func (m *Monitor) History() []HistoryItem {
 	m.start()
 	m.mu.Lock()
@@ -149,8 +137,6 @@ func (m *Monitor) History() []HistoryItem {
 	return append([]HistoryItem{}, m.history...)
 }
 
-// Tick processes one round of status samples (called by the metrics
-// collector every few seconds).
 func (m *Monitor) Tick(ctx context.Context, states map[string]supervisor.State) {
 	m.start()
 	list, err := m.Servers(ctx)
@@ -201,8 +187,6 @@ func (m *Monitor) tickServer(ctx context.Context, srv ServerInfo, state supervis
 	alive := running || state == supervisor.StateStarting
 
 	if !known {
-		// Start after the existing history; but a fresh crash that left the
-		// server down while the panel was restarting still counts.
 		if n := len(evs); n > 0 {
 			last := evs[n-1]
 			tr.cursor = eventTime(last)
@@ -232,7 +216,6 @@ func (m *Monitor) tickServer(ctx context.Context, srv ServerInfo, state supervis
 			tr.inc.crashes++
 			tr.inc.runningSince = time.Time{}
 		case e.Kind == "stop", e.Kind == "exit":
-			// Stopped from the panel or the console: intentional.
 			tr.inc = nil
 		case e.Kind == "error":
 			errorEvents = append(errorEvents, e)
@@ -296,7 +279,6 @@ func (m *Monitor) enqueue(webhook string, msg Message, srv ServerInfo, kind stri
 	}
 }
 
-// SendTest posts a test message and waits for the result.
 func (m *Monitor) SendTest(ctx context.Context, webhook, mention string, settings Settings, srv *ServerInfo) error {
 	m.start()
 	men, _ := ParseMention(mention)
@@ -322,15 +304,13 @@ func (m *Monitor) SendTest(ctx context.Context, webhook, mention string, setting
 	}
 }
 
-// LastLogLines returns the tail of the newest console log, ANSI stripped.
 func LastLogLines(dir string, n int) []string {
 	matches, _ := filepath.Glob(filepath.Join(dir, "logs", "console-*.log"))
 	if len(matches) == 0 {
 		return nil
 	}
 	sort.Strings(matches)
-	// The log is in the game's folder: regular files only (a FIFO would
-	// stall the alert loop for every server).
+
 	f, err := safefs.OpenRegular(dir, filepath.Join("logs", filepath.Base(matches[len(matches)-1])))
 	if err != nil {
 		return nil

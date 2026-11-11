@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api"
 import type { ConsoleHints, CreateServerInput, ExpiryInfo, ExpiryInput, InstallJob, InstallState, LiveServer, PowerAction, Server, ServerState, ServerStatus, UpdateServerInput } from "@/lib/types"
 
-/** Prefer the events socket's fresher status/players over the 3 s REST snapshot. */
 export function mergeLive(server: Server, live?: LiveServer): Server {
   if (!live) return server
   return { ...server, status: { ...server.status, ...live.status }, players: live.players ?? server.players }
@@ -29,7 +28,6 @@ export function useServer(id: string) {
     queryKey: serverKey(id),
     queryFn: () => api<Server>("GET", serverPath(id)),
     refetchInterval: POLL_MS,
-    // A deleted server returns 404 forever; retrying only delays the message.
     retry: false,
   })
 }
@@ -68,7 +66,6 @@ export function useDeleteServer() {
   })
 }
 
-/** Sets, extends or removes a server's end date (admin). */
 export function useSetExpiry(id: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -86,7 +83,6 @@ export type ExpiryChoice = "none" | "7" | "14" | "30" | "60" | "90" | "custom"
 
 export const EXPIRY_PRESETS = ["7", "14", "30", "60", "90"] as const
 
-/** Days to send (undefined = no limit, null = invalid custom value). */
 export function expiryDays(choice: ExpiryChoice, custom: string): number | undefined | null {
   if (choice === "none") return undefined
   if (choice !== "custom") return Number(choice)
@@ -100,7 +96,6 @@ export type ExpiryStatus =
   | { kind: "today" }
   | { kind: "soon" | "later"; days: number }
 
-/** Where a server stands relative to its end date ("soon" = 3 days or less). */
 export function expiryStatus(s: Pick<Server, "expiresAt" | "expired">): ExpiryStatus {
   if (s.expired) return { kind: "expired" }
   if (!s.expiresAt) return { kind: "none" }
@@ -122,7 +117,6 @@ export function usePower(id: string) {
   })
 }
 
-/** Which actions make sense for a state. A server that is not installed yet can only be deleted. */
 export function canDo(state: ServerState, installState: InstallState = "ready") {
   const off = state === "stopped" || state === "crashed"
   const on = state === "running" || state === "starting"
@@ -142,7 +136,6 @@ export const isInstalling = (s: Pick<Server, "installState">) => s.installState 
 
 export const installJobKey = (id: string) => ["servers", id, "install"] as const
 
-/** Polls the installation job every second while enabled. */
 export function useInstallJob(id: string, enabled: boolean) {
   return useQuery({
     queryKey: installJobKey(id),
@@ -164,7 +157,6 @@ export function useReinstall(id: string) {
   })
 }
 
-/** Pull the latest code from git, reinstall dependencies, start again. */
 export function useGitUpdate(id: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -178,7 +170,6 @@ export function useGitUpdate(id: string) {
 
 export const consoleHintsKey = (id: string) => ["servers", id, "console-hints"] as const
 
-/** Command list + online players for console autocompletion; polls every 5 s while enabled. */
 export function useConsoleHints(id: string, enabled: boolean) {
   return useQuery({
     queryKey: consoleHintsKey(id),

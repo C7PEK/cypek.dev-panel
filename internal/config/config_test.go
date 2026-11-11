@@ -37,7 +37,6 @@ func TestGenerateAndLoad(t *testing.T) {
 		t.Errorf("config mode = %o, want 600", mode)
 	}
 
-	// Second call must load, not regenerate.
 	again, err := LoadOrCreate(path, base)
 	if err != nil {
 		t.Fatal(err)

@@ -16,17 +16,12 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/shim"
 )
 
-// Local runs shims as detached child processes (own session, output to
-// .homepanel/shim.log). Used by `serve --dev`; no sandboxing, no autostart.
-// Shims outlive a panel restart because they are not killed with the parent;
-// the panel finds them again through their sockets.
 type Local struct {
 	layout Layout
 	exe    string
 	log    *slog.Logger
 }
 
-// NewLocal returns a dev supervisor. exe is the homepanel binary to run `shim` from.
 func NewLocal(layout Layout, exe string, log *slog.Logger) *Local {
 	return &Local{layout: layout, exe: exe, log: log}
 }
@@ -52,7 +47,7 @@ func (l *Local) Start(ctx context.Context, id string) error {
 	defer logFile.Close()
 
 	sock := l.layout.SocketPath(id)
-	// Flags come first: the flag package stops at the first positional argument.
+
 	cmd := exec.Command(l.exe, "shim", "--dir", dir, "--socket", sock, id)
 	cmd.Dir = dir
 	cmd.Stdout = logFile
@@ -61,7 +56,7 @@ func (l *Local) Start(ctx context.Context, id string) error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start shim for %s: %w", id, err)
 	}
-	// Reap the child when it exits; it is detached, so this never blocks a stop.
+
 	exited := make(chan struct{})
 	go func() {
 		_ = cmd.Wait()
@@ -97,7 +92,6 @@ func (l *Local) Kill(ctx context.Context, id string) error {
 	return l.signal(ctx, id, shim.TypeKill)
 }
 
-// signal sends a stop/kill frame and waits until the shim is gone.
 func (l *Local) signal(ctx context.Context, id, frameType string) error {
 	if err := checkID(id); err != nil {
 		return err
@@ -122,7 +116,7 @@ func (l *Local) signal(ctx context.Context, id, frameType string) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	// The shim removes its socket right after closing clients; give it a moment.
+
 	waitUntil(ctx, 2*time.Second, func() bool {
 		_, err := os.Stat(l.layout.SocketPath(id))
 		return errors.Is(err, os.ErrNotExist)
@@ -172,8 +166,6 @@ func (l *Local) Attach(ctx context.Context, id string) (Console, error) {
 	return c, nil
 }
 
-// Stats reads /proc for the game's main process only (children are not
-// summed). Good enough for development.
 func (l *Local) Stats(ctx context.Context, id string) (Stats, error) {
 	if err := checkID(id); err != nil {
 		return Stats{}, err
@@ -205,13 +197,12 @@ func procStats(pid int) (Stats, error) {
 	}
 	stat, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
 	if err == nil {
-		// Fields after the command name (which may contain spaces) start at ")".
 		if i := strings.LastIndexByte(string(stat), ')'); i > 0 {
 			f := strings.Fields(string(stat[i+1:]))
 			if len(f) > 12 {
 				utime, _ := strconv.ParseUint(f[11], 10, 64)
 				stime, _ := strconv.ParseUint(f[12], 10, 64)
-				st.CPUNanos = (utime + stime) * uint64(time.Second/100) // USER_HZ is 100 on Linux
+				st.CPUNanos = (utime + stime) * uint64(time.Second/100)
 			}
 		}
 	}

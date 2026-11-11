@@ -13,10 +13,6 @@ import { useMods } from "@/lib/mods"
 import { usePower } from "@/lib/servers"
 import type { ModInstallResult, Server } from "@/lib/types"
 
-/**
- * Plugins (Paper & co.) or mods (Fabric, Forge, ...) from Modrinth.
- * The backend enforces files.read / files.write; canWrite only hides buttons.
- */
 export function ModsTab({ server, canWrite }: { server: Server; canWrite: boolean }) {
   const { t } = useTranslation()
   const mods = useMods(server.id)
@@ -48,7 +44,6 @@ export function ModsTab({ server, canWrite }: { server: Server; canWrite: boolea
   const { platform, installed } = mods.data
   const kind = platform.kind === "mods" ? "mods" : "plugins"
 
-  // Vanilla has no loader at all: explain instead of asking to pick one.
   if (server.templateId === "minecraft-vanilla" && !platform.loader && installed.length === 0) {
     return (
       <Alert>

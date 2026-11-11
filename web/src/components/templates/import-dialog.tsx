@@ -22,7 +22,6 @@ type Mode = "paste" | "url" | "file"
 
 const MAX_FILE = 2 * 1024 * 1024
 
-/** Converts a Pterodactyl/Pelican egg or a PufferPanel template, previews it, then saves. */
 export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   return open ? <ImportBody onClose={() => onOpenChange(false)} /> : null
 }

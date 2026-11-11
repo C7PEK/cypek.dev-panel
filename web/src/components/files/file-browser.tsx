@@ -59,7 +59,6 @@ type DialogState =
 
 interface Props {
   serverId: string
-  /** Remembered path for this page visit. */
   path: string
   onPathChange: (path: string) => void
 }
@@ -168,7 +167,6 @@ export function FileBrowser({ serverId, path, onPathChange }: Props) {
       onDragLeave={() => setDragOver(false)}
       onDrop={onDrop}
     >
-      {/* Breadcrumb */}
       <nav className="flex flex-wrap items-center gap-1 text-sm" aria-label={t("files.path")}>
         <button
           type="button"
@@ -197,7 +195,6 @@ export function FileBrowser({ serverId, path, onPathChange }: Props) {
         })}
       </nav>
 
-      {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <input
           ref={inputRef}
@@ -245,7 +242,6 @@ export function FileBrowser({ serverId, path, onPathChange }: Props) {
         </div>
       )}
 
-      {/* Listing */}
       {listing.error ? (
         <Alert variant="destructive">
           <AlertDescription>

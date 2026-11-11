@@ -14,7 +14,6 @@ const STYLES: Record<string, string> = {
   pufferpanel: "border-orange-500/40 bg-orange-500/10 text-orange-300",
 }
 
-/** Where a template comes from: built-in, custom or imported from another panel. */
 export function SourceBadge({ template, className }: { template: Template; className?: string }) {
   const { t } = useTranslation()
   const kind = sourceKind(template)
@@ -26,7 +25,6 @@ export function SourceBadge({ template, className }: { template: Template; class
   )
 }
 
-/** Shown when the install step runs a shell script. */
 export function ScriptBadge({ className }: { className?: string }) {
   const { t } = useTranslation()
   return (

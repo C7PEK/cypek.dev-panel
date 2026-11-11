@@ -26,23 +26,20 @@ const (
 	CodeBadLink      = "bad_link"
 	maxJobsPerServer = 2
 	maxJobsTotal     = 4
-	keepFreeBytes    = 1 << 30 // never fill the disk the panel lives on
+	keepFreeBytes    = 1 << 30
 	jobTimeout       = 6 * time.Hour
 	finishedJobTTL   = 2 * time.Hour
 )
 
-// downloadClient reaches public internet addresses only (no LAN, no
-// localhost): a pasted link must not become a way to probe the network.
 var downloadClient = netguard.Client(netguard.Options{})
 
-// fileJob is a download or extraction running in the background.
 type fileJob struct {
 	ID         string    `json:"id"`
-	Kind       string    `json:"kind"`  // download | extract
-	State      string    `json:"state"` // running | done | failed | cancelled
-	Phase      string    `json:"phase"` // downloading | extracting
+	Kind       string    `json:"kind"`
+	State      string    `json:"state"`
+	Phase      string    `json:"phase"`
 	Name       string    `json:"name"`
-	Source     string    `json:"source,omitempty"` // gdrive | dropbox | onedrive | github | direct
+	Source     string    `json:"source,omitempty"`
 	Dir        string    `json:"dir"`
 	File       string    `json:"file,omitempty"`
 	Bytes      int64     `json:"bytes"`
@@ -124,7 +121,6 @@ func newJobID() string {
 	return hex.EncodeToString(b[:])
 }
 
-// freeBytes is what a job may write: free space minus a safety margin.
 func freeBytes(dir string) int64 {
 	var st syscall.Statfs_t
 	if err := syscall.Statfs(dir, &st); err != nil {
@@ -158,7 +154,6 @@ type fetchInput struct {
 	DeleteArchive bool   `json:"deleteArchive"`
 }
 
-// handleFilesFetch downloads a pasted link into the server folder.
 func (s *Server) handleFilesFetch(w http.ResponseWriter, r *http.Request) {
 	srv := serverFromContext(r.Context())
 	var in fetchInput
@@ -184,10 +179,10 @@ func (s *Server) handleFilesFetch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusTooManyRequests, CodeTooManyJobs, err.Error())
 		return
 	}
-	// The query string may carry access tokens: log host and path only.
+
 	s.auditFile(r, "files.fetch", in.Path, map[string]any{"host": u.Host, "path": u.EscapedPath(), "source": src.Kind, "extract": in.Extract})
 	serverDir := s.servers.Dir(srv.ID)
-	snapshot := *job // the goroutine below updates job; answer with a copy
+	snapshot := *job
 	go func() {
 		defer cancel()
 		incoming, err := m.NewIncoming(in.Path)
@@ -225,8 +220,6 @@ func (s *Server) extractJob(ctx context.Context, m *files.Manager, jobID, archiv
 	})
 }
 
-// handleFilesExtract unpacks an archive in the background (big worlds take
-// minutes; one HTTP request would time out).
 func (s *Server) handleFilesExtract(w http.ResponseWriter, r *http.Request) {
 	srv := serverFromContext(r.Context())
 	var req extractRequest

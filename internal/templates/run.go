@@ -8,15 +8,11 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/shim"
 )
 
-// Builtins written by BuildRun so the panel knows how to query players
-// without re-reading the template.
 const (
 	KeyQueryKind = "QUERY_KIND"
 	KeyQueryPort = "QUERY_PORT"
 )
 
-// RenderQuery renders the template's query spec (kind, port) or returns
-// ok=false when the template has none.
 func RenderQuery(t *Template, vars map[string]string) (kind string, port int, ok bool, err error) {
 	if t.Query == nil {
 		return "", 0, false, nil
@@ -32,10 +28,6 @@ func RenderQuery(t *Template, vars map[string]string) (kind string, port int, ok
 	return t.Query.Kind, n, true, nil
 }
 
-// BuildRun renders the template's start/stop section into a shim run config
-// and the port list. vars must contain the user variables plus the builtins
-// the installer resolved (JAVA, JVM_FLAGS, ...). It also stores the rendered
-// query spec into vars (QUERY_KIND / QUERY_PORT) so it is kept as a builtin.
 func BuildRun(t *Template, vars map[string]string) (shim.RunConfig, []servers.Port, error) {
 	if kind, port, ok, err := RenderQuery(t, vars); err != nil {
 		return shim.RunConfig{}, nil, err
@@ -46,13 +38,10 @@ func BuildRun(t *Template, vars map[string]string) (shim.RunConfig, []servers.Po
 	var run shim.RunConfig
 	var err error
 	if t.Start.Shell != "" {
-		// Values travel as environment variables; the shell text only ever
-		// references them, so a value cannot inject commands.
 		run.Command = "/bin/bash"
 		run.Args = []string{"-c", ShellReferences(t.Start.Shell)}
 		run.Env = ShellEnv(vars)
-		// Secrets the start command never mentions (e.g. a git token) stay
-		// out of the server's environment and its run.json.
+
 		used := map[string]bool{}
 		for _, k := range placeholders(t.Start.Shell) {
 			used[k] = true
@@ -96,7 +85,6 @@ func BuildRun(t *Template, vars map[string]string) (shim.RunConfig, []servers.Po
 	return run, ports, nil
 }
 
-// RenderPorts resolves the template's port list for the given values.
 func RenderPorts(t *Template, vars map[string]string) ([]servers.Port, error) {
 	ports := make([]servers.Port, 0, len(t.Ports))
 	for _, p := range t.Ports {
@@ -113,8 +101,6 @@ func RenderPorts(t *Template, vars map[string]string) ([]servers.Port, error) {
 	return ports, nil
 }
 
-// PortVariable names the variable a port comes from when the template's
-// port is exactly "{{KEY}}" (so errors can point at that field).
 func PortVariable(t *Template, name string) string {
 	for _, p := range t.Ports {
 		if p.Name != name {
@@ -127,8 +113,6 @@ func PortVariable(t *Template, name string) string {
 	return ""
 }
 
-// ShellReferences turns {{KEY}} into "${KEY}" (and {{KEY...}} into ${KEY})
-// so a shell command line only references environment variables.
 func ShellReferences(s string) string {
 	return placeholderRe.ReplaceAllStringFunc(s, func(m string) string {
 		sub := placeholderRe.FindStringSubmatch(m)
@@ -139,8 +123,6 @@ func ShellReferences(s string) string {
 	})
 }
 
-// ShellEnv exports every variable plus a PATH that puts the prepared runtime
-// (and a Python venv) first, like a Pterodactyl yolk image would.
 func ShellEnv(vars map[string]string) map[string]string {
 	env := map[string]string{}
 	for k, v := range vars {

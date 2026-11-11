@@ -3,7 +3,6 @@ import { useState } from "react"
 
 import { cn } from "@/lib/utils"
 
-/** Project icon from Modrinth with a puzzle fallback (missing or broken image). */
 export function ModIcon({ url, className }: { url?: string; className?: string }) {
   const [broken, setBroken] = useState(false)
   return (

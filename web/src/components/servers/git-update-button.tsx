@@ -11,7 +11,6 @@ import { describeError } from "@/lib/errors"
 import { isInstalling, useGitUpdate } from "@/lib/servers"
 import type { Server } from "@/lib/types"
 
-/** "Update from git": pull, reinstall dependencies, start again (Discord bots). */
 export function GitUpdateButton({ server, size, className }: { server: Server; size?: "sm" | "default"; className?: string }) {
   const { t } = useTranslation()
   const gitUpdate = useGitUpdate(server.id)

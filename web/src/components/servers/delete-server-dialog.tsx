@@ -12,8 +12,6 @@ import { describeError } from "@/lib/errors"
 import { canDo, useDeleteServer } from "@/lib/servers"
 import type { Server } from "@/lib/types"
 
-// The "Delete server" button with its confirmation (optionally keeping the
-// files). Used in the settings danger zone and on expired servers.
 export function DeleteServerDialog({ server, className, size }: { server: Server; className?: string; size?: "sm" | "default" }) {
   const { t } = useTranslation()
   const navigate = useNavigate()

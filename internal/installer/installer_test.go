@@ -24,7 +24,6 @@ import (
 	builtin "github.com/C7PEK/cypek.dev-panel/templates"
 )
 
-// fakeUpstream serves Paper and Adoptium lookalikes plus the files they point at.
 func fakeUpstream(t *testing.T) (*httptest.Server, string) {
 	t.Helper()
 	var buf bytes.Buffer
@@ -87,7 +86,7 @@ func TestInstallPaperEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir := filepath.Join(root, "servers", "abcd1234")
-	// Pre-existing server.properties: other keys and comments must survive.
+
 	_ = os.MkdirAll(dir, 0o750)
 	_ = os.WriteFile(filepath.Join(dir, "server.properties"), []byte("#Minecraft server properties\nmax-players=20\nserver-port=25565\n"), 0o640)
 
@@ -161,7 +160,7 @@ func TestInstallRefusesWithoutConsent(t *testing.T) {
 		Log:  slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))})
 	reg, _ := templates.Load(builtin.Builtin, "")
 	tpl, _ := reg.Get("minecraft-paper")
-	// Bypass ValidateValues on purpose: the installer must enforce consent itself too.
+
 	vars := map[string]string{"MC_VERSION": "1.21.11", "EULA": "false", "RAM_MB": "1024", "PORT": "25565", "MOTD": "x"}
 	done := make(chan error, 1)
 	if err := m.Start(context.Background(), "abcd1234", filepath.Join(root, "s"), tpl, vars, func(_ *Result, e error) { done <- e }); err != nil {
@@ -207,7 +206,7 @@ func TestExtractAndURLSteps(t *testing.T) {
 		"  - download: {provider: url, url: \"" + srv.URL + "/sd.zip\", sha256: \"" + hex.EncodeToString(sum[:]) + "\", to: sd.zip}\n" +
 		"  - extract: {from: sd.zip, to: \".\", strip: 1}\n" +
 		"start: {command: /bin/true, args: []}\n"
-	// The template validator insists on https URLs; httptest TLS URLs are https.
+
 	tpl, err := templates.Parse([]byte(tplYAML))
 	if err != nil {
 		t.Fatal(err)

@@ -7,7 +7,6 @@ export function useSystemInfo() {
   return useQuery({ queryKey: ["system", "info"], queryFn: () => api<SystemInfo>("GET", "/system/info"), staleTime: 60_000 })
 }
 
-/** Firewall state plus ready-made "open port" commands for these ports. */
 export function useFirewall(ports: Pick<Port, "port" | "protocol">[]) {
   const specs = ports.map((p) => `${p.port}/${p.protocol}`)
   return useQuery({
@@ -24,7 +23,6 @@ export function useFirewall(ports: Pick<Port, "port" | "protocol">[]) {
 
 export const panelUpdateKey = ["system", "update"] as const
 
-/** Owner only. GitHub is asked at most every 15 min by the backend too. */
 export function usePanelUpdate(enabled: boolean) {
   return useQuery({
     queryKey: panelUpdateKey,

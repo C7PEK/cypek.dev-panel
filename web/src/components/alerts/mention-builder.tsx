@@ -5,8 +5,6 @@ import { NativeSelect } from "@/components/mods/platform-card"
 import { Input } from "@/components/ui/input"
 import { buildMention, type MentionMode, parseMention, validMention } from "@/lib/alerts"
 
-// Builds a Discord mention string ("<@&id>", "@here", ...) from a simple
-// picker. Remount it (key) to reset it from a new value.
 export function MentionBuilder({
   id,
   value,
@@ -16,7 +14,6 @@ export function MentionBuilder({
   id: string
   value: string
   onChange: (v: string) => void
-  /** Label for the "" option (e.g. "Nikogo" or "Jak w ustawieniach panelu"). */
   emptyLabel?: string
 }) {
   const { t } = useTranslation()

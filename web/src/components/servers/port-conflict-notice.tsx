@@ -5,10 +5,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-/**
- * Amber note about a taken port with optional "use the free port" and
- * "save anyway" actions. `error` styles it as a failed save.
- */
 export function PortConflictNotice({
   message,
   suggestion,

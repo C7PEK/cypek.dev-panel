@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { emptyWebhookDraft, type WebhookDraft, webhookDraftInvalid } from "@/lib/alerts"
 
-// The stored URL is a secret: it is never shown, only replaced or removed.
 export function WebhookInput({
   id,
   isSet,

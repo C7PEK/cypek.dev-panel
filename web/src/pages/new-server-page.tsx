@@ -73,7 +73,6 @@ export function NewServerPage({ user }: { user: User }) {
     apiErr && !(apiField && (apiField === "name" || apiField === "expiresInDays" || apiField.startsWith("variables."))) ? apiMessage : undefined
   const expiryError = localErrors.__expiry ?? (apiField === "expiresInDays" ? apiMessage : undefined)
 
-  // Ports: live warning while typing, plus actions when the create was refused.
   const livePorts = useMemo(() => (template ? resolvePorts(template, values) : []), [template, values])
   const portCheck = usePortCheck(livePorts, undefined, step >= 2 && !!template)
   const liveConflicts = portCheck.data ?? []
@@ -99,7 +98,6 @@ export function NewServerPage({ user }: { user: User }) {
     if (key) setValue(key, String(port))
   }
 
-  // Client-side checks mirror the server's so most mistakes are caught before the request.
   function validateSettings(): boolean {
     if (!template) return false
     const errors: Record<string, string | undefined> = {}
@@ -150,7 +148,6 @@ export function NewServerPage({ user }: { user: User }) {
         void navigate(`/servers/${encodeURIComponent(server.id)}`)
       },
       onError: (err) => {
-        // Field errors belong to step 2; jump back so the user sees them.
         if (isApiError(err) && err.field && (err.field === "name" || err.field === "expiresInDays" || err.field.startsWith("variables."))) setStep(2)
       },
     })
@@ -512,7 +509,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <>
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="font-mono text-xs sm:text-sm">{value || "—"}</dd>
+      <dd className="font-mono text-xs sm:text-sm">{value || "-"}</dd>
     </>
   )
 }

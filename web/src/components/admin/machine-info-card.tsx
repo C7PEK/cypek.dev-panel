@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useSystemInfo } from "@/lib/system"
 
-// Hostname, version and the addresses the panel is reachable at.
 export function MachineInfoCard() {
   const { t } = useTranslation()
   const info = useSystemInfo()

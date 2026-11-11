@@ -10,14 +10,13 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/db"
 )
 
-// Record is a database the panel created for a server.
 type Record struct {
 	ID        int64  `json:"id"`
 	ServerID  string `json:"serverId"`
 	Name      string `json:"name"`
 	Label     string `json:"label"`
 	CreatedAt string `json:"createdAt"`
-	password  string // sealed
+	password  string
 }
 
 var (
@@ -25,10 +24,8 @@ var (
 	ErrExists         = errors.New("a database with this name already exists")
 )
 
-// Store persists server_databases rows.
 type Store struct{ db *sql.DB }
 
-// NewStore wraps a migrated database.
 func NewStore(sqlDB *sql.DB) *Store { return &Store{db: sqlDB} }
 
 func (s *Store) Insert(ctx context.Context, serverID, name, label, sealedPassword string) (*Record, error) {
@@ -78,7 +75,6 @@ func (s *Store) List(ctx context.Context, serverID string) ([]*Record, error) {
 	return out, rows.Err()
 }
 
-// ListAll returns every database record.
 func (s *Store) ListAll(ctx context.Context) ([]*Record, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+recCols+` FROM server_databases ORDER BY id`)
 	if err != nil {
@@ -106,6 +102,4 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
-// SealedPassword exposes the stored (encrypted) password to the caller,
-// which holds the key to open it.
 func (r *Record) SealedPassword() string { return r.password }

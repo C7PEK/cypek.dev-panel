@@ -38,7 +38,7 @@ func TestApplyConfigDefaults(t *testing.T) {
 	if string(b) != "x\n" {
 		t.Error("file outside the server dir was modified through a symlink")
 	}
-	// Idempotent.
+
 	if changed, _ := ApplyConfigDefaults(dir, tpl); len(changed) != 0 {
 		t.Errorf("second run changed %v", changed)
 	}

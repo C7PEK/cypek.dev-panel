@@ -3,7 +3,6 @@ Description=HomePanel server %i
 Documentation=https://github.com/C7PEK/cypek.dev-panel
 After=network-online.target
 Wants=network-online.target
-# A server that keeps dying is left alone after 5 failures in 2 minutes.
 StartLimitIntervalSec=120
 StartLimitBurst=5
 
@@ -14,21 +13,13 @@ Group=homepanel
 ExecStart=/usr/local/bin/homepanel shim %i
 WorkingDirectory=/var/lib/homepanel/servers/%i
 RuntimeDirectory=homepanel-%i
-# SIGTERM goes to the shim only (it sends the game's stop command); the whole
-# cgroup gets SIGKILL after TimeoutStopSec. The shim caps its own stop
-# timeout below this (shim.MaxStopTimeoutSec) so it can still kill the game
-# itself and exit cleanly.
 KillMode=mixed
 TimeoutStopSec=180
 Restart=on-failure
 RestartSec=5
-# 78 (EX_CONFIG) = the shim could not even start the command; restarting
-# would not help, the configuration has to change.
 RestartPreventExitStatus=78
-# Game servers can be chatty.
 LimitNOFILE=65536
 
-# Sandbox: own directory read-write, shared runtimes read-only, nothing else.
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

@@ -8,15 +8,12 @@ import (
 	"time"
 )
 
-// ErrExpired is returned when an expired server should be started.
 var ErrExpired = errors.New("the server has expired; an admin has to extend it first")
 
-// Expiry is a server's end date. Expired is set once the panel stopped and
-// locked it; Warned once the "expires soon" notice went out.
 type Expiry struct {
 	ServerID  string
 	ExpiresAt time.Time
-	ExpiredAt time.Time // zero while active
+	ExpiredAt time.Time
 	WarnedAt  time.Time
 }
 
@@ -32,7 +29,6 @@ func fmtT(t time.Time) string {
 	return t.UTC().Format(time.RFC3339)
 }
 
-// Expiry returns nil when the server never expires.
 func (s *Store) Expiry(ctx context.Context, id string) (*Expiry, error) {
 	var e Expiry
 	var exp, expired, warned string
@@ -47,7 +43,6 @@ func (s *Store) Expiry(ctx context.Context, id string) (*Expiry, error) {
 	return &e, nil
 }
 
-// Expiries lists every server with an end date.
 func (s *Store) Expiries(ctx context.Context) ([]Expiry, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT server_id, expires_at, expired_at, warned_at FROM server_expiry`)
 	if err != nil {
@@ -67,8 +62,6 @@ func (s *Store) Expiries(ctx context.Context) ([]Expiry, error) {
 	return out, rows.Err()
 }
 
-// SetExpiry sets (nil removes) the end date. A new date unlocks an expired
-// server and re-arms the warning.
 func (s *Store) SetExpiry(ctx context.Context, id string, at *time.Time) error {
 	if at == nil {
 		_, err := s.db.ExecContext(ctx, `DELETE FROM server_expiry WHERE server_id = ?`, id)
@@ -92,7 +85,6 @@ func (s *Store) MarkWarned(ctx context.Context, id string, at time.Time) error {
 	return err
 }
 
-// CheckStartable returns ErrExpired for a locked server.
 func (s *Store) CheckStartable(ctx context.Context, id string) error {
 	e, err := s.Expiry(ctx, id)
 	if err != nil {

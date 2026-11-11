@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils"
 
-// The cypek.dev mark: </> with cyan/magenta chromatic offset, from cypek.dev's favicon.
 export function BrandMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" className={cn("size-7 shrink-0", className)} aria-hidden="true">

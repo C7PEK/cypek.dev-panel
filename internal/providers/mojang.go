@@ -9,9 +9,6 @@ import (
 	"os"
 )
 
-// Mojang resolves vanilla server jars from the launcher version manifest.
-// Manifest v2 layout (latest.release, versions[].url, downloads.server,
-// javaVersion.majorVersion) checked 2026-11-09.
 type Mojang struct{ ManifestURL string }
 
 func NewMojang() *Mojang {
@@ -22,10 +19,9 @@ type MojangServer struct {
 	Version   string
 	URL       string
 	SHA1      string
-	JavaMajor int // javaVersion.majorVersion of the version metadata
+	JavaMajor int
 }
 
-// Releases lists release versions, newest first.
 func (m *Mojang) Releases(ctx context.Context) ([]string, error) {
 	var manifest struct {
 		Versions []struct {
@@ -45,7 +41,6 @@ func (m *Mojang) Releases(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
-// Resolve accepts "latest", "snapshot" or a concrete version id.
 func (m *Mojang) Resolve(ctx context.Context, version string) (*MojangServer, error) {
 	var manifest struct {
 		Latest struct {
@@ -92,8 +87,6 @@ func (m *Mojang) Resolve(ctx context.Context, version string) (*MojangServer, er
 	return nil, fmt.Errorf("minecraft version %q does not exist", version)
 }
 
-// VerifySHA1 checks a file against Mojang's published SHA-1 (it is the only
-// checksum the manifest offers).
 func VerifySHA1(path, want string) error {
 	if want == "" {
 		return nil
@@ -113,8 +106,6 @@ func VerifySHA1(path, want string) error {
 	return nil
 }
 
-// FabricInstallerURL returns the newest stable Fabric installer jar
-// (meta.fabricmc.net v2 fields url/stable checked 2026-11-09).
 func FabricInstallerURL(ctx context.Context) (string, error) {
 	var list []struct {
 		URL    string `json:"url"`

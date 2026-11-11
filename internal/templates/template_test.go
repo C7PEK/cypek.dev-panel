@@ -39,15 +39,15 @@ func TestUserTemplateOverridesAndRejectsBad(t *testing.T) {
 		t.Errorf("override not applied: %+v", tp)
 	}
 	bad := []string{
-		"id: X\nname: n\ncategory: other\nstart: {command: x}\n",                                                // bad id
-		"id: ok\nname: n\ncategory: nope\nstart: {command: x}\n",                                                // bad category
-		"id: ok\nname: n\ncategory: other\nstart: {command: '{{NOPE}}'}\n",                                      // unknown placeholder
-		"id: ok\nname: n\ncategory: other\ninstall: [{write: {path: ../x, content: y}}]\nstart: {command: x}\n", // traversal
+		"id: X\nname: n\ncategory: other\nstart: {command: x}\n",
+		"id: ok\nname: n\ncategory: nope\nstart: {command: x}\n",
+		"id: ok\nname: n\ncategory: other\nstart: {command: '{{NOPE}}'}\n",
+		"id: ok\nname: n\ncategory: other\ninstall: [{write: {path: ../x, content: y}}]\nstart: {command: x}\n",
 		"id: ok\nname: n\ncategory: other\ninstall: [{write: {path: /etc/x, content: y}}]\nstart: {command: x}\n",
-		"id: ok\nname: n\ncategory: other\nvariables: [{key: JAVA, type: string}]\nstart: {command: x}\n", // reserved key
-		"id: ok\nname: n\ncategory: other\nvariables: [{key: 1a, type: string}]\nstart: {command: x}\n",   // bad key
-		"id: ok\nname: n\ncategory: other\nvariables: [{key: A, type: select}]\nstart: {command: x}\n",    // select w/o options
-		"id: ok\nname: n\ncategory: other\nbogus: 1\nstart: {command: x}\n",                               // unknown field
+		"id: ok\nname: n\ncategory: other\nvariables: [{key: JAVA, type: string}]\nstart: {command: x}\n",
+		"id: ok\nname: n\ncategory: other\nvariables: [{key: 1a, type: string}]\nstart: {command: x}\n",
+		"id: ok\nname: n\ncategory: other\nvariables: [{key: A, type: select}]\nstart: {command: x}\n",
+		"id: ok\nname: n\ncategory: other\nbogus: 1\nstart: {command: x}\n",
 		"id: ok\nname: n\ncategory: other\nstart: {command: x}\nreadyRegex: '('\n",
 	}
 	for i, b := range bad {
@@ -66,7 +66,7 @@ func TestRender(t *testing.T) {
 	if _, err := Render("{{MISSING}}", vars); !errors.Is(err, ErrMissingVariable) {
 		t.Errorf("missing var: %v", err)
 	}
-	// Values are inserted verbatim: no shell, so metacharacters are inert.
+
 	s, _ = Render("{{RAM_MB}}", map[string]string{"RAM_MB": "$(rm -rf /); `x`"})
 	if s != "$(rm -rf /); `x`" {
 		t.Errorf("Render changed the value: %q", s)
@@ -118,8 +118,6 @@ func writeFile(path, content string) error {
 	return osWriteFile(path, []byte(content))
 }
 
-// Every built-in template loads, sits in a group of its category and builds
-// a start command from its defaults (with the builtins an install sets).
 func TestBuiltinTemplatesComplete(t *testing.T) {
 	r, err := Load(builtin.Builtin, "")
 	if err != nil {

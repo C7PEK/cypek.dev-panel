@@ -30,8 +30,6 @@ const ICONS: Record<ServerEvent["kind"], { icon: typeof PlayIcon; className: str
   action: { icon: UserIcon, className: "text-primary bg-primary/10" },
 }
 
-// Server history: starts, crashes, error bursts from the console and who
-// pressed which button, newest first.
 export function EventsPanel({ serverId }: { serverId: string }) {
   const { t, i18n } = useTranslation()
   const events = useServerEvents(serverId)

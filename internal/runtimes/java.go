@@ -1,5 +1,3 @@
-// Package runtimes downloads interpreters (Java now; Node and Python later)
-// into <data>/runtimes so servers never depend on what the host has installed.
 package runtimes
 
 import (
@@ -13,27 +11,21 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/providers"
 )
 
-// Java manages Temurin JREs under Dir (e.g. /var/lib/homepanel/runtimes).
-// Layout: <Dir>/java-<feature>/bin/java.
 type Java struct {
 	Dir      string
 	Adoptium *providers.Adoptium
 
-	mu sync.Mutex // one install at a time keeps disk and bandwidth sane
+	mu sync.Mutex
 }
 
-// Logf receives human-readable progress lines for the install log.
 type Logf func(format string, args ...any)
 
-// Path returns the java binary for a feature version if it is installed.
 func (j *Java) Path(feature int) (string, bool) {
 	p := filepath.Join(j.Dir, fmt.Sprintf("java-%d", feature), "bin", "java")
 	st, err := os.Stat(p)
 	return p, err == nil && st.Mode()&0o111 != 0
 }
 
-// Ensure returns the path to a java binary of the given feature version,
-// downloading and extracting a Temurin JRE when needed.
 func (j *Java) Ensure(ctx context.Context, feature int, logf Logf, progress providers.Progress) (string, error) {
 	if p, ok := j.Path(feature); ok {
 		logf("Java %d already installed (%s)", feature, p)

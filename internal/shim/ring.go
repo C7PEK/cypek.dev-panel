@@ -5,7 +5,6 @@ import (
 	"sync"
 )
 
-// lineRing keeps the last n console lines for the backlog sent on attach.
 type lineRing struct {
 	mu      sync.Mutex
 	lines   []string
@@ -18,7 +17,6 @@ func newLineRing(n int) *lineRing {
 	return &lineRing{lines: make([]string, n)}
 }
 
-// Write splits chunk into lines; the trailing partial line is held back.
 func (r *lineRing) Write(chunk []byte) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -49,7 +47,6 @@ func (r *lineRing) push(line string) {
 	r.lines[idx] = line
 }
 
-// Snapshot returns the backlog as one string (lines plus the partial line).
 func (r *lineRing) Snapshot() string {
 	r.mu.Lock()
 	defer r.mu.Unlock()

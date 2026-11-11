@@ -5,7 +5,7 @@ CREATE TABLE schedules (
     name        TEXT    NOT NULL,
     cron_expr   TEXT    NOT NULL,
     enabled     INTEGER NOT NULL DEFAULT 1,
-    actions     TEXT    NOT NULL,                 -- JSON [{type, ...}]
+    actions     TEXT    NOT NULL,
     only_if_running  INTEGER NOT NULL DEFAULT 1,
     skip_if_players  INTEGER NOT NULL DEFAULT 0,
     created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -22,7 +22,7 @@ CREATE TABLE schedule_runs (
     started_at  TEXT    NOT NULL,
     finished_at TEXT,
     result      TEXT    NOT NULL DEFAULT 'running' CHECK (result IN ('running','ok','skipped','failed')),
-    trigger     TEXT    NOT NULL DEFAULT 'cron',   -- cron | manual
+    trigger     TEXT    NOT NULL DEFAULT 'cron',
     log         TEXT    NOT NULL DEFAULT ''
 );
 CREATE INDEX schedule_runs_schedule ON schedule_runs(schedule_id, id);

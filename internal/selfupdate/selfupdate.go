@@ -1,7 +1,3 @@
-// Package selfupdate fetches panel releases from GitHub, verifies them
-// against the published SHA256SUMS and swaps the binary atomically. It is
-// used by `homepanel update` (run as root; the panel user cannot write
-// /usr/local/bin) and by the UI's "update available" check.
 package selfupdate
 
 import (
@@ -24,13 +20,11 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/providers"
 )
 
-// Repo is the GitHub repository releases are published to.
 const Repo = "C7PEK/cypek.dev-panel"
 
-// Release describes the newest published version.
 type Release struct {
-	Tag         string `json:"tag"`     // v1.2.3
-	Version     string `json:"version"` // 1.2.3
+	Tag         string `json:"tag"`
+	Version     string `json:"version"`
 	Notes       string `json:"notes"`
 	PublishedAt string `json:"publishedAt"`
 	BinaryURL   string `json:"binaryUrl"`
@@ -38,21 +32,17 @@ type Release struct {
 	AssetName   string `json:"assetName"`
 }
 
-// Client talks to the GitHub releases API.
 type Client struct {
 	APIBase string
 	HTTP    *http.Client
 }
 
-// New returns a client for api.github.com.
 func New() *Client {
 	return &Client{APIBase: "https://api.github.com/repos/" + Repo, HTTP: &http.Client{Timeout: 20 * time.Second}}
 }
 
-// AssetName is the release asset for this platform.
 func AssetName() string { return "homepanel-linux-" + runtime.GOARCH }
 
-// Latest fetches the newest non-prerelease release.
 func (c *Client) Latest(ctx context.Context) (*Release, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.APIBase+"/releases/latest", nil)
 	if err != nil {
@@ -100,8 +90,6 @@ func (c *Client) Latest(ctx context.Context) (*Release, error) {
 
 var semverRe = regexp.MustCompile(`^v?(\d+)\.(\d+)\.(\d+)`)
 
-// Newer reports whether candidate is a higher semantic version than current.
-// Dev builds (git hashes) are never considered up to date.
 func Newer(current, candidate string) bool {
 	cm := semverRe.FindStringSubmatch(candidate)
 	if cm == nil {
@@ -121,8 +109,6 @@ func Newer(current, candidate string) bool {
 	return false
 }
 
-// Apply downloads the release binary, verifies it and replaces target.
-// The old binary is kept as target.bak until the next successful update.
 func (c *Client) Apply(ctx context.Context, rel *Release, target string, logf func(string, ...any)) error {
 	sum, err := c.checksum(ctx, rel.SumsURL, rel.AssetName)
 	if err != nil {
@@ -177,10 +163,8 @@ func (c *Client) checksum(ctx context.Context, sumsURL, name string) (string, er
 	return "", fmt.Errorf("%s not listed in SHA256SUMS", name)
 }
 
-// Status is the outcome of an update run, written by `homepanel update
-// --status-file` (as root) and read by the panel.
 type Status struct {
-	State      string `json:"state"` // running | done | uptodate | failed
+	State      string `json:"state"`
 	From       string `json:"from"`
 	To         string `json:"to,omitempty"`
 	Error      string `json:"error,omitempty"`
@@ -188,14 +172,12 @@ type Status struct {
 	FinishedAt string `json:"finishedAt,omitempty"`
 }
 
-// WriteStatus stores st atomically (world-readable: it holds no secrets).
 func WriteStatus(path string, st *Status) error {
 	b, err := json.Marshal(st)
 	if err != nil {
 		return err
 	}
-	// Written by root into the panel user's directory: exclusive create so
-	// a planted symlink cannot redirect it; rename replaces a link at path.
+
 	tmp := path + ".tmp"
 	f, err := safefs.CreateExclusive(tmp, 0o644)
 	if err != nil {
@@ -211,7 +193,6 @@ func WriteStatus(path string, st *Status) error {
 	return os.Rename(tmp, path)
 }
 
-// ReadStatus returns nil when no update has run yet.
 func ReadStatus(path string) *Status {
 	b, err := os.ReadFile(path)
 	if err != nil {

@@ -14,10 +14,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ApplyConfigFiles writes the template's ConfigFiles values (rendered with
-// vars) into the server's files. Missing properties/ini files are created;
-// missing yaml/json/file targets are skipped (the game creates them on first
-// start and the next start fills them in). Returns the files it changed.
 func ApplyConfigFiles(serverDir string, t *Template, vars map[string]string) ([]string, error) {
 	if t == nil || len(t.ConfigFiles) == 0 {
 		return nil, nil
@@ -94,8 +90,6 @@ func writeIfChanged(root, path string, before, after string) (bool, error) {
 	return true, writeUnder(root, path, []byte(after), mode)
 }
 
-// setProperties sets key=value lines, keeping comments and order; keys
-// that are missing are appended (sorted for stable output).
 func setProperties(root, path string, values map[string]string, create bool) (bool, error) {
 	lines, exists, err := readLines(root, path)
 	if err != nil {
@@ -138,8 +132,6 @@ func setProperties(root, path string, values map[string]string, create bool) (bo
 	return writeIfChanged(root, path, "", after+"\n")
 }
 
-// setLines replaces every line that starts with a key by the value
-// (Pterodactyl's "file" parser).
 func setLines(root, path string, values map[string]string) (bool, error) {
 	lines, exists, err := readLines(root, path)
 	if err != nil || !exists {
@@ -208,7 +200,6 @@ func setYAMLPath(n *yaml.Node, path []string, value string) {
 	setYAMLPath(child, path[1:], value)
 }
 
-// scalarNode keeps numbers and booleans unquoted, like the original file would.
 func scalarNode(v string) *yaml.Node {
 	var probe any
 	if err := yaml.Unmarshal([]byte(v), &probe); err == nil {

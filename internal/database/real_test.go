@@ -10,8 +10,6 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-// TestRealMariaDB runs against the installed add-on (opt-in:
-// HOMEPANEL_DB_TEST=1, as the homepanel user so it reads the real creds).
 func TestRealMariaDB(t *testing.T) {
 	if os.Getenv("HOMEPANEL_DB_TEST") != "1" {
 		t.Skip("set HOMEPANEL_DB_TEST=1")
@@ -29,7 +27,7 @@ func TestRealMariaDB(t *testing.T) {
 	if err := m.Create(ctx, name, pw); err != nil {
 		t.Fatal(err)
 	}
-	// Connect like a game server: TCP 127.0.0.1 with the new account.
+
 	connect := func(pass string) error {
 		cfg := mysql.NewConfig()
 		cfg.User, cfg.Passwd, cfg.Net, cfg.Addr, cfg.DBName, cfg.Timeout = name, pass, "tcp", "127.0.0.1:3306", name, 3*time.Second
@@ -48,7 +46,7 @@ func TestRealMariaDB(t *testing.T) {
 			}
 		}
 		t.Logf("200 autocommit inserts in %s (%.1f ms each)", time.Since(start).Round(time.Millisecond), float64(time.Since(start).Microseconds())/200/1000)
-		// Must not see other databases.
+
 		var n int
 		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name NOT IN ('information_schema', ?)", name).Scan(&n); err != nil {
 			return err

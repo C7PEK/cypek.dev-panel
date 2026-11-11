@@ -12,8 +12,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/templates"
 )
 
-// downloadPaper fetches a PaperMC project build (paper, folia, velocity),
-// verified with the SHA-256 from the Fill API.
 func (c *stepCtx) downloadPaper(ctx context.Context, n int, project, version, dest string) error {
 	names := map[string]string{"paper": "Paper", "folia": "Folia", "velocity": "Velocity"}
 	c.begin(n, "Downloading "+names[project])
@@ -30,7 +28,6 @@ func (c *stepCtx) downloadPaper(ctx context.Context, n int, project, version, de
 	}
 	c.logf("Downloaded and verified %s", filepath.Base(dest))
 	if project == "velocity" {
-		// A proxy has its own version line, not a Minecraft version.
 		c.vars["PROXY_VERSION"] = info.Version
 	} else {
 		c.vars["MC_VERSION_RESOLVED"] = info.Version
@@ -42,8 +39,6 @@ func (c *stepCtx) downloadPaper(ctx context.Context, n int, project, version, de
 	return nil
 }
 
-// downloadLoader fetches a mod loader installer (Forge, NeoForge, Quilt).
-// The template runs it next with an exec step; Java is prepared for it.
 func (c *stepCtx) downloadLoader(ctx context.Context, n int, kind, game, dest string) error {
 	var (
 		jar *providers.InstallerJar

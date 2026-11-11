@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { copyText, selectText } from "@/lib/clipboard"
 import { cn } from "@/lib/utils"
 
-// A read-only value with a copy button; secret values are masked until shown.
 export function CopyField({ label, value, secret, multiline }: { label: string; value: string; secret?: boolean; multiline?: boolean }) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
@@ -20,7 +19,6 @@ export function CopyField({ label, value, secret, multiline }: { label: string; 
       setTimeout(() => setCopied(false), 1500)
       return
     }
-    // Last resort: reveal and select the value for a manual Ctrl+C.
     setShown(true)
     requestAnimationFrame(() => selectText(codeRef.current))
     toast.error(t("database.copyManual"))

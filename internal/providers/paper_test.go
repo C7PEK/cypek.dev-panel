@@ -37,7 +37,6 @@ func TestCompareVersionsAndFilters(t *testing.T) {
 	}
 }
 
-// fakePaper serves the three endpoints the client uses.
 func fakePaper(t *testing.T) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
@@ -75,7 +74,7 @@ func TestPaperResolve(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// latest = newest stable = 1.21.11 (26.3-rc-3 is a pre-release); build = newest STABLE (132, not 133).
+
 	if info.Version != "1.21.11" || info.LatestBuild != 132 || info.SHA256 != "bb" || info.JavaMinimum != 21 || info.JVMFlags[0] != "-XX:+UseG1GC" {
 		t.Errorf("info = %+v", info)
 	}
@@ -103,7 +102,7 @@ func TestDownloadVerifiesAndRefusesHTTP(t *testing.T) {
 	if _, err := os.Stat(dest); !os.IsNotExist(err) {
 		t.Error("file left behind after checksum failure")
 	}
-	// sha256("hello")
+
 	var got []int64
 	err := Download(context.Background(), srv.URL+"/x", dest, "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", func(done, total int64) { got = append(got, done) })
 	if err != nil {

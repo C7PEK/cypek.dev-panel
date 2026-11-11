@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-// logWriter appends console output to logs/console-YYYY-MM-DD.log, switching
-// files at midnight (UTC) and pruning the oldest files beyond keep.
 type logWriter struct {
 	mu   sync.Mutex
 	dir  string
@@ -49,7 +47,6 @@ func (l *logWriter) Write(p []byte) (int, error) {
 	return l.f.Write(p)
 }
 
-// prune removes the oldest console logs beyond keep. Names sort by date.
 func (l *logWriter) prune() {
 	entries, err := os.ReadDir(l.dir)
 	if err != nil {

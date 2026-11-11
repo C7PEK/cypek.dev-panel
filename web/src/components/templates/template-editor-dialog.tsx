@@ -13,7 +13,6 @@ import { describeError } from "@/lib/errors"
 import { useSaveTemplate, useTemplates, yamlId } from "@/lib/templates"
 
 export interface EditorTarget {
-  /** Existing custom template id (PUT); undefined creates a new one (POST). */
   id?: string
   yaml: string
   title: string
@@ -51,7 +50,6 @@ ports:
   - { name: game, port: "{{PORT}}", protocol: tcp+udp }
 `
 
-/** Create or edit a custom template as YAML with live validation. */
 export function TemplateEditorDialog({ target, onClose }: { target: EditorTarget | null; onClose: () => void }) {
   return target ? <EditorBody key={`${target.id ?? "new"}-${target.title}`} target={target} onClose={onClose} /> : null
 }

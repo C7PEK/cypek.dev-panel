@@ -13,7 +13,6 @@ jobs:
         with: { node-version: "22", cache: npm, cache-dependency-path: web/package-lock.json }
       - uses: actions/setup-go@v5
         with: { go-version-file: go.mod }
-      # Full tests run in ci.yml on every push; a release only needs a build.
       - run: make release VERSION=${GITHUB_REF_NAME}
       - run: go vet ./...
       - run: cp packaging/install.sh dist/install.sh

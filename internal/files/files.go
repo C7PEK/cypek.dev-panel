@@ -1,8 +1,3 @@
-// Package files is the server file manager. Every user-supplied path goes
-// through ResolveSafe, which confines it to the server directory even in the
-// presence of symlinks. The .homepanel/ directory (run.json, shim state) is
-// invisible and read-only from here on purpose: it controls what gets
-// executed and belongs to the settings permission, not files.write.
 package files
 
 import (
@@ -31,31 +26,24 @@ var (
 	ErrBadName     = errors.New("invalid name")
 )
 
-// MaxEditSize bounds files opened in the editor.
 const MaxEditSize = 2 << 20
 
-// Entry describes one directory entry.
 type Entry struct {
 	Name       string `json:"name"`
-	Type       string `json:"type"` // file | dir | symlink | other
+	Type       string `json:"type"`
 	Size       int64  `json:"size"`
 	ModifiedAt string `json:"modifiedAt"`
 	Mode       string `json:"mode"`
-	// Editable is true for files small enough for the editor.
+
 	Editable bool `json:"editable,omitempty"`
 }
 
-// Manager operates on one server directory.
 type Manager struct {
 	Root string
 }
 
-// New returns a Manager rooted at the (existing) server directory.
 func New(root string) *Manager { return &Manager{Root: filepath.Clean(root)} }
 
-// Clean normalises a user path to a slash-separated relative path ("" = root).
-// Any ".." segment is rejected outright rather than normalised away, so the
-// path a user sees is the path that gets touched.
 func Clean(userPath string) (string, error) {
 	p := strings.ReplaceAll(userPath, "\\", "/")
 	if strings.ContainsRune(p, 0) {
@@ -74,10 +62,6 @@ func Clean(userPath string) (string, error) {
 	return p, nil
 }
 
-// ResolveSafe maps userPath to an absolute path under root. It cleans the
-// path, joins it, resolves symlinks for the longest existing prefix and
-// checks the result stays inside root. The returned path is safe to open;
-// nothing in it is a symlink pointing outside.
 func ResolveSafe(root, userPath string) (string, error) {
 	rel, err := Clean(userPath)
 	if err != nil {
@@ -88,8 +72,7 @@ func ResolveSafe(root, userPath string) (string, error) {
 		return "", fmt.Errorf("resolve root: %w", err)
 	}
 	full := filepath.Join(rootReal, filepath.FromSlash(rel))
-	// Resolve the deepest existing ancestor so a symlinked directory in the
-	// middle of the path cannot lead outside.
+
 	existing := full
 	var missing []string
 	for {
@@ -114,7 +97,6 @@ func ResolveSafe(root, userPath string) (string, error) {
 	return resolved, nil
 }
 
-// resolve applies ResolveSafe and the .homepanel protection.
 func (m *Manager) resolve(userPath string) (abs, rel string, err error) {
 	rel, err = Clean(userPath)
 	if err != nil {
@@ -127,7 +109,7 @@ func (m *Manager) resolve(userPath string) (abs, rel string, err error) {
 	if err != nil {
 		return "", "", err
 	}
-	// The resolved path may still land in .homepanel through a symlink.
+
 	rootReal, _ := filepath.EvalSymlinks(m.Root)
 	if r, err := filepath.Rel(rootReal, abs); err == nil && (r == shim.MetaDir || strings.HasPrefix(r, shim.MetaDir+string(filepath.Separator))) {
 		return "", "", ErrProtected
@@ -135,9 +117,6 @@ func (m *Manager) resolve(userPath string) (abs, rel string, err error) {
 	return abs, rel, nil
 }
 
-// entry resolves the parent folder safely but not the last element: a
-// symlink is the thing itself (renaming or deleting a link must never act
-// on its target, e.g. "l -> ." would otherwise delete the whole server).
 func (m *Manager) entry(userPath string) (abs, rel string, err error) {
 	rel, err = Clean(userPath)
 	if err != nil {
@@ -163,7 +142,6 @@ func (m *Manager) entry(userPath string) (abs, rel string, err error) {
 	return filepath.Join(parentAbs, base), rel, nil
 }
 
-// List returns the entries of a directory, directories first.
 func (m *Manager) List(userPath string) ([]Entry, error) {
 	abs, _, err := m.resolve(userPath)
 	if err != nil {
@@ -216,7 +194,6 @@ func (m *Manager) List(userPath string) ([]Entry, error) {
 	return out, nil
 }
 
-// Stat returns info about one path.
 func (m *Manager) Stat(userPath string) (Entry, error) {
 	abs, rel, err := m.resolve(userPath)
 	if err != nil {
@@ -235,7 +212,6 @@ func (m *Manager) Stat(userPath string) (Entry, error) {
 	return e, nil
 }
 
-// Open returns a reader for a regular file (any size) plus its size.
 func (m *Manager) Open(userPath string) (io.ReadCloser, int64, error) {
 	abs, _, err := m.resolve(userPath)
 	if err != nil {
@@ -255,7 +231,6 @@ func (m *Manager) Open(userPath string) (io.ReadCloser, int64, error) {
 	return f, st.Size(), nil
 }
 
-// ReadText reads a file for the editor, refusing anything above MaxEditSize.
 func (m *Manager) ReadText(userPath string) ([]byte, error) {
 	f, size, err := m.Open(userPath)
 	if err != nil {
@@ -268,7 +243,6 @@ func (m *Manager) ReadText(userPath string) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(f, MaxEditSize+1))
 }
 
-// WriteText replaces a file's content atomically (temp file + rename).
 func (m *Manager) WriteText(userPath string, data []byte) error {
 	abs, rel, err := m.resolve(userPath)
 	if err != nil {
@@ -303,8 +277,6 @@ func (m *Manager) WriteText(userPath string, data []byte) error {
 	return os.Rename(tmp.Name(), abs)
 }
 
-// Create writes an uploaded stream to dir/name; existing files are replaced.
-// maxSize caps the upload; the partial file is removed on overflow.
 func (m *Manager) Create(dirPath, name string, r io.Reader, maxSize int64) (int64, error) {
 	if err := checkName(name); err != nil {
 		return 0, err
@@ -344,7 +316,6 @@ func (m *Manager) Create(dirPath, name string, r io.Reader, maxSize int64) (int6
 	return n, os.Rename(tmp.Name(), abs)
 }
 
-// Mkdir creates a directory (and parents) inside the root.
 func (m *Manager) Mkdir(userPath string) error {
 	abs, rel, err := m.resolve(userPath)
 	if err != nil {
@@ -359,7 +330,6 @@ func (m *Manager) Mkdir(userPath string) error {
 	return os.MkdirAll(abs, 0o750)
 }
 
-// Rename moves a file or directory within the root; refuses to overwrite.
 func (m *Manager) Rename(from, to string) error {
 	src, srcRel, err := m.entry(from)
 	if err != nil {
@@ -390,8 +360,6 @@ func (m *Manager) Rename(from, to string) error {
 	return os.Rename(src, dst)
 }
 
-// Delete removes a file, or a directory recursively. Symlinks are removed,
-// never followed.
 func (m *Manager) Delete(userPath string) error {
 	abs, rel, err := m.entry(userPath)
 	if err != nil {
@@ -410,7 +378,6 @@ func (m *Manager) Delete(userPath string) error {
 	return os.Remove(abs)
 }
 
-// Extract unpacks an archive inside the root into dirPath (zip, tar.gz, tar.xz).
 func (m *Manager) Extract(archivePath, dirPath string) error {
 	src, _, err := m.resolve(archivePath)
 	if err != nil {
@@ -429,9 +396,6 @@ func (m *Manager) Extract(archivePath, dirPath string) error {
 	return archive.Extract(src, dst, m.extractOptions())
 }
 
-// extractOptions: uploaded archives may not create links (a link to "/" or
-// to another server would turn later panel operations against the host)
-// nor write into .homepanel (run.json decides what the server executes).
 func (m *Manager) extractOptions() archive.Options {
 	rootReal, _ := filepath.EvalSymlinks(m.Root)
 	return archive.Options{NoLinks: true, Resolve: func(root, p string) (string, error) {
@@ -446,7 +410,6 @@ func (m *Manager) extractOptions() archive.Options {
 	}}
 }
 
-// DiskUsage sums the sizes of regular files under the root (best effort).
 func (m *Manager) DiskUsage() (int64, error) {
 	var total int64
 	err := filepath.WalkDir(m.Root, func(p string, d os.DirEntry, err error) error {

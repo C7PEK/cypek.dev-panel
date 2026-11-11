@@ -1,8 +1,3 @@
-// Package safefs reads and writes files inside a directory the panel does
-// not trust: game servers run as the same user and can plant symlinks,
-// hardlinks, FIFOs or huge files in their folder. Every operation goes
-// through os.Root, so the kernel resolves paths beneath the root (no
-// symlink can lead outside it, and there is no check-then-use race).
 package safefs
 
 import (
@@ -17,14 +12,10 @@ import (
 	"syscall"
 )
 
-// ErrNotRegular is returned for FIFOs, devices, sockets and directories.
 var ErrNotRegular = errors.New("not a regular file")
 
-// ErrTooLarge is returned when a file exceeds the read limit.
 var ErrTooLarge = errors.New("file is too large")
 
-// ReadFile reads rel beneath root: regular files only (a FIFO would block
-// the panel, /dev/zero would exhaust its memory), at most max bytes.
 func ReadFile(root, rel string, max int64) ([]byte, error) {
 	r, err := os.OpenRoot(root)
 	if err != nil {
@@ -56,11 +47,6 @@ func ReadFile(root, rel string, max int64) ([]byte, error) {
 	return b, nil
 }
 
-// WriteFile replaces rel beneath root atomically: the data goes to a new
-// temp file with a random name (O_EXCL, so a planted name cannot be
-// reused), which is then renamed over rel. Renaming replaces a symlink at
-// rel instead of writing through it, and a hardlinked target is never
-// modified in place. Parent folders are created when missing.
 func WriteFile(root, rel string, data []byte, perm fs.FileMode) error {
 	r, err := os.OpenRoot(root)
 	if err != nil {
@@ -103,7 +89,6 @@ func WriteFile(root, rel string, data []byte, perm fs.FileMode) error {
 	return nil
 }
 
-// Remove deletes rel beneath root (a symlink itself, never its target).
 func Remove(root, rel string) error {
 	r, err := os.OpenRoot(root)
 	if err != nil {
@@ -113,8 +98,6 @@ func Remove(root, rel string) error {
 	return r.Remove(filepath.Clean(rel))
 }
 
-// OpenRegular opens rel beneath root for reading; regular files only.
-// The caller closes the file.
 func OpenRegular(root, rel string) (*os.File, error) {
 	r, err := os.OpenRoot(root)
 	if err != nil {
@@ -132,12 +115,6 @@ func OpenRegular(root, rel string) (*os.File, error) {
 	return f, nil
 }
 
-// CreateExclusive creates path as a new file for root-run code writing into
-// a directory an unprivileged user controls: whatever is at the name (a
-// planted symlink) is unlinked, then the file is created with O_EXCL and
-// O_NOFOLLOW, so a link re-planted in between makes it fail instead of
-// redirecting the write. Change ownership with f.Chown (fchown), never by
-// path.
 func CreateExclusive(path string, perm fs.FileMode) (*os.File, error) {
 	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, err

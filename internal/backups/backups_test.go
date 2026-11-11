@@ -55,14 +55,13 @@ func TestCreateRestoreRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if size == 0 || size > 100000 { // 200 kB of zeros compresses well
+	if size == 0 || size > 100000 {
 		t.Errorf("archive size = %d", size)
 	}
-	if lastFiles != 3 { // server.properties, level.dat, r.0.0.mca (.homepanel is never backed up)
+	if lastFiles != 3 {
 		t.Errorf("files backed up = %d", lastFiles)
 	}
 
-	// Mutate and restore.
 	_ = os.WriteFile(filepath.Join(srv, "server.properties"), []byte("changed"), 0o640)
 	_ = os.WriteFile(filepath.Join(srv, "plugins", "new.jar"), []byte("new"), 0o640)
 	_ = os.Remove(filepath.Join(srv, "world", "level.dat"))
@@ -111,7 +110,7 @@ func TestPrune(t *testing.T) {
 		t.Errorf("keepLast prune = %v", del)
 	}
 	del = Prune(Settings{KeepDays: 5}, items, now)
-	if len(del) != 4 { // ages 6..9 days
+	if len(del) != 4 {
 		t.Errorf("keepDays prune = %v", del)
 	}
 	if del := Prune(Settings{}, items, now); len(del) != 0 {

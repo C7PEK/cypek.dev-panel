@@ -11,7 +11,6 @@ import type { ServerCategory } from "@/lib/types"
 interface Props {
   creds: DatabaseCredentials | null
   category: ServerCategory
-  /** Shown after a password change: configs must be updated. */
   rotated?: boolean
   onClose: () => void
 }

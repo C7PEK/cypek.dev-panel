@@ -22,7 +22,7 @@ func TestMigrateFreshFile(t *testing.T) {
 	if err := Migrate(ctx, sqlDB, path, log); err != nil {
 		t.Fatalf("Migrate: %v", err)
 	}
-	// Idempotent.
+
 	if err := Migrate(ctx, sqlDB, path, log); err != nil {
 		t.Fatalf("second Migrate: %v", err)
 	}
@@ -47,7 +47,7 @@ func TestMigrateFreshFile(t *testing.T) {
 	if fk != 1 {
 		t.Error("foreign_keys not enabled")
 	}
-	// Fresh DB: file was empty/nonexistent before first migrate, so no backup expected.
+
 	entries, _ := os.ReadDir(dir)
 	for _, e := range entries {
 		if strings.Contains(e.Name(), ".bak-") {
@@ -59,7 +59,7 @@ func TestMigrateFreshFile(t *testing.T) {
 func TestBackupBeforeMigration(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "panel.db")
-	// Simulate an existing, non-empty database with no migrations applied.
+
 	if err := os.WriteFile(path, []byte("not really sqlite, but non-empty"), 0o600); err != nil {
 		t.Fatal(err)
 	}

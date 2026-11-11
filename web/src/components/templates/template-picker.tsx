@@ -9,7 +9,6 @@ import { CATEGORY_ORDER, GROUP_ORDER, isImported, localized, sourceKind } from "
 import type { ServerCategory, Template } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-// Groups the panel knows how to name; anything else is shown as written.
 const KNOWN_GROUPS = new Set(GROUP_ORDER)
 
 type Tab = "all" | ServerCategory
@@ -26,10 +25,6 @@ function rank(list: string[], v: string) {
   return i === -1 ? list.length : i
 }
 
-/**
- * Step 1 of the create wizard: templates in category tabs, each category
- * split into groups (Minecraft: plugins, mods, vanilla, proxy, Bedrock).
- */
 export function TemplatePicker({ templates, onPick, onCustom }: { templates: Template[]; onPick: (t: Template) => void; onCustom: () => void }) {
   const { t, i18n } = useTranslation()
   const [tab, setTab] = useState<Tab>("all")
@@ -51,7 +46,6 @@ export function TemplatePicker({ templates, onPick, onCustom }: { templates: Tem
     })
     const byKey = new Map<string, Section>()
     for (const tpl of visible) {
-      // Imported and custom templates go to their own section, apart from the built-ins.
       const group = sourceKind(tpl) !== "builtin" ? "imported" : (tpl.group ?? "")
       const key = `${tpl.category}/${group}`
       let s = byKey.get(key)

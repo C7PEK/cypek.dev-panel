@@ -7,27 +7,30 @@ icon: discord
 description:
   pl: Bot w JavaScript/TypeScript (np. discord.js) z Twoich plików. Po utworzeniu wrzuć pliki bota w zakładce Pliki (upload, SFTP albo „Pobierz z linku” z ZIP-a). Zależności z package.json instalują się same przy starcie.
   en: A JavaScript/TypeScript bot (e.g. discord.js) from your own files. After creating it, put the bot's files in the Files tab (upload, SFTP or "Download from link" with a ZIP). Dependencies from package.json are installed automatically on start.
+  de: Ein JavaScript/TypeScript-Bot (z. B. discord.js) aus deinen eigenen Dateien. Lege die Dateien des Bots nach dem Erstellen im Tab Dateien ab (Hochladen, SFTP oder „Von Link herunterladen“ mit einem ZIP). Abhängigkeiten aus package.json werden beim Start automatisch installiert.
 
 variables:
   - key: START_FILE
-    label: { pl: Plik startowy, en: Entry file }
+    label: { pl: Plik startowy, en: Entry file, de: Startdatei }
     help:
       pl: Zostaw puste, a panel sam wykryje start (skrypt "start" z package.json, potem index.js, bot.js, main.js, src/index.js, dist/index.js). Albo wpisz plik, np. src/bot.js.
       en: Leave empty to detect it (the "start" script from package.json, then index.js, bot.js, main.js, src/index.js, dist/index.js). Or enter a file, e.g. src/bot.js.
+      de: Leer lassen für automatische Erkennung (das Skript „start“ aus package.json, dann index.js, bot.js, main.js, src/index.js, dist/index.js). Oder gib eine Datei an, z. B. src/bot.js.
     type: string
     default: ""
     maxLength: 200
     pattern: '^$|^[^\s/][^\s]*\.(js|mjs|cjs)$'
   - key: NODE_VERSION
-    label: { pl: Wersja Node.js, en: Node.js version }
+    label: { pl: Wersja Node.js, en: Node.js version, de: Node.js-Version }
     type: select
     options: ["26", "24", "22"]
     default: "26"
   - key: DISCORD_TOKEN
-    label: { pl: Token bota Discord (opcjonalnie), en: Discord bot token (optional) }
+    label: { pl: Token bota Discord (opcjonalnie), en: Discord bot token (optional), de: Discord-Bot-Token (optional) }
     help:
       pl: Tylko jeśli Twój bot czyta go z process.env.DISCORD_TOKEN. Jeśli token jest w pliku .env albo config, zostaw puste.
       en: Only if your bot reads it from process.env.DISCORD_TOKEN. If the token is in a .env or config file, leave this empty.
+      de: Nur wenn dein Bot ihn aus process.env.DISCORD_TOKEN liest. Steht der Token in einer .env- oder Konfigurationsdatei, lass das Feld leer.
     type: secret
     maxLength: 200
 
@@ -35,12 +38,9 @@ runtime:
   kind: node
   version: auto
 
-# Nothing to download: the files come from the user.
 install: []
 
 start:
-  # Values arrive as environment variables ({{X}} becomes "${X}"); nothing
-  # from the user is pasted into this script.
   shell: |
     [ -z {{DISCORD_TOKEN}} ] && unset DISCORD_TOKEN
     if [ -f package.json ]; then

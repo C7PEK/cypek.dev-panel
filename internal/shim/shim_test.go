@@ -13,9 +13,6 @@ import (
 	"time"
 )
 
-// TestMain doubles as the fake game when re-executed with HOMEPANEL_FAKE_GAME=1:
-// it prints a ready line, echoes stdin, and reacts to "stop", "crash" and (in
-// hang mode) ignores stop so the shim's timeout path can be tested.
 func TestMain(m *testing.M) {
 	if os.Getenv("HOMEPANEL_FAKE_GAME") == "1" {
 		os.Exit(fakeGame())
@@ -41,8 +38,6 @@ func fakeGame() int {
 			fmt.Println("boom")
 			return 3
 		case line == "burst":
-			// Lots of output right before exiting: the last line must not
-			// be lost when the shim closes the terminal.
 			w := bufio.NewWriter(os.Stdout)
 			for i := 0; i < 3000; i++ {
 				fmt.Fprintf(w, "line %d\n", i)
@@ -69,7 +64,7 @@ type harness struct {
 func start(t *testing.T, cfg RunConfig, mode string) *harness {
 	t.Helper()
 	dir := t.TempDir()
-	// Unix socket paths are limited to ~108 bytes; keep it short.
+
 	sockDir, err := os.MkdirTemp("", "hp-sock")
 	if err != nil {
 		t.Fatal(err)
@@ -123,7 +118,6 @@ func (h *harness) dial() *Client {
 	}
 }
 
-// waitFor reads frames until pred returns true, collecting output along the way.
 func waitFor(t *testing.T, c *Client, what string, pred func(Frame, string) bool) string {
 	t.Helper()
 	var out strings.Builder
@@ -150,7 +144,7 @@ func (h *harness) exitCode() int {
 	h.t.Helper()
 	select {
 	case code := <-h.result:
-		h.result <- code // keep it available for Cleanup
+		h.result <- code
 		return code
 	case <-time.After(10 * time.Second):
 		h.t.Fatal("shim did not exit")
@@ -166,7 +160,7 @@ func TestLifecycleWithStopCommand(t *testing.T) {
 	if c.Hello.PID == 0 || c.Hello.StartedAt == "" {
 		t.Errorf("hello = %+v", c.Hello)
 	}
-	// Either we connected before readiness (and see the state frame) or after.
+
 	if c.Hello.State != StateRunning {
 		waitFor(t, c, "running state", func(f Frame, _ string) bool { return f.Type == TypeState && f.State == StateRunning })
 	}
@@ -396,7 +390,7 @@ func TestEventLogErrorsAndLifecycle(t *testing.T) {
 	if strings.Join(kinds, ",") != "crash,error,error,start" {
 		t.Fatalf("kinds = %v", kinds)
 	}
-	first := evs[2] // oldest error
+	first := evs[2]
 	if first.Message != "[12:00:01 ERROR]: Could not load plugin" || len(first.Lines) != 3 {
 		t.Errorf("error event = %+v", first)
 	}
@@ -418,7 +412,7 @@ func TestEventLogRateLimit(t *testing.T) {
 	for i := 0; i < errorEventsPerMin+15; i++ {
 		l.mu.Lock()
 		l.line("ERR " + strconv.Itoa(i))
-		l.flushLocked() // simulate quiet gaps between errors
+		l.flushLocked()
 		l.mu.Unlock()
 	}
 	l.close()
@@ -447,8 +441,6 @@ func TestShimRecordsLifecycleEvents(t *testing.T) {
 	}
 }
 
-// The last lines a process prints right before exiting must reach clients
-// (the crash message of a game, "installed-ok" of an install script).
 func TestLastOutputBeforeExitIsDelivered(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		h := start(t, RunConfig{}, "")

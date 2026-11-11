@@ -23,12 +23,11 @@ interface Props {
   onOpenChange: (open: boolean) => void
 }
 
-// Temporary "custom command" creator until the template wizard (M2) lands.
 export function CreateServerDialog({ open, onOpenChange }: Props) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const create = useCreateServer()
-  // Remounting the form on each open resets its local state.
+
   const [formKey, setFormKey] = useState(0)
   const [expiryChoice, setExpiryChoice] = useState<ExpiryChoice>("none")
   const [expiryCustom, setExpiryCustom] = useState("")

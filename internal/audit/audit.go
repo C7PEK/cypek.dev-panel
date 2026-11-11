@@ -1,4 +1,3 @@
-// Package audit records who did what, when and from where.
 package audit
 
 import (
@@ -11,17 +10,15 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/db"
 )
 
-// Entry is one audit record. Details must not contain secrets.
 type Entry struct {
 	UserID   *int64
 	Username string
-	Action   string // e.g. "auth.login", "server.start"
-	Target   string // e.g. server id, username
+	Action   string
+	Target   string
 	IP       string
 	Details  map[string]any
 }
 
-// Record is an audit row as returned to the API.
 type Record struct {
 	ID        int64           `json:"id"`
 	CreatedAt string          `json:"createdAt"`
@@ -33,19 +30,15 @@ type Record struct {
 	Details   json.RawMessage `json:"details"`
 }
 
-// Logger writes audit entries to the database and mirrors them to slog.
 type Logger struct {
 	db  *sql.DB
 	log *slog.Logger
 }
 
-// New returns a Logger bound to a migrated database.
 func New(sqlDB *sql.DB, log *slog.Logger) *Logger {
 	return &Logger{db: sqlDB, log: log}
 }
 
-// Log stores the entry. Failures are logged, never returned: an audit write
-// must not break the user-facing action it describes.
 func (l *Logger) Log(ctx context.Context, e Entry) {
 	details := "{}"
 	if len(e.Details) > 0 {
@@ -62,12 +55,10 @@ func (l *Logger) Log(ctx context.Context, e Entry) {
 	l.log.Info("audit", "action", e.Action, "user", e.Username, "target", e.Target, "ip", e.IP)
 }
 
-// Recent returns the newest limit records.
 func (l *Logger) Recent(ctx context.Context, limit int) ([]Record, error) {
 	return l.query(ctx, `SELECT id, created_at, user_id, username, action, target, ip, details FROM audit_log ORDER BY id DESC LIMIT ?`, limit)
 }
 
-// ForTarget returns the newest records about one target (e.g. a server id).
 func (l *Logger) ForTarget(ctx context.Context, target string, limit int) ([]Record, error) {
 	return l.query(ctx, `SELECT id, created_at, user_id, username, action, target, ip, details FROM audit_log WHERE target = ? ORDER BY id DESC LIMIT ?`, target, limit)
 }

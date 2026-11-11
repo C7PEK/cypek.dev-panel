@@ -107,9 +107,6 @@ func TestPlatformOverride(t *testing.T) {
 	}
 }
 
-// fakeModrinth serves a tiny catalogue: "lib" (dependency) and "main"
-// (requires lib), plus "evil" with a path-traversal file name and "bad"
-// whose checksum does not match.
 type fakeModrinth struct {
 	srv   *httptest.Server
 	files map[string][]byte
@@ -222,12 +219,11 @@ func TestInstallUpdateToggleRemove(t *testing.T) {
 	dir := t.TempDir()
 	p := Detect(dir, Hints{TemplateID: "minecraft-paper", GameVersion: "1.21.4"})
 
-	// Pinned old version first, to test updates; its dependency list is empty.
 	res, err := m.Install(ctx, dir, p, "main", "main1")
 	if err != nil || len(res.Installed) != 1 || res.Installed[0].File != "main-1.0.jar" {
 		t.Fatalf("install main1: %+v %v", res, err)
 	}
-	// A jar dropped in by hand is identified by hash.
+
 	writeFile(t, filepath.Join(dir, "plugins", "manual.jar"), "lib one")
 	writeFile(t, filepath.Join(dir, "plugins", "custom.jar"), "something else")
 	items, err := m.List(ctx, dir, p)
@@ -254,7 +250,7 @@ func TestInstallUpdateToggleRemove(t *testing.T) {
 	if err != nil || len(res.Installed) != 1 || res.Installed[0].File != "main-2.0.jar" || len(res.Removed) != 1 {
 		t.Fatalf("update: %+v %v", res, err)
 	}
-	// lib was already present as manual.jar, so it is not installed twice.
+
 	if _, err := os.Stat(filepath.Join(dir, "plugins", "lib-1.0.jar")); err == nil {
 		t.Error("dependency installed although already present")
 	}
@@ -262,14 +258,12 @@ func TestInstallUpdateToggleRemove(t *testing.T) {
 		t.Error("old version not removed")
 	}
 
-	// Fresh server: dependencies come along.
 	dir2 := t.TempDir()
 	res, err = m.Install(ctx, dir2, p, "main", "")
 	if err != nil || len(res.Installed) != 2 || !res.Installed[1].Dependency || res.Installed[1].File != "lib-1.0.jar" {
 		t.Fatalf("install with deps: %+v %v", res, err)
 	}
 
-	// Disable / enable / remove.
 	name, err := m.SetEnabled(dir2, p, "lib-1.0.jar", false)
 	if err != nil || name != "lib-1.0.jar.disabled" {
 		t.Fatalf("disable: %s %v", name, err)
@@ -317,7 +311,7 @@ func TestInstallRejects(t *testing.T) {
 	if _, err := m.Install(ctx, dir, Platform{}, "main", ""); !errors.Is(err, ErrPlatformUnknown) {
 		t.Errorf("unknown platform: %v", err)
 	}
-	// A plugins folder symlinked outside the server is refused.
+
 	dir3 := t.TempDir()
 	outside := t.TempDir()
 	os.Symlink(outside, filepath.Join(dir3, "plugins"))

@@ -83,7 +83,7 @@ func TestExtractFormatsAndStrip(t *testing.T) {
 		}
 	}
 	UseSystemXz = true
-	// zip
+
 	dir := t.TempDir()
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
@@ -106,11 +106,10 @@ func TestExtractFormatsAndStrip(t *testing.T) {
 }
 
 func TestExtractRejectsEscapes(t *testing.T) {
-	// Entries that must abort extraction.
 	cases := map[string][]entry{
 		"dotdot": {{name: "top/../../evil", typ: tar.TypeReg, content: "x"}},
 		"abs":    {{name: "/etc/evil", typ: tar.TypeReg, content: "x"}},
-		"viasymlink": { // a symlinked directory must never redirect a write
+		"viasymlink": {
 			{name: "top/d", typ: tar.TypeSymlink, link: "../.."},
 			{name: "top/d/evil", typ: tar.TypeReg, content: "x"},
 		},
@@ -136,8 +135,7 @@ func TestExtractRejectsEscapes(t *testing.T) {
 			t.Errorf("%s: no error", name)
 		}
 	}
-	// Dangling or outward symlinks themselves are allowed (chroot-style
-	// archives need them) and are recorded verbatim.
+
 	dir := t.TempDir()
 	a := filepath.Join(dir, "l.tar.gz")
 	_ = os.WriteFile(a, tarBytes(t, []entry{
@@ -150,7 +148,7 @@ func TestExtractRejectsEscapes(t *testing.T) {
 	if l, _ := os.Readlink(filepath.Join(dir, "out", "abs")); l != "/usr/glibc-compat/lib/ld.so" {
 		t.Errorf("abs link = %q", l)
 	}
-	// zip slip
+
 	dir = t.TempDir()
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
@@ -167,8 +165,6 @@ func TestExtractRejectsEscapes(t *testing.T) {
 	}
 }
 
-// Keep leaves existing files alone (a server update over the user's
-// settings) but still creates them on a fresh install.
 func TestExtractKeepsExistingFiles(t *testing.T) {
 	var zb bytes.Buffer
 	zw := zip.NewWriter(&zb)

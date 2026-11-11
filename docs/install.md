@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Debian 12+ or Ubuntu 22.04+ (other systemd distributions may work), amd64 or arm64
+- Debian 12+ or Ubuntu 24.04+, amd64 or arm64 (other systemd distributions with polkit 0.106+ may work)
 - `curl` and `ca-certificates`; `xz-utils` is recommended (FiveM artifacts)
 - root for the installer; the panel itself runs as the `homepanel` system user
 
@@ -19,7 +19,7 @@ root, where `curl` and `sudo` are missing:
 apt update && apt install -y curl && curl -fsSL https://github.com/C7PEK/cypek.dev-panel/releases/latest/download/install.sh | bash
 ```
 
-Options: `--port 8420`, `--version vX.Y.Z` (default: latest release). The
+Options go after `bash -s --`, for example `| sudo bash -s -- --port 9000`: `--port` (default 8420), `--version vX.Y.Z` (default: latest release). The
 script is idempotent: running it again repairs files and upgrades the binary
 without touching your data.
 
@@ -57,9 +57,7 @@ The owner can also update from the panel. The button starts
 `homepanel-update.service`, a root oneshot unit that runs the same
 `homepanel update` and writes the outcome to
 `/var/lib/homepanel/update-status.json`. That is the only extra unit polkit
-lets the panel start. Releases come from GitHub (`C7PEK/cypek.dev-panel`);
-while that repository is private, neither the button nor `homepanel update`
-can download anything.
+lets the panel start. Releases come from GitHub (`C7PEK/cypek.dev-panel`).
 
 ## HTTPS (optional)
 
@@ -87,8 +85,7 @@ both files.
 ## Resource use
 
 Measured on Debian 13 (amd64) with two servers configured, no browser
-connected: about 26 MB RSS for the panel process (target in the plan: under
-60 MB). Game servers are separate units and count separately.
+connected: about 26 MB RSS for the panel process. Game servers are separate units and count separately.
 
 ## Useful commands
 
@@ -111,6 +108,9 @@ started.
 ## Uninstall
 
 ```sh
-sudo bash install.sh --uninstall          # asks whether to delete data
-sudo bash install.sh --uninstall --purge  # non-interactive, deletes everything
+curl -fsSL https://github.com/C7PEK/cypek.dev-panel/releases/latest/download/install.sh | sudo bash -s -- --uninstall
+curl -fsSL https://github.com/C7PEK/cypek.dev-panel/releases/latest/download/install.sh | sudo bash -s -- --uninstall --purge
 ```
+
+The first keeps your servers, worlds and backups in `/var/lib/homepanel`.
+With `--purge` everything is deleted.

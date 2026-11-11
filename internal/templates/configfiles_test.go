@@ -108,7 +108,7 @@ func TestConfigWritesNeverLeaveTheServerFolder(t *testing.T) {
 	os.Symlink(outside, filepath.Join(dir, "server.properties"))
 	os.Symlink(filepath.Join(base, "new-outside"), filepath.Join(dir, "dangling.properties"))
 	os.WriteFile(filepath.Join(dir, "server.cfg"), []byte("ensure x\n"), 0o640)
-	os.Symlink(outside, filepath.Join(dir, "server.cfg.panel-tmp")) // the old fixed temp name
+	os.Symlink(outside, filepath.Join(dir, "server.cfg.panel-tmp"))
 	if _, err := ApplyConfigFiles(dir, tpl, map[string]string{"PORT": "25565"}); err != nil {
 		t.Log(err)
 	}

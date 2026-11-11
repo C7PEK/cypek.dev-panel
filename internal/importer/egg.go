@@ -14,15 +14,12 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/templates"
 )
 
-// Synthetic variables standing in for what Wings injects from the server's
-// allocation and limits.
 const (
 	keyPort   = "SERVER_PORT"
 	keyMemory = "SERVER_MEMORY"
 	keyIP     = "SERVER_IP"
 )
 
-// eggPlaceholders maps Wings' dotted placeholders to plain variables.
 var eggPlaceholders = []struct {
 	re   *regexp.Regexp
 	repl string
@@ -47,7 +44,6 @@ func (c *conv) eggText(s string) string {
 	})
 }
 
-// Container paths and binaries of the Pterodactyl "yolks" images.
 var yolkPaths = strings.NewReplacer(
 	"/home/container", "{{SERVER_DIR}}",
 	"/usr/local/bin/python3", "python3",
@@ -75,7 +71,6 @@ func fromEgg(doc map[string]any, kind string) (*conv, error) {
 		c.t.Description = templates.Text{"en": d}
 	}
 
-	// Variables first: everything else may reference them.
 	vars, _ := doc["variables"].([]any)
 	for _, raw := range vars {
 		m, ok := raw.(map[string]any)
@@ -89,7 +84,6 @@ func fromEgg(doc map[string]any, kind string) (*conv, error) {
 
 	startup := str(doc["startup"])
 	if startup == "" {
-		// Pelican: startup_commands is a name -> command map; take the first.
 		if sc, ok := doc["startup_commands"].(map[string]any); ok && len(sc) > 0 {
 			names := make([]string, 0, len(sc))
 			for k := range sc {
@@ -131,7 +125,6 @@ func fromEgg(doc map[string]any, kind string) (*conv, error) {
 		}
 	}
 
-	// Install script.
 	if scripts, ok := doc["scripts"].(map[string]any); ok {
 		if inst, ok := scripts["installation"].(map[string]any); ok {
 			if body := strings.TrimSpace(str(inst["script"])); body != "" {
@@ -164,7 +157,7 @@ func (c *conv) addEULA() {
 	}
 	c.t.Variables = append(c.t.Variables, templates.Variable{
 		Key:      "EULA",
-		Label:    templates.Text{"pl": "Akceptuję EULA Minecrafta (aka.ms/MinecraftEULA)", "en": "I accept the Minecraft EULA (aka.ms/MinecraftEULA)"},
+		Label:    templates.Text{"pl": "Akceptuję EULA Minecrafta (aka.ms/MinecraftEULA)", "en": "I accept the Minecraft EULA (aka.ms/MinecraftEULA)", "de": "Ich akzeptiere die Minecraft-EULA (aka.ms/MinecraftEULA)"},
 		Type:     templates.TypeBool,
 		Default:  "false",
 		Required: true,
@@ -173,8 +166,6 @@ func (c *conv) addEULA() {
 	c.t.Install = append(c.t.Install, templates.Step{Write: &templates.WriteStep{Path: "eula.txt", Content: "eula=true\n", RequireConsent: "EULA"}})
 }
 
-// addSyntheticVars provides the port / memory / IP Wings would inject, but
-// only when the egg actually uses them.
 func (c *conv) addSyntheticVars() {
 	used := func(key string) bool {
 		for _, s := range append(c.strings(), c.scriptText()) {
@@ -186,7 +177,7 @@ func (c *conv) addSyntheticVars() {
 	}
 	var extra []templates.Variable
 	if used(keyPort) && !c.hasVar(keyPort) {
-		v := templates.Variable{Key: keyPort, Label: templates.Text{"pl": "Port serwera", "en": "Server port"}, Type: templates.TypeNumber, Required: true, Min: f64(1), Max: f64(65535)}
+		v := templates.Variable{Key: keyPort, Label: templates.Text{"pl": "Port serwera", "en": "Server port", "de": "Server-Port"}, Type: templates.TypeNumber, Required: true, Min: f64(1), Max: f64(65535)}
 		if c.t.Category == servers.CategoryMinecraft {
 			v.Default = "25565"
 		} else if c.t.Category == servers.CategoryFiveM {
@@ -195,7 +186,7 @@ func (c *conv) addSyntheticVars() {
 		extra = append(extra, v)
 	}
 	if used(keyMemory) && !c.hasVar(keyMemory) {
-		extra = append(extra, templates.Variable{Key: keyMemory, Label: templates.Text{"pl": "Pamięć (MB)", "en": "Memory (MB)"}, Type: templates.TypeNumber, Default: "2048", Min: f64(128), Required: true})
+		extra = append(extra, templates.Variable{Key: keyMemory, Label: templates.Text{"pl": "Pamięć (MB)", "en": "Memory (MB)", "de": "Arbeitsspeicher (MB)"}, Type: templates.TypeNumber, Default: "2048", Min: f64(128), Required: true})
 	}
 	if used(keyIP) && !c.hasVar(keyIP) {
 		extra = append(extra, templates.Variable{Key: keyIP, Label: templates.Text{"en": "Bind address"}, Type: templates.TypeString, Default: "0.0.0.0", Hidden: true})
@@ -258,7 +249,6 @@ func validKey(k string) bool { return keyRe.MatchString(k) }
 
 var knownRule = regexp.MustCompile(`^(required|nullable|sometimes|string|integer|numeric|boolean|bool|alpha_dash|alpha_num|alpha|url|ip|email|digits|min|max|between|in|not_in|size|regex|not_regex|digits_between)(:|$)`)
 
-// parseRules splits Laravel validation rules, keeping "|" inside regex rules.
 func parseRules(raw any) []string {
 	var parts []string
 	switch r := raw.(type) {
@@ -356,12 +346,11 @@ func applyRules(c *conv, v *templates.Variable, rules []string) {
 			v.MaxLength = int(*maxV)
 		}
 	}
-	// A pattern on a select/bool is redundant and may conflict.
+
 	if v.Type == templates.TypeSelect || v.Type == templates.TypeBool {
 		v.Pattern = ""
 	}
-	// Pterodactyl accepts an empty optional value even if it fails the
-	// pattern; keep that by allowing empty.
+
 	if v.Pattern != "" && !v.Required {
 		v.Pattern = "^$|" + "(?:" + v.Pattern + ")"
 	}
@@ -376,7 +365,6 @@ func contains(list []string, s string) bool {
 	return false
 }
 
-// phpRegex converts "/body/flags" to a Go regexp.
 func phpRegex(s string) (string, bool) {
 	s = strings.TrimSpace(s)
 	if len(s) < 2 {
@@ -499,7 +487,6 @@ func (c *conv) eggConfigFiles(v any) {
 	}
 }
 
-// eggRuntime maps the egg's container images to a host runtime.
 func (c *conv) eggRuntime(images []kv) {
 	var kind string
 	versions := []string{}
@@ -525,7 +512,7 @@ func (c *conv) eggRuntime(images []kv) {
 		return
 	}
 	c.t.Runtime.Kind = kind
-	defaultVersion := versions[0] // Pterodactyl's default image is the first one
+	defaultVersion := versions[0]
 	if len(versions) == 1 {
 		c.t.Runtime.Version = defaultVersion
 		return
@@ -536,7 +523,7 @@ func (c *conv) eggRuntime(images []kv) {
 	sortVersionsDesc(opts)
 	if !c.hasVar(key) {
 		c.t.Variables = append([]templates.Variable{{
-			Key: key, Label: templates.Text{"pl": "Wersja " + label, "en": label + " version"},
+			Key: key, Label: templates.Text{"pl": "Wersja " + label, "en": label + " version", "de": label + "-Version"},
 			Type: templates.TypeSelect, Options: opts, Default: defaultVersion, Required: true,
 		}}, c.t.Variables...)
 	}
@@ -545,8 +532,6 @@ func (c *conv) eggRuntime(images []kv) {
 
 type kv struct{ key, value string }
 
-// orderedImages keeps the images in file order (the first one is the
-// egg's default). Pterodactyl v1 eggs used a plain list.
 func orderedImages(v any) []kv {
 	switch x := v.(type) {
 	case []any:
@@ -562,7 +547,7 @@ func orderedImages(v any) []kv {
 		for k, val := range x {
 			out = append(out, kv{k, str(val)})
 		}
-		// Map order is lost after generic decoding; prefer newer versions.
+
 		sort.SliceStable(out, func(i, j int) bool { return versionLess(imageVersion(out[j].value), imageVersion(out[i].value)) })
 		return out
 	}
@@ -586,8 +571,6 @@ func imageValues(kvs []kv) []string {
 
 type orderedMap []kv
 
-// jsonish decodes Pterodactyl's JSON-in-a-string config fields; Pelican's
-// YAML exports carry them as real objects.
 func jsonish(v any) any {
 	s, ok := v.(string)
 	if !ok {

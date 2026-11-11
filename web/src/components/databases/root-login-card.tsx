@@ -14,8 +14,6 @@ import { isApiError } from "@/lib/api"
 import { useDisableRootLogin, useRevealRootPassword, useRootLogin, useSetRootPassword } from "@/lib/databases"
 import { describeError } from "@/lib/errors"
 
-// Owner-only: lets root log in to phpMyAdmin with a password, next to the
-// default socket-only login that `sudo mariadb` uses.
 export function RootLoginCard({ phpMyAdminUrl }: { phpMyAdminUrl?: string }) {
   const { t } = useTranslation()
   const root = useRootLogin(true)

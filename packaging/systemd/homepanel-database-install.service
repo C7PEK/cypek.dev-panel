@@ -4,8 +4,6 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-# Started by the panel (polkit allows exactly this unit); runs as root
-# because it installs packages. Re-running is safe.
 Type=oneshot
 ExecStart=/usr/local/bin/homepanel install-database
 TimeoutStartSec=30min

@@ -5,7 +5,6 @@ import { PERMISSIONS, PRESETS, presetOf } from "@/lib/users"
 import type { Permission } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-/** Checkbox grid for per-server permissions with the three presets. */
 export function PermissionPicker({
   value,
   onChange,

@@ -3,10 +3,6 @@ import { useSyncExternalStore } from "react"
 import { api } from "@/lib/api"
 import type { EventsMessage, HostStats, LiveServer } from "@/lib/types"
 
-// One events socket per page, shared by every component that calls
-// useLiveStats(). Opens on the first subscriber, closes after the last one
-// leaves; while the socket is down the host card is fed by polling.
-
 export interface LiveStats {
   host?: HostStats
   servers: Record<string, LiveServer>
@@ -88,7 +84,6 @@ function connect() {
     try {
       applyMessage(JSON.parse(ev.data) as EventsMessage)
     } catch {
-      // ignore malformed frames
     }
   }
   sock.onclose = () => {
@@ -131,7 +126,6 @@ function getSnapshot() {
   return state
 }
 
-/** Live host and server stats from the events socket (polling fallback for the host). */
 export function useLiveStats(): LiveStats {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 }

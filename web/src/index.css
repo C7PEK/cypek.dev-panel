@@ -51,8 +51,6 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* cypek.dev palette: near-black ground, hairline borders, blurple accent,
-   cyan/magenta only as brand highlights. Light theme is the same system inverted. */
 :root {
     color-scheme: light;
     --background: oklch(0.985 0 0);
@@ -93,13 +91,13 @@
 
 .dark {
     color-scheme: dark;
-    --background: oklch(0.13 0.003 285);        /* #050506 */
-    --foreground: oklch(0.965 0.002 285);       /* #f4f4f6 */
+    --background: oklch(0.13 0.003 285);
+    --foreground: oklch(0.965 0.002 285);
     --card: oklch(0.17 0.004 285);
     --card-foreground: oklch(0.965 0.002 285);
     --popover: oklch(0.18 0.004 285);
     --popover-foreground: oklch(0.965 0.002 285);
-    --primary: oklch(0.585 0.2 275);            /* #5865f2 */
+    --primary: oklch(0.585 0.2 275);
     --primary-foreground: oklch(1 0 0);
     --secondary: oklch(0.22 0.004 285);
     --secondary-foreground: oklch(0.965 0.002 285);

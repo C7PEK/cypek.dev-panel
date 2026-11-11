@@ -9,7 +9,7 @@ the system D-Bus and needs permission for exactly these calls:
 |---|---|---|
 | StartUnit / StopUnit / RestartUnit / KillUnit / ResetFailedUnit | `org.freedesktop.systemd1.manage-units` | yes (`unit` detail) |
 | SetUnitProperties (MemoryMax, CPUQuota; `runtime=false`) | `org.freedesktop.systemd1.manage-units` | yes |
-| GetUnitProperties, GetServiceProperty (status, cgroup stats) | none (read-only) | – |
+| GetUnitProperties, GetServiceProperty (status, cgroup stats) | none (read-only) | - |
 | EnableUnitFiles / DisableUnitFiles / RevertUnitFiles | `org.freedesktop.systemd1.manage-unit-files` | **no** |
 
 Verified on Debian 13 (systemd 257, polkit 126) by running the supervisor

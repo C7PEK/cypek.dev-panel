@@ -28,7 +28,6 @@ func (s *Server) filesFor(r *http.Request) *files.Manager {
 	return files.New(s.servers.Dir(serverFromContext(r.Context()).ID))
 }
 
-// writeFileError maps file manager errors to the API envelope.
 func (s *Server) writeFileError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, files.ErrOutsideRoot):
@@ -190,8 +189,6 @@ type extractRequest struct {
 	To   string `json:"to"`
 }
 
-// handleFilesUpload accepts multipart/form-data with one or more "files"
-// parts into ?path=<dir>. Each part is capped at max_upload_mb.
 func (s *Server) handleFilesUpload(w http.ResponseWriter, r *http.Request) {
 	dir := r.URL.Query().Get("path")
 	maxMB := s.cfg.MaxUploadMB
@@ -199,7 +196,7 @@ func (s *Server) handleFilesUpload(w http.ResponseWriter, r *http.Request) {
 		maxMB = 1024
 	}
 	maxBytes := int64(maxMB) << 20
-	// Several files per request are allowed; cap the whole body generously.
+
 	r.Body = http.MaxBytesReader(w, r.Body, maxBytes*4+1<<20)
 	mr, err := r.MultipartReader()
 	if err != nil {

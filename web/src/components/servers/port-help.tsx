@@ -6,10 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useFirewall, useSystemInfo } from "@/lib/system"
 import type { Port } from "@/lib/types"
 
-/**
- * Firewall hint (ready commands, the panel never changes the firewall) and
- * a short how-to for checking a port from the internet.
- */
 export function PortHelp({ ports }: { ports: Pick<Port, "port" | "protocol">[] }) {
   const { t } = useTranslation()
   const fw = useFirewall(ports)
@@ -66,7 +62,6 @@ export function PortHelp({ ports }: { ports: Pick<Port, "port" | "protocol">[] }
   )
 }
 
-/** Compact card for the server Settings tab. */
 export function PortHelpCard({ ports }: { ports: Port[] }) {
   const { t } = useTranslation()
   if (ports.length === 0) return null

@@ -22,7 +22,6 @@ func TestModsAPI(t *testing.T) {
 		t.Fatalf("non-minecraft: %d %v", resp.StatusCode, body)
 	}
 
-	// A real (fake-upstream) Paper server.
 	withFakeUpstream(t, e)
 	resp, body = e.do(http.MethodPost, "/api/v1/servers", map[string]any{"name": "MC", "templateId": "minecraft-paper",
 		"variables": map[string]string{"MC_VERSION": "latest", "EULA": "true", "PORT": "25571"}})
@@ -67,7 +66,6 @@ func TestModsAPI(t *testing.T) {
 		t.Fatalf("bad project id: %d", resp.StatusCode)
 	}
 
-	// files.read can look, not change.
 	plain, _ := e.store.CreateUser(t.Context(), "plain", "password123", auth.RoleUser)
 	_ = e.store.GrantPermissions(t.Context(), id, plain.ID, []auth.Permission{auth.PermFilesRead})
 	e.loginAs("plain")

@@ -27,7 +27,6 @@ const (
 	CodeTemplateError = "template_error"
 )
 
-// TemplateID of the "bring your own command" pseudo-template.
 const customTemplateID = "custom"
 
 func (s *Server) handleListTemplates(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +48,6 @@ type sourceOption struct {
 	Prerelease bool   `json:"prerelease,omitempty"`
 }
 
-// handleTemplateSource resolves a dynamic option list (e.g. paper-versions).
 func (s *Server) handleTemplateSource(w http.ResponseWriter, r *http.Request) {
 	tpl, ok := s.templates.Get(chi.URLParam(r, "id"))
 	if !ok {
@@ -77,7 +75,6 @@ func (s *Server) handleTemplateSource(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"options": opts})
 }
 
-// Loader clients keep their version lists cached between requests.
 var (
 	forgeClient    = providers.NewForge()
 	neoForgeClient = providers.NewNeoForge()
@@ -159,8 +156,6 @@ func (s *Server) sourceOptions(ctx context.Context, source string) ([]sourceOpti
 	}
 }
 
-// validateSourceValue checks a select backed by a dynamic source against
-// the live list, so a made-up version never reaches the installer.
 func (s *Server) validateSourceValue(ctx context.Context, v *templates.Variable, value string) error {
 	if v.Source == "" {
 		return nil
@@ -177,14 +172,10 @@ func (s *Server) validateSourceValue(ctx context.Context, v *templates.Variable,
 	return &templates.ValueError{Key: v.Key, Message: "is not an available option"}
 }
 
-// startInstall kicks off the installer for a template server and wires the
-// completion back into the store. The job outlives the HTTP request.
 func (s *Server) startInstall(srv *servers.Server, tpl *templates.Template, userVars map[string]string) error {
 	return s.startInstallWith(srv, tpl, userVars, installer.Hooks{}, nil)
 }
 
-// startInstallWith runs an install job with hooks; then (optional) is called
-// after the outcome is stored, with ok=false when the job failed.
 func (s *Server) startInstallWith(srv *servers.Server, tpl *templates.Template, userVars map[string]string, hooks installer.Hooks, then func(ok bool, err error)) error {
 	dir := s.servers.Dir(srv.ID)
 	ctx := s.bgCtx
@@ -222,8 +213,6 @@ func (s *Server) startInstallWith(srv *servers.Server, tpl *templates.Template, 
 	})
 }
 
-// splitVars separates a server's stored variables into the template's user
-// variables (secrets decrypted) and the installer builtins.
 func (s *Server) splitVars(tpl *templates.Template, stored map[string]string) (user, builtins map[string]string, err error) {
 	user, builtins = map[string]string{}, map[string]string{}
 	for k, v := range stored {
@@ -241,11 +230,9 @@ func (s *Server) splitVars(tpl *templates.Template, stored map[string]string) (u
 	return user, builtins, nil
 }
 
-// maskedVariables hides secrets and drops builtins for API responses.
 func maskedVariables(tpl *templates.Template, stored map[string]string) map[string]string {
 	out := map[string]string{}
 	if tpl == nil {
-		// Template gone: we cannot tell secrets apart, show nothing.
 		return out
 	}
 	for k, v := range stored {
@@ -265,7 +252,6 @@ func (s *Server) handleInstallStatus(w http.ResponseWriter, r *http.Request) {
 	srv := serverFromContext(r.Context())
 	job, ok := s.installer.Get(srv.ID)
 	if !ok {
-		// No live job (panel restarted or custom server): synthesise from the store.
 		state := installer.JobDone
 		if srv.InstallState == servers.InstallFailed {
 			state = installer.JobFailed
@@ -277,7 +263,6 @@ func (s *Server) handleInstallStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, job)
 }
 
-// handleReinstall re-runs the template installation for a stopped server.
 func (s *Server) handleReinstall(w http.ResponseWriter, r *http.Request) {
 	_, user := sessionFromContext(r.Context())
 	srv := serverFromContext(r.Context())
@@ -307,8 +292,6 @@ func (s *Server) handleReinstall(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-// recoverInstalls marks servers left "installing" by a previous panel
-// process as failed, so the UI offers a reinstall instead of spinning.
 func (s *Server) recoverInstalls(ctx context.Context) {
 	list, err := s.servers.List(ctx, nil)
 	if err != nil {
@@ -321,8 +304,6 @@ func (s *Server) recoverInstalls(ctx context.Context) {
 	}
 }
 
-// consoleHints feeds the console's autocompletion: the template's command
-// list and the players online right now.
 type consoleHints struct {
 	Commands []templates.Command `json:"commands"`
 	Players  *query.Players      `json:"players,omitempty"`
@@ -343,7 +324,6 @@ func (s *Server) handleConsoleHints(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, hints)
 }
 
-// warnCommandFor renders the template's warnCommand for a scheduled warning.
 func (s *Server) warnCommandFor(ctx context.Context, serverID, message string) (string, bool, error) {
 	srv, err := s.servers.Get(ctx, serverID)
 	if err != nil {
@@ -360,8 +340,6 @@ func (s *Server) warnCommandFor(ctx context.Context, serverID, message string) (
 	return cmd, true, nil
 }
 
-// applyConfigDefaults keeps the template's default config lines present
-// before a start; failures are logged, never block the start.
 func (s *Server) applyConfigDefaults(srv *servers.Server) {
 	if !isTemplateServer(srv) {
 		return
@@ -381,8 +359,7 @@ func (s *Server) applyConfigDefaults(srv *servers.Server) {
 	if len(tpl.ConfigFiles) == 0 {
 		return
 	}
-	// configFiles (imported eggs) are re-applied on every start, as Wings
-	// does, so the port and other settings follow the panel's variables.
+
 	user, builtins, err := s.splitVars(tpl, srv.Variables)
 	if err != nil {
 		s.log.Warn("config files: read variables", "server", srv.ID, "err", err)
@@ -403,7 +380,6 @@ func (s *Server) applyConfigDefaults(srv *servers.Server) {
 	}
 }
 
-// BeforeStart is the scheduler hook with the same effect.
 func (s *Server) beforeStart(ctx context.Context, id string) {
 	if srv, err := s.servers.Get(ctx, id); err == nil {
 		s.applyConfigDefaults(srv)
@@ -414,9 +390,6 @@ func isTemplateServer(srv *servers.Server) bool {
 	return srv.TemplateID != "" && srv.TemplateID != customTemplateID
 }
 
-// syncStopConfig lets template fixes to the stop command reach existing
-// servers on their next start (run.json is otherwise only rebuilt when the
-// variables change).
 func (s *Server) syncStopConfig(srv *servers.Server, tpl *templates.Template) {
 	want := shim.StopConfig{Command: tpl.Stop.Command, TimeoutSec: tpl.Stop.TimeoutSec}
 	if want.TimeoutSec <= 0 {

@@ -29,13 +29,13 @@ It is idempotent; run it again to repair. Steps:
 ## Tuning (why oxmysql stops warning about slow queries)
 
 Measured on a thin-provisioned VM disk: 200 single-row INSERTs took
-**104 ms each** with the stock settings and **0.1–2 ms** with these:
+**104 ms each** with the stock settings and **0.1-2 ms** with these:
 
 | Setting | Value | Why |
 |---|---|---|
 | `innodb_flush_log_at_trx_commit` | 2 | no fsync per commit; at most ~1 s of commits lost on a power cut (not on a MariaDB crash) |
 | `skip-name-resolve` | ON | no reverse DNS on every new connection |
-| `innodb_buffer_pool_size` | 25% of RAM (128 MB – 2 GB) | keeps game tables in memory |
+| `innodb_buffer_pool_size` | 25% of RAM (128 MB to 2 GB) | keeps game tables in memory |
 | `bind-address` | 127.0.0.1,::1 (127.0.0.1 before MariaDB 10.11) | loopback only; both families so FXServer's "localhost" (often ::1) connects instantly |
 | `performance_schema` | OFF | saves ~100 MB RAM |
 | `slow_query_log` / `long_query_time` | ON / 1 s | real slow queries still land in `/var/log/mysql/mariadb-slow.log` |

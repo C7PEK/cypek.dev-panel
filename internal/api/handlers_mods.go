@@ -24,8 +24,6 @@ const (
 	modrinthTimeout     = 30 * time.Second
 )
 
-// modsPlatform resolves the add-on platform of the server in the request,
-// writing an error for non-Minecraft servers.
 func (s *Server) modsPlatform(w http.ResponseWriter, r *http.Request) (*servers.Server, string, mods.Platform, bool) {
 	srv := serverFromContext(r.Context())
 	if srv.Category != servers.CategoryMinecraft {
@@ -175,7 +173,7 @@ func (s *Server) handleModVersions(w http.ResponseWriter, r *http.Request) {
 	for _, v := range vs {
 		gv := v.GameVersions
 		if len(gv) > 8 {
-			gv = gv[len(gv)-8:] // newest ones are last
+			gv = gv[len(gv)-8:]
 		}
 		out = append(out, version{ID: v.ID, Number: v.VersionNumber, Name: v.Name, Type: v.VersionType, Date: v.DatePublished, GameVersions: gv})
 	}
@@ -313,7 +311,6 @@ func (s *Server) handleModPlatform(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, p)
 }
 
-// Game versions change a few times a year; cache them for an hour.
 var gameVersionsCache struct {
 	sync.Mutex
 	at   time.Time

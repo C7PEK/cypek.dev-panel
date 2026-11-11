@@ -16,9 +16,6 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/db"
 )
 
-// runResetPassword sets a new password for a user and revokes their sessions.
-// It needs filesystem access to panel.db, which is the whole point: anyone who
-// can run it already owns the machine.
 func runResetPassword(args []string) error {
 	fs := flag.NewFlagSet("reset-password", flag.ContinueOnError)
 	configPath := fs.String("config", config.DefaultPath, "path to config.toml")
@@ -64,8 +61,6 @@ func runResetPassword(args []string) error {
 	return nil
 }
 
-// readPassword prompts twice without echo on a terminal, or reads one line
-// from stdin when piped (for scripts).
 func readPassword() (string, error) {
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		line, err := bufio.NewReader(os.Stdin).ReadString('\n')

@@ -7,36 +7,40 @@ icon: minecraft
 description:
   pl: Najpopularniejszy serwer Minecraft Java Edition z obsługą pluginów. Java jest pobierana automatycznie.
   en: The most popular Minecraft Java Edition server with plugin support. Java is downloaded automatically.
+  de: Der beliebteste Server für Minecraft Java Edition mit Plugin-Unterstützung. Java wird automatisch heruntergeladen.
 
 variables:
   - key: MC_VERSION
-    label: { pl: Wersja Minecrafta, en: Minecraft version }
+    label: { pl: Wersja Minecrafta, en: Minecraft version, de: Minecraft-Version }
     help:
       pl: Najnowsza stabilna wersja jest zwykle najlepszym wyborem. Wersje pre i rc to wersje testowe.
       en: The latest stable version is usually the best choice. pre and rc versions are test builds.
+      de: Die neueste stabile Version ist meist die beste Wahl. pre- und rc-Versionen sind Testbuilds.
     type: select
     source: paper-versions
     default: latest
   - key: RAM_MB
-    label: { pl: Pamięć RAM (MB), en: Memory (MB) }
+    label: { pl: Pamięć RAM (MB), en: Memory (MB), de: Arbeitsspeicher (MB) }
     help:
       pl: Ile pamięci dostaje Java (Xmx). 2048 wystarcza na kilku graczy, 4096+ dla większych światów i pluginów.
       en: How much memory Java gets (Xmx). 2048 is fine for a few players, 4096+ for bigger worlds and plugins.
+      de: Wie viel Speicher Java bekommt (Xmx). 2048 reicht für ein paar Spieler, 4096+ für größere Welten und Plugins.
     type: number
     default: 2048
     min: 512
     max: 262144
   - key: PORT
-    label: { pl: Port gry, en: Game port }
+    label: { pl: Port gry, en: Game port, de: Spielport }
     help:
       pl: Domyślnie 25565. Zmień, gdy masz kilka serwerów Minecraft na jednej maszynie.
       en: Default 25565. Change it when you run several Minecraft servers on one machine.
+      de: Standard 25565. Ändere ihn, wenn du mehrere Minecraft-Server auf einem Rechner betreibst.
     type: number
     default: 25565
     min: 1024
     max: 65535
   - key: MOTD
-    label: { pl: Opis serwera (MOTD), en: Server description (MOTD) }
+    label: { pl: Opis serwera (MOTD), en: Server description (MOTD), de: Serverbeschreibung (MOTD) }
     type: string
     default: A Minecraft Server
     maxLength: 59
@@ -44,9 +48,11 @@ variables:
     label:
       pl: Akceptuję warunki Minecraft EULA (https://aka.ms/MinecraftEULA)
       en: I accept the Minecraft EULA (https://aka.ms/MinecraftEULA)
+      de: Ich akzeptiere die Minecraft-EULA (https://aka.ms/MinecraftEULA)
     help:
       pl: Mojang wymaga akceptacji, żeby serwer wystartował. Panel nie akceptuje jej za Ciebie.
       en: Mojang requires it before the server starts. The panel does not accept it on your behalf.
+      de: Mojang verlangt die Zustimmung, bevor der Server startet. Das Panel stimmt nicht für dich zu.
     type: bool
     default: false
     consent: true
@@ -93,39 +99,39 @@ query: { kind: minecraft-ping, port: "{{PORT}}" }
 
 console:
   commands:
-    - { name: list, help: { pl: Pokaż graczy online, en: Show online players } }
-    - { name: say, args: "<message...>", help: { pl: Wiadomość do wszystkich graczy, en: Message to all players } }
-    - { name: tell, args: "<player> <message...>", help: { pl: Prywatna wiadomość, en: Private message } }
-    - { name: gamemode, args: "<survival|creative|adventure|spectator> [player]", help: { pl: Zmień tryb gry, en: Change game mode } }
-    - { name: difficulty, args: "<peaceful|easy|normal|hard>", help: { pl: Poziom trudności, en: Difficulty } }
-    - { name: time, args: "<set|add> <day|night|noon|midnight|number>", help: { pl: Pora dnia, en: Time of day } }
-    - { name: weather, args: "<clear|rain|thunder> [seconds]", help: { pl: Pogoda, en: Weather } }
-    - { name: tp, args: "<player> <target-player|x y z>", help: { pl: Teleportuj gracza, en: Teleport a player } }
-    - { name: give, args: "<player> <item> [count]", help: { pl: Daj przedmiot, en: Give an item } }
-    - { name: clear, args: "[player] [item]", help: { pl: Wyczyść ekwipunek, en: Clear inventory } }
-    - { name: kill, args: "[player]", help: { pl: Zabij gracza, en: Kill a player } }
-    - { name: xp, args: "<add|set> <player> <amount> [points|levels]", help: { pl: Doświadczenie, en: Experience } }
-    - { name: effect, args: "<give|clear> <player> [effect] [seconds] [amplifier]", help: { pl: Efekty mikstur, en: Potion effects } }
-    - { name: enchant, args: "<player> <enchantment> [level]", help: { pl: Zaklęcie na trzymany przedmiot, en: Enchant the held item } }
-    - { name: op, args: "<player>", help: { pl: Nadaj uprawnienia operatora, en: Grant operator rights } }
-    - { name: deop, args: "<player>", help: { pl: Odbierz uprawnienia operatora, en: Revoke operator rights } }
-    - { name: kick, args: "<player> [reason...]", help: { pl: Wyrzuć gracza, en: Kick a player } }
-    - { name: ban, args: "<player> [reason...]", help: { pl: Zbanuj gracza, en: Ban a player } }
-    - { name: ban-ip, args: "<player|ip> [reason...]", help: { pl: Zbanuj adres IP, en: Ban an IP address } }
-    - { name: pardon, args: "<player>", help: { pl: Odbanuj gracza, en: Unban a player } }
-    - { name: pardon-ip, args: "<ip>", help: { pl: Odbanuj adres IP, en: Unban an IP address } }
-    - { name: banlist, args: "[players|ips]", help: { pl: Lista banów, en: Ban list } }
-    - { name: whitelist, args: "<on|off|list|add|remove|reload> [player]", help: { pl: Biała lista, en: Whitelist } }
-    - { name: gamerule, args: "<rule> [value]", help: { pl: Zasady świata (np. keepInventory true), en: World rules (e.g. keepInventory true) } }
-    - { name: setworldspawn, args: "[x y z]", help: { pl: Punkt odrodzenia świata, en: World spawn point } }
-    - { name: spawnpoint, args: "[player] [x y z]", help: { pl: Punkt odrodzenia gracza, en: Player spawn point } }
-    - { name: summon, args: "<entity> [x y z]", help: { pl: Przywołaj moba, en: Summon a mob } }
-    - { name: seed, help: { pl: Pokaż seed świata, en: Show the world seed } }
-    - { name: save-all, help: { pl: Zapisz świat, en: Save the world } }
-    - { name: save-off, help: { pl: Wyłącz automatyczny zapis (np. przed backupem), en: Disable autosave (e.g. before a backup) } }
-    - { name: save-on, help: { pl: Włącz automatyczny zapis, en: Enable autosave } }
-    - { name: plugins, help: { pl: Lista pluginów, en: List plugins } }
-    - { name: tps, help: { pl: Wydajność serwera (TPS), en: Server performance (TPS) } }
-    - { name: version, help: { pl: Wersja serwera, en: Server version } }
-    - { name: reload, args: "confirm", help: { pl: Przeładuj pluginy (lepiej zrestartować), en: Reload plugins (a restart is safer) } }
-    - { name: stop, help: { pl: Zatrzymaj serwer (zapisuje świat), en: Stop the server (saves the world) } }
+    - { name: list, help: { pl: Pokaż graczy online, en: Show online players, de: Spieler online anzeigen } }
+    - { name: say, args: "<message...>", help: { pl: Wiadomość do wszystkich graczy, en: Message to all players, de: Nachricht an alle Spieler } }
+    - { name: tell, args: "<player> <message...>", help: { pl: Prywatna wiadomość, en: Private message, de: Private Nachricht } }
+    - { name: gamemode, args: "<survival|creative|adventure|spectator> [player]", help: { pl: Zmień tryb gry, en: Change game mode, de: Spielmodus ändern } }
+    - { name: difficulty, args: "<peaceful|easy|normal|hard>", help: { pl: Poziom trudności, en: Difficulty, de: Schwierigkeit } }
+    - { name: time, args: "<set|add> <day|night|noon|midnight|number>", help: { pl: Pora dnia, en: Time of day, de: Tageszeit } }
+    - { name: weather, args: "<clear|rain|thunder> [seconds]", help: { pl: Pogoda, en: Weather, de: Wetter } }
+    - { name: tp, args: "<player> <target-player|x y z>", help: { pl: Teleportuj gracza, en: Teleport a player, de: Spieler teleportieren } }
+    - { name: give, args: "<player> <item> [count]", help: { pl: Daj przedmiot, en: Give an item, de: Gegenstand geben } }
+    - { name: clear, args: "[player] [item]", help: { pl: Wyczyść ekwipunek, en: Clear inventory, de: Inventar leeren } }
+    - { name: kill, args: "[player]", help: { pl: Zabij gracza, en: Kill a player, de: Spieler töten } }
+    - { name: xp, args: "<add|set> <player> <amount> [points|levels]", help: { pl: Doświadczenie, en: Experience, de: Erfahrung } }
+    - { name: effect, args: "<give|clear> <player> [effect] [seconds] [amplifier]", help: { pl: Efekty mikstur, en: Potion effects, de: Trankeffekte } }
+    - { name: enchant, args: "<player> <enchantment> [level]", help: { pl: Zaklęcie na trzymany przedmiot, en: Enchant the held item, de: Gehaltenen Gegenstand verzaubern } }
+    - { name: op, args: "<player>", help: { pl: Nadaj uprawnienia operatora, en: Grant operator rights, de: Operator-Rechte geben } }
+    - { name: deop, args: "<player>", help: { pl: Odbierz uprawnienia operatora, en: Revoke operator rights, de: Operator-Rechte entziehen } }
+    - { name: kick, args: "<player> [reason...]", help: { pl: Wyrzuć gracza, en: Kick a player, de: Spieler kicken } }
+    - { name: ban, args: "<player> [reason...]", help: { pl: Zbanuj gracza, en: Ban a player, de: Spieler bannen } }
+    - { name: ban-ip, args: "<player|ip> [reason...]", help: { pl: Zbanuj adres IP, en: Ban an IP address, de: IP-Adresse bannen } }
+    - { name: pardon, args: "<player>", help: { pl: Odbanuj gracza, en: Unban a player, de: Spieler entbannen } }
+    - { name: pardon-ip, args: "<ip>", help: { pl: Odbanuj adres IP, en: Unban an IP address, de: IP-Adresse entbannen } }
+    - { name: banlist, args: "[players|ips]", help: { pl: Lista banów, en: Ban list, de: Bannliste } }
+    - { name: whitelist, args: "<on|off|list|add|remove|reload> [player]", help: { pl: Biała lista, en: Whitelist, de: Whitelist } }
+    - { name: gamerule, args: "<rule> [value]", help: { pl: Zasady świata (np. keepInventory true), en: World rules (e.g. keepInventory true), de: Weltregeln (z. B. keepInventory true) } }
+    - { name: setworldspawn, args: "[x y z]", help: { pl: Punkt odrodzenia świata, en: World spawn point, de: Spawnpunkt der Welt } }
+    - { name: spawnpoint, args: "[player] [x y z]", help: { pl: Punkt odrodzenia gracza, en: Player spawn point, de: Spawnpunkt eines Spielers } }
+    - { name: summon, args: "<entity> [x y z]", help: { pl: Przywołaj moba, en: Summon a mob, de: Mob beschwören } }
+    - { name: seed, help: { pl: Pokaż seed świata, en: Show the world seed, de: Seed der Welt anzeigen } }
+    - { name: save-all, help: { pl: Zapisz świat, en: Save the world, de: Welt speichern } }
+    - { name: save-off, help: { pl: Wyłącz automatyczny zapis (np. przed backupem), en: Disable autosave (e.g. before a backup), de: Automatisches Speichern ausschalten (z. B. vor einem Backup) } }
+    - { name: save-on, help: { pl: Włącz automatyczny zapis, en: Enable autosave, de: Automatisches Speichern einschalten } }
+    - { name: plugins, help: { pl: Lista pluginów, en: List plugins, de: Plugins auflisten } }
+    - { name: tps, help: { pl: Wydajność serwera (TPS), en: Server performance (TPS), de: Serverleistung (TPS) } }
+    - { name: version, help: { pl: Wersja serwera, en: Server version, de: Serverversion } }
+    - { name: reload, args: "confirm", help: { pl: Przeładuj pluginy (lepiej zrestartować), en: Reload plugins (a restart is safer), de: Plugins neu laden (ein Neustart ist sicherer) } }
+    - { name: stop, help: { pl: Zatrzymaj serwer (zapisuje świat), en: Stop the server (saves the world), de: Server stoppen (speichert die Welt) } }

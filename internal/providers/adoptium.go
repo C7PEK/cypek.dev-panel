@@ -6,20 +6,12 @@ import (
 	"runtime"
 )
 
-// Adoptium finds Temurin JRE builds.
-// Verified 2026-11-08 against https://api.adoptium.net/v3:
-//
-//	GET /v3/assets/latest/{feature}/hotspot?architecture=x64&image_type=jre&os=linux&vendor=eclipse
-//	-> [{"release_name": "jdk-21.0.13+9", "binary": {"package": {"link", "checksum" (sha256), "size"}}}]
-//	GET /v3/info/available_releases -> {"available_lts_releases": [8, 11, 17, 21, 25], ...}
 type Adoptium struct {
 	BaseURL string
 }
 
-// NewAdoptium returns a client for api.adoptium.net.
 func NewAdoptium() *Adoptium { return &Adoptium{BaseURL: "https://api.adoptium.net/v3"} }
 
-// JavaBuild is a downloadable JRE.
 type JavaBuild struct {
 	Feature     int
 	ReleaseName string
@@ -28,7 +20,6 @@ type JavaBuild struct {
 	Size        int64
 }
 
-// Arch maps Go's GOARCH to Adoptium's architecture names.
 func Arch() (string, error) {
 	switch runtime.GOARCH {
 	case "amd64":
@@ -40,7 +31,6 @@ func Arch() (string, error) {
 	}
 }
 
-// LTSReleases lists LTS feature versions, ascending.
 func (a *Adoptium) LTSReleases(ctx context.Context) ([]int, error) {
 	var resp struct {
 		LTS []int `json:"available_lts_releases"`
@@ -51,8 +41,6 @@ func (a *Adoptium) LTSReleases(ctx context.Context) ([]int, error) {
 	return resp.LTS, nil
 }
 
-// PickFeature chooses the smallest LTS release >= minimum, so a server that
-// needs Java 21 gets 21 and one that needs 25 gets 25.
 func PickFeature(minimum int, lts []int) int {
 	best := 0
 	for _, v := range lts {
@@ -61,13 +49,11 @@ func PickFeature(minimum int, lts []int) int {
 		}
 	}
 	if best == 0 {
-		// Newer than any LTS we know: use the minimum itself.
 		return minimum
 	}
 	return best
 }
 
-// Latest returns the newest JRE build for a feature version on this machine.
 func (a *Adoptium) Latest(ctx context.Context, feature int) (*JavaBuild, error) {
 	arch, err := Arch()
 	if err != nil {

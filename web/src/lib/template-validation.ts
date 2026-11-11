@@ -10,7 +10,6 @@ export type ValidationState =
   | { status: "ok"; template: Template }
   | { status: "error"; message: string }
 
-/** Debounced server-side validation of a template YAML. */
 export function useYamlValidation(yaml: string, enabled = true): ValidationState {
   const [state, setState] = useState<ValidationState>({ status: "idle" })
   useEffect(() => {

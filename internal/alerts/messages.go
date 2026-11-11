@@ -72,9 +72,33 @@ var textsEN = msgTexts{
 	testBody:       "This is how alerts will look when a server goes down and stays down.",
 }
 
+var textsDE = msgTexts{
+	downContent:    "🔴 **%s** ist ausgefallen!",
+	downTitle:      "%s ist ausgefallen",
+	downBody:       "%s um <t:%d:T> und lief innerhalb von %d s nicht wieder an.",
+	downLoop:       "Seit <t:%[2]d:T> %[1]d-mal hintereinander abgestürzt, der Start klappt nicht.",
+	cleanExit:      "Hat sich selbst beendet",
+	crashed:        "Abgestürzt",
+	recoveredTitle: "%s läuft wieder",
+	recoveredBody:  "Der Ausfall dauerte %s.",
+	restartedTitle: "%s ist abgestürzt, läuft aber wieder",
+	restartedBody:  "Um <t:%d:T> beendet und automatisch neu gestartet.",
+	errorTitle:     "Fehler in der Konsole: %s",
+	fieldExit:      "Exit-Code",
+	fieldCrashes:   "Abstürze",
+	fieldLog:       "Letzte Logzeilen",
+	open:           "Im Panel öffnen",
+	testContent:    "panel.cypek.dev Benachrichtigungstest",
+	testTitle:      "Benachrichtigungen funktionieren",
+	testBody:       "So sehen Alerts aus, wenn ein Server ausfällt und nicht wieder startet.",
+}
+
 func texts(lang string) msgTexts {
-	if lang == "en" {
+	switch lang {
+	case "en":
 		return textsEN
+	case "de":
+		return textsDE
 	}
 	return textsPL
 }
@@ -98,7 +122,6 @@ func logField(t msgTexts, srv ServerInfo, s Settings) []EmbedField {
 	return []EmbedField{{Name: t.fieldLog, Value: codeBlock(lines)}}
 }
 
-// codeBlock fits lines into an embed field, keeping the newest ones.
 func codeBlock(lines []string) string {
 	text := strings.ReplaceAll(strings.Join(lines, "\n"), "```", "'''")
 	if len(text) > logChars {
@@ -202,21 +225,16 @@ func humanDuration(d time.Duration) string {
 	return strings.Join(parts, " ")
 }
 
-// escapeMarkdown keeps server names from formatting (or pinging) in content.
 func escapeMarkdown(s string) string {
 	r := strings.NewReplacer(`\`, `\\`, `*`, `\*`, `_`, `\_`, "`", "\\`", `~`, `\~`, `|`, `\|`, `>`, `\>`, `@`, "@​")
 	return r.Replace(s)
 }
 
-// Notice kinds that are not about crashes.
 const (
 	KindExpired  = "expired"
 	KindExpiring = "expiring"
 )
 
-// Notify sends a quiet (no ping) notice about a server to the panel-wide
-// webhook, e.g. "expired, decide what to do". It is skipped when no webhook
-// is configured.
 func (m *Monitor) Notify(ctx context.Context, srv ServerInfo, kind string, when time.Time) {
 	m.start()
 	st, err := m.Store.Settings(ctx)

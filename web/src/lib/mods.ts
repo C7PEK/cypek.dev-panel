@@ -15,7 +15,6 @@ export const modsKey = (serverId: string) => ["servers", serverId, "mods"] as co
 const base = (serverId: string) => `/servers/${encodeURIComponent(serverId)}/mods`
 const filePath = (serverId: string, file: string) => `${base(serverId)}/files/${encodeURIComponent(file)}`
 
-/** Loaders the backend understands, with display names, grouped by folder kind. */
 export const PLUGIN_LOADERS = ["paper", "purpur", "folia", "spigot", "bukkit", "velocity"] as const
 export const MOD_LOADERS = ["fabric", "quilt", "forge", "neoforge"] as const
 
@@ -59,7 +58,6 @@ const PAGE = 20
 
 export function useModSearch(serverId: string, q: string, sort: ModSort, platform: ModPlatform | undefined) {
   return useInfiniteQuery({
-    // The platform is part of the key: a new loader/version means new results.
     queryKey: [...modsKey(serverId), "search", q, sort, platform?.loader ?? "", platform?.gameVersion ?? ""],
     queryFn: ({ pageParam }) => {
       const params = new URLSearchParams({ q, sort, offset: String(pageParam), limit: String(PAGE) })
@@ -140,7 +138,6 @@ export function useSetModPlatform(serverId: string) {
   })
 }
 
-/** "1.2M", "34K", "980". */
 export function formatCount(n: number, locale: string): string {
   try {
     return new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(n)

@@ -36,7 +36,6 @@ function saveHistory(id: string, items: string[]) {
   try {
     localStorage.setItem(historyKey(id), JSON.stringify(items.slice(-HISTORY_MAX)))
   } catch {
-    // Storage may be unavailable (private mode, quota); history then lives in memory only.
   }
 }
 
@@ -45,7 +44,6 @@ function consoleUrl(id: string) {
   return `${proto}//${location.host}/api/v1/servers/${encodeURIComponent(id)}/console`
 }
 
-// Dim "[panel] ..." line printed between game output when the state changes.
 function panelLine(text: string) {
   return `\r\n\x1b[2m${text}\x1b[0m\r\n`
 }
@@ -75,13 +73,11 @@ interface Match {
 
 const MAX_MATCHES = 2000
 
-/** Scrolls the match to the middle of the viewport and selects it. */
 function revealMatch(term: Terminal, m: Match) {
   term.scrollToLine(Math.max(0, m.row - Math.floor(term.rows / 2)))
   term.select(m.col, m.row, m.len)
 }
 
-/** Case-insensitive search over the whole buffer (scrollback included). */
 function findMatches(term: Terminal, query: string): Match[] {
   const needle = query.toLowerCase()
   if (!needle) return []
@@ -101,7 +97,6 @@ function findMatches(term: Terminal, query: string): Match[] {
 
 interface Props {
   serverId: string
-  /** State known from the REST API; the socket's own state frames take over once connected. */
   initialState: ServerState
   className?: string
 }
@@ -117,12 +112,11 @@ export function Console({ serverId, initialState, className }: Props) {
   const [atBottom, setAtBottom] = useState(true)
   const [input, setInput] = useState("")
   const [history, setHistory] = useState<string[]>(() => loadHistory(serverId))
-  // Index into history counted from the newest entry; -1 means "editing a fresh line".
+
   const histIdx = useRef(-1)
   const draft = useRef("")
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Search in the console output (Ctrl+F / Cmd+F while the console is focused).
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [matches, setMatches] = useState<Match[]>([])
@@ -130,14 +124,13 @@ export function Console({ serverId, initialState, className }: Props) {
   const searchRef = useRef<HTMLInputElement>(null)
   const searchState = useRef({ open: false, query: "", current: null as Match | null })
 
-  // Autocompletion: template commands + online players, polled while the server runs.
   const hints = useConsoleHints(serverId, isLive(state))
   const commands = useMemo(() => hints.data?.commands ?? [], [hints.data])
   const players = useMemo(() => hints.data?.players?.names ?? [], [hints.data])
   const helpOf = useCallback((c: ConsoleCommand) => localized(c.help), [])
   const [suggestOpen, setSuggestOpen] = useState(false)
   const [selected, setSelected] = useState(-1)
-  // Repeated Tab on an ambiguous nick cycles through the matches.
+
   const tabCycle = useRef<{ prefix: string; start: number; i: number } | null>(null)
   const analysis = useMemo(() => analyse(input, commands, players, helpOf), [input, commands, players, helpOf])
   const pickable = analysis.suggestions.filter((sg) => !sg.info)
@@ -148,7 +141,6 @@ export function Console({ serverId, initialState, className }: Props) {
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(frame))
   }, [])
 
-  // Terminal lifetime: created once per mount, resized with its container.
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
@@ -179,7 +171,6 @@ export function Console({ serverId, initialState, className }: Props) {
       try {
         fit.fit()
       } catch {
-        // Container has no size yet (hidden tab); next resize will fit.
       }
     }
     safeFit()
@@ -204,7 +195,6 @@ export function Console({ serverId, initialState, className }: Props) {
     }
   }, [send])
 
-  // Socket lifetime: reconnects with backoff until unmounted or denied.
   useEffect(() => {
     let ws: WebSocket | null = null
     let attempt = 0
@@ -217,7 +207,6 @@ export function Console({ serverId, initialState, className }: Props) {
     const handle = (frame: ConsoleServerFrame) => {
       switch (frame.type) {
         case "hello": {
-          // The backend replays its backlog after hello; drop what we had so nothing doubles.
           termRef.current?.reset()
           setState(frame.state)
           const term = termRef.current
@@ -248,13 +237,12 @@ export function Console({ serverId, initialState, className }: Props) {
       }
       ws.onmessage = (ev) => {
         if (typeof ev.data !== "string") return
-        // One JSON frame per message; a batch may still arrive newline-separated.
+
         for (const line of ev.data.split("\n")) {
           if (!line.trim()) continue
           try {
             handle(JSON.parse(line) as ConsoleServerFrame)
           } catch {
-            // Ignore malformed frames rather than killing the console.
           }
         }
       }
@@ -288,7 +276,6 @@ export function Console({ serverId, initialState, className }: Props) {
     }
   }, [serverId, send])
 
-  // Switching servers in place: reload that server's history.
   useEffect(() => {
     setHistory(loadHistory(serverId))
     histIdx.current = -1
@@ -301,7 +288,6 @@ export function Console({ serverId, initialState, className }: Props) {
     searchState.current.current = m
   }
 
-  /** Recomputes matches; keepPlace keeps the selected match when output arrives. */
   const runSearch = useCallback((q: string, keepPlace: boolean) => {
     const term = termRef.current
     if (!term) return
@@ -314,7 +300,7 @@ export function Console({ serverId, initialState, className }: Props) {
       return
     }
     const cur = searchState.current.current
-    let idx = found.length - 1 // newest first: most useful in a log
+    let idx = found.length - 1
     if (keepPlace && cur) {
       const same = found.findIndex((m) => m.row === cur.row && m.col === cur.col)
       if (same >= 0) idx = same
@@ -350,10 +336,9 @@ export function Console({ serverId, initialState, className }: Props) {
     setMatchIdx(-1)
     const term = termRef.current
     term?.clearSelection()
-    term?.scrollToBottom() // resume following the output
+    term?.scrollToBottom()
   }
 
-  // New output while searching: refresh the counts (debounced).
   useEffect(() => {
     const term = termRef.current
     if (!term) return
@@ -377,7 +362,6 @@ export function Console({ serverId, initialState, className }: Props) {
     tabCycle.current = null
   }
 
-  /** Applies a suggestion to the token under the caret. */
   function apply(value: string) {
     setText(replaceToken(input, analysis.tokenStart, value))
     setSelected(-1)
@@ -385,7 +369,6 @@ export function Console({ serverId, initialState, className }: Props) {
     inputRef.current?.focus()
   }
 
-  /** Inserts a nick at the caret (from the players row). */
   function insertNick(nick: string) {
     const el = inputRef.current
     const pos = el?.selectionStart ?? input.length
@@ -396,7 +379,6 @@ export function Console({ serverId, initialState, className }: Props) {
     el?.focus()
   }
 
-  /** Tab: complete the highlighted suggestion, else the only candidate, else cycle nick matches. */
   function completeTab() {
     if (listOpen && selected >= 0 && pickable[selected]) {
       apply(pickable[selected].value)
