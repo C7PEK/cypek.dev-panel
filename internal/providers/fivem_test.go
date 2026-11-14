@@ -63,3 +63,18 @@ func TestParseEnhancedDownloads(t *testing.T) {
 		}
 	}
 }
+
+func TestReleaseNoteSum(t *testing.T) {
+	page := `<li><p>cloudflared-linux-amd64.deb: 5305dbaf62984e92e7daa29cdd6a35a4797edc23385d4c5b8422ff97eb96a19b<br>
+cloudflared-linux-amd64: 51f7c68b57ed7269164075d7e789efce5b59355982f06392deeb037d982a51fd<br>
+cloudflared-linux-arm64: 89cf5f39b64ccecc6f2a53b2cf8ae7b7635a0c5763c53159973caf5add4d6ce0</p></li>`
+	if got := releaseNoteSum(page, "cloudflared-linux-amd64"); got != "51f7c68b57ed7269164075d7e789efce5b59355982f06392deeb037d982a51fd" {
+		t.Errorf("amd64 = %q", got)
+	}
+	if got := releaseNoteSum(page, "cloudflared-linux-arm64"); got != "89cf5f39b64ccecc6f2a53b2cf8ae7b7635a0c5763c53159973caf5add4d6ce0" {
+		t.Errorf("arm64 = %q", got)
+	}
+	if got := releaseNoteSum(page, "cloudflared-linux-386"); got != "" {
+		t.Errorf("missing asset = %q", got)
+	}
+}

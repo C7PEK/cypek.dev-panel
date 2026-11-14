@@ -543,11 +543,12 @@ const (
 
 	KeyMCVersion     = "MC_VERSION_RESOLVED"
 	KeyLoaderVersion = "LOADER_VERSION"
+	KeyPanelBin      = "HOMEPANEL_BIN"
 )
 
 func isBuiltinKey(k string) bool {
 	switch k {
-	case KeyJava, KeyJVMFlags, KeyNode, KeyNPM, KeyNPX, KeyPython, KeyPip, KeyMessage, KeyQueryKind, KeyQueryPort, KeyServerDir, KeyRuntimeBin, KeyJavaHome, KeyMCVersion, KeyLoaderVersion:
+	case KeyJava, KeyJVMFlags, KeyNode, KeyNPM, KeyNPX, KeyPython, KeyPip, KeyMessage, KeyQueryKind, KeyQueryPort, KeyServerDir, KeyRuntimeBin, KeyJavaHome, KeyMCVersion, KeyLoaderVersion, KeyPanelBin:
 		return true
 	}
 	return false

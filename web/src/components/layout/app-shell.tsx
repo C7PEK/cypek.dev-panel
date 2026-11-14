@@ -1,4 +1,4 @@
-import { DatabaseIcon, LayersIcon, LogOutIcon, ScrollTextIcon, SettingsIcon, UserCogIcon, UserIcon, UsersIcon } from "lucide-react"
+import { CloudIcon, DatabaseIcon, LayersIcon, LogOutIcon, ScrollTextIcon, SettingsIcon, UserCogIcon, UserIcon, UsersIcon } from "lucide-react"
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
@@ -42,6 +42,12 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
               className="label-caps hidden text-[0.72rem] text-muted-foreground transition-colors hover:text-foreground sm:block"
             >
               {t("nav.dashboard")}
+            </Link>
+            <Link
+              to="/tunnels"
+              className="label-caps hidden text-[0.72rem] text-muted-foreground transition-colors hover:text-foreground sm:block"
+            >
+              {t("nav.tunnels")}
             </Link>
             {user.role !== "user" && (
               <>
@@ -95,6 +101,12 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
                   <div className="text-xs text-muted-foreground">{t(`roles.${user.role}`)}</div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild className="sm:hidden">
+                  <Link to="/tunnels">
+                    <CloudIcon />
+                    {t("nav.tunnels")}
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/profile">
                     <UserCogIcon />

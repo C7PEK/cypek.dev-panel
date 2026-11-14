@@ -1,4 +1,4 @@
-import { TerminalIcon } from "lucide-react"
+import { CloudIcon, GlobeIcon, TerminalIcon } from "lucide-react"
 
 import type { ServerCategory } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -81,6 +81,10 @@ export function CategoryIcon({ category, templateId, className }: { category: Se
         </span>
       )
     }
+    case "website":
+      return <GlobeIcon className={cn("text-sky-500", className)} aria-label="Website" />
+    case "tunnel":
+      return <CloudIcon className={cn("text-orange-500", className)} aria-label="Cloudflare Tunnel" />
     default:
       return <TerminalIcon className={className} />
   }

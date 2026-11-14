@@ -1,7 +1,7 @@
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, ChevronDownIcon, Loader2Icon, ScrollTextIcon } from "lucide-react"
-import { type FormEvent, useMemo, useState } from "react"
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Link, useNavigate } from "react-router"
+import { Link, useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
 import { AppShell } from "@/components/layout/app-shell"
@@ -86,6 +86,17 @@ export function NewServerPage({ user }: { user: User }) {
     create.reset()
     setStep(2)
   }
+
+  const [params] = useSearchParams()
+  const preselected = useRef(false)
+  useEffect(() => {
+    const wanted = params.get("template")
+    if (preselected.current || !wanted || !templates.data) return
+    const tpl = templates.data.find((x) => x.id === wanted)
+    if (!tpl) return
+    preselected.current = true
+    pick(tpl)
+  }, [params, templates.data])
 
   function setValue(key: string, value: string) {
     setValues((v) => ({ ...v, [key]: value }))

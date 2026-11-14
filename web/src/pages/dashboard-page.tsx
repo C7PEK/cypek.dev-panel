@@ -19,6 +19,7 @@ export function DashboardPage({ user }: { user: User }) {
   const servers = useServers()
   const live = useLiveStats()
   const canCreate = user.role !== "user"
+  const list = servers.data?.filter((s) => s.category !== "tunnel")
 
   const createButton = (className?: string) =>
     canCreate ? (
@@ -58,7 +59,7 @@ export function DashboardPage({ user }: { user: User }) {
               <div key={i} className="h-36 animate-pulse rounded-xl bg-muted/50" />
             ))}
           </div>
-        ) : servers.data.length === 0 ? (
+        ) : !list || list.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
               <div className="flex size-12 items-center justify-center rounded-full bg-muted">
@@ -77,7 +78,7 @@ export function DashboardPage({ user }: { user: User }) {
           </Card>
         ) : (
           <section aria-label={t("dashboard.servers")} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {servers.data.map((s) => (
+            {list.map((s) => (
               <ServerTile key={s.id} server={s} live={live.servers[s.id]} />
             ))}
           </section>

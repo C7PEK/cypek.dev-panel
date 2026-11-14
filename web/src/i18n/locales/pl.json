@@ -23,7 +23,8 @@
     "database": "Bazy danych",
     "templates": "Szablony",
     "alerts": "Powiadomienia",
-    "settings": "Ustawienia"
+    "settings": "Ustawienia",
+    "tunnels": "Tunele"
   },
   "roles": {
     "owner": "Właściciel",
@@ -196,6 +197,8 @@
       "fivem": "FiveM",
       "minecraft": "Minecraft",
       "discord-bot": "Bot Discord",
+      "website": "Strona WWW",
+      "tunnel": "Tunel",
       "other": "Własny"
     },
     "noShell": "Komendy uruchamiane są bezpośrednio, bez powłoki: bez potoków, cudzysłowów i $ZMIENNYCH. Każdy argument wpisz w osobnej linii.",
@@ -395,7 +398,15 @@
         "hint": "discord.py, nextcord, py-cord"
       },
       "imported": "Zaimportowane i własne szablony",
-      "custom": "Coś innego"
+      "custom": "Coś innego",
+      "static": {
+        "title": "Strony statyczne",
+        "hint": "Pliki HTML, CSS i JS, także zbudowane aplikacje React, Vue czy Astro"
+      },
+      "cloudflare": {
+        "title": "Cloudflare",
+        "hint": "Udostępnianie stron z tej maszyny w internecie"
+      }
     }
   },
   "install": {
@@ -1461,5 +1472,23 @@
     "progressTitle": "Aktualizacja serwera",
     "checkFailed": "Nie udało się sprawdzić nowej wersji: {{error}}",
     "channelHint": "Build zależy od wersji wybranej niżej w ustawieniach (recommended, latest albo konkretny build). Zmień ją tam, żeby przejść na inną."
+  },
+  "tunnels": {
+    "title": "Tunele",
+    "subtitle": "Cloudflare Tunnel udostępnia strony z tej maszyny w internecie bez otwierania portów na routerze. Każdy tunel działa osobno, uruchamiasz go i zatrzymujesz niezależnie.",
+    "create": "Nowy tunel",
+    "emptyTitle": "Nie masz jeszcze tunelu",
+    "emptyBody": "Utwórz tunel, żeby udostępnić stronę z tego panelu pod własną domeną, albo wypróbuj szybki tunel testowy bez konta.",
+    "howTitle": "Jak to ustawić",
+    "howIntro": "Z własną domeną w Cloudflare (wystarczy darmowy plan):",
+    "step1": "W panelu Cloudflare otwórz Zero Trust, potem Networks, Tunnels i utwórz tunel typu Cloudflared.",
+    "step2": "Skopiuj token (długi ciąg po --token) i wklej go przy tworzeniu tunelu tutaj.",
+    "step3": "W Public hostnames tunelu dodaj swoją domenę, na przykład www.twojadomena.pl, z typem HTTP i lokalnym adresem strony z listy obok.",
+    "step4": "Uruchom tunel tutaj. HTTPS zapewnia Cloudflare, więc strona działa pod https://twoja-domena.",
+    "quick": "Nie masz domeny? Zostaw token pusty: tunel dostanie losowy adres https://...trycloudflare.com, widoczny w jego konsoli. Dobre do szybkiego testu, adres zmienia się po każdym restarcie.",
+    "sitesTitle": "Twoje strony",
+    "sitesIntro": "Lokalne adresy do wpisania jako usługa w Cloudflare.",
+    "noSites": "Nie masz jeszcze strony. Utwórz ją, a pojawi się tutaj.",
+    "createSite": "Nowa strona"
   }
 }

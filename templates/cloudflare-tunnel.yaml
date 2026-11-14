@@ -1,0 +1,59 @@
+id: cloudflare-tunnel
+name: Cloudflare Tunnel
+category: tunnel
+group: cloudflare
+order: 10
+icon: tunnel
+description:
+  pl: Udostępnia strony z tej maszyny w internecie przez Cloudflare, bez otwierania portów na routerze i bez stałego IP. HTTPS zapewnia Cloudflare. Z tokenem działa pod Twoją domeną, bez tokenu tworzy szybki tunel testowy z losowym adresem trycloudflare.com.
+  en: Puts sites from this machine on the internet through Cloudflare, without opening router ports or a fixed IP. Cloudflare provides HTTPS. With a token it runs under your own domain, without one it makes a quick test tunnel with a random trycloudflare.com address.
+  de: Macht Seiten von diesem Rechner über Cloudflare im Internet erreichbar, ohne Ports am Router zu öffnen und ohne feste IP. HTTPS kommt von Cloudflare. Mit Token läuft er unter deiner eigenen Domain, ohne Token entsteht ein schneller Testtunnel mit einer zufälligen trycloudflare.com-Adresse.
+
+variables:
+  - key: TUNNEL_TOKEN
+    label: { pl: Token tunelu (opcjonalny), en: Tunnel token (optional), de: Tunnel-Token (optional) }
+    help:
+      pl: W Cloudflare otwórz Zero Trust, potem Networks, Tunnels, Create a tunnel, Cloudflared. Skopiuj długi ciąg po --token. Potem w Public hostnames dodaj swoją domenę i usługę http://localhost:PORT strony. Zostaw puste, żeby zrobić szybki tunel testowy.
+      en: In Cloudflare open Zero Trust, then Networks, Tunnels, Create a tunnel, Cloudflared. Copy the long string after --token. Then add your domain under Public hostnames with the service http://localhost:PORT of your site. Leave empty for a quick test tunnel.
+      de: Öffne in Cloudflare Zero Trust, dann Networks, Tunnels, Create a tunnel, Cloudflared. Kopiere die lange Zeichenfolge nach --token. Füge danach unter Public hostnames deine Domain mit dem Dienst http://localhost:PORT deiner Seite hinzu. Leer lassen für einen schnellen Testtunnel.
+    type: secret
+    maxLength: 4096
+    pattern: '^[A-Za-z0-9_=+/.-]{40,}$'
+  - key: TARGET_URL
+    label: { pl: Adres strony dla szybkiego tunelu, en: Site address for the quick tunnel, de: Seitenadresse für den schnellen Tunnel }
+    help:
+      pl: Używane tylko bez tokenu. Na przykład http://localhost:8080 dla strony na porcie 8080. Z tokenem adresy ustawiasz w Cloudflare.
+      en: Only used without a token. For example http://localhost:8080 for a site on port 8080. With a token you set the addresses in Cloudflare.
+      de: Nur ohne Token verwendet. Zum Beispiel http://localhost:8080 für eine Seite auf Port 8080. Mit Token legst du die Adressen in Cloudflare fest.
+    type: string
+    default: http://localhost:8080
+    maxLength: 200
+    pattern: '^https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?(/[A-Za-z0-9._~/-]*)?$'
+
+runtime:
+  kind: none
+
+install:
+  - download:
+      provider: cloudflared
+      version: latest
+      to: cloudflared
+
+update:
+  - download:
+      provider: cloudflared
+      version: latest
+      to: cloudflared
+
+start:
+  shell: |
+    if [ -n {{TUNNEL_TOKEN}} ]; then
+      echo "[panel] Starting the tunnel from your token. Public hostnames are set in the Cloudflare dashboard."
+      exec ./cloudflared tunnel --no-autoupdate run
+    fi
+    unset TUNNEL_TOKEN
+    echo "[panel] No token: starting a quick test tunnel to "{{TARGET_URL}}". The public https://...trycloudflare.com address appears below."
+    exec ./cloudflared tunnel --no-autoupdate --url {{TARGET_URL}}
+stop:
+  timeoutSec: 40
+readyRegex: '(?i)registered tunnel connection'

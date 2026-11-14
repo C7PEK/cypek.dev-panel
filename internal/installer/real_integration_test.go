@@ -2,7 +2,9 @@ package installer
 
 import (
 	"context"
+	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -88,6 +90,9 @@ func realBoot(t *testing.T, id string, values map[string]string) {
 		inspectInstall(t, id, serverDir, m, tpl, vars)
 		return
 	}
+	if bin := os.Getenv("HOMEPANEL_REAL_BIN"); bin != "" && res.Run.Env != nil {
+		res.Run.Env["HOMEPANEL_BIN"] = bin
+	}
 	if err := shim.SaveRunConfig(serverDir, &res.Run); err != nil {
 		t.Fatal(err)
 	}
@@ -139,6 +144,9 @@ func realBoot(t *testing.T, id string, values map[string]string) {
 		}
 	}
 	t.Logf("%s ready after %s", id, time.Since(start).Round(time.Second))
+	if id == "website-static" {
+		checkStaticSite(t, serverDir, values["PORT"])
+	}
 	_ = c.Send(shim.Frame{Type: shim.TypeStop})
 	select {
 	case code := <-exit:
@@ -151,6 +159,17 @@ func realBoot(t *testing.T, id string, values map[string]string) {
 }
 
 func inspectInstall(t *testing.T, id, dir string, m *Manager, tpl *templates.Template, vars map[string]string) {
+	if id == "cloudflare-tunnel" {
+		st, err := os.Stat(filepath.Join(dir, "cloudflared"))
+		if err != nil || st.Mode()&0o100 == 0 || st.Size() < 10<<20 {
+			t.Fatalf("cloudflared missing, too small or not executable: %v", err)
+		}
+		job, _ := m.Get("realtest")
+		if !strings.Contains(strings.Join(job.Lines, "\n"), "Downloaded and verified cloudflared") {
+			t.Errorf("cloudflared was not checksum-verified:\n%s", strings.Join(job.Lines, "\n"))
+		}
+		return
+	}
 	if strings.HasPrefix(id, "fivem") {
 		inspectFiveMUpdate(t, dir, m, tpl, vars)
 		return
@@ -216,6 +235,29 @@ func inspectFiveMUpdate(t *testing.T, dir string, m *Manager, tpl *templates.Tem
 		t.Error("artifact missing after the update")
 	}
 	t.Logf("update log:\n%s", tail(strings.Join(job.Lines, "\n"), 8))
+}
+
+func checkStaticSite(t *testing.T, dir, port string) {
+	base := "http://127.0.0.1:" + port
+	get := func(p string) (int, string) {
+		resp, err := http.Get(base + p)
+		if err != nil {
+			t.Fatalf("GET %s: %v", p, err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(b)
+	}
+	if code, body := get("/"); code != 200 || !strings.Contains(body, "public") {
+		t.Errorf("placeholder: %d %q", code, body)
+	}
+	_ = os.WriteFile(filepath.Join(dir, "public", "index.html"), []byte("<h1>hello</h1>"), 0o644)
+	if code, body := get("/"); code != 200 || body != "<h1>hello</h1>" {
+		t.Errorf("index: %d %q", code, body)
+	}
+	if code, _ := get("/../.homepanel/run.json"); code == 200 {
+		t.Error("run.json reachable")
+	}
 }
 
 func tail(s string, n int) string {

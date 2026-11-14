@@ -129,6 +129,7 @@ func TestBuiltinTemplatesComplete(t *testing.T) {
 		"minecraft-vanilla", "minecraft-velocity", "minecraft-bedrock",
 		"fivem", "fivem-txadmin", "fivem-enhanced", "fivem-enhanced-txadmin",
 		"discord-node", "discord-node-git", "discord-python", "discord-python-git",
+		"website-static", "cloudflare-tunnel",
 	}
 	for _, id := range want {
 		if _, ok := r.Get(id); !ok {

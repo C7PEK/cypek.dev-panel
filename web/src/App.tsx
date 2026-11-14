@@ -10,6 +10,7 @@ import { AdminDatabasePage } from "@/pages/admin-database-page"
 import { AdminTemplatesPage } from "@/pages/admin-templates-page"
 import { AdminUsersPage } from "@/pages/admin-users-page"
 import { DashboardPage } from "@/pages/dashboard-page"
+import { TunnelsPage } from "@/pages/tunnels-page"
 import { LoginPage } from "@/pages/login-page"
 import { NewServerPage } from "@/pages/new-server-page"
 import { ProfilePage } from "@/pages/profile-page"
@@ -59,6 +60,7 @@ function AuthedRoutes({ user }: { user: User }) {
       <Route path="/" element={<DashboardPage user={user} />} />
       <Route path="/servers/new" element={admin ? <NewServerPage user={user} /> : <Navigate to="/" replace />} />
       <Route path="/servers/:id" element={<ServerPage user={user} />} />
+      <Route path="/tunnels" element={<TunnelsPage user={user} />} />
       <Route path="/profile" element={<ProfilePage user={user} />} />
       <Route path="/admin/users" element={admin ? <AdminUsersPage user={user} /> : <Navigate to="/" replace />} />
       <Route path="/admin/audit" element={admin ? <AdminAuditPage user={user} /> : <Navigate to="/" replace />} />

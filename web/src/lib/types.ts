@@ -32,7 +32,7 @@ export interface SystemInfo {
 
 export type ServerState = "stopped" | "starting" | "running" | "stopping" | "crashed" | "unknown"
 
-export type ServerCategory = "fivem" | "minecraft" | "discord-bot" | "other"
+export type ServerCategory = "fivem" | "minecraft" | "discord-bot" | "website" | "tunnel" | "other"
 
 export interface ServerStatus {
   state: ServerState

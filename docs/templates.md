@@ -15,7 +15,7 @@ and `;` in a value are just characters.
 ```yaml
 id: minecraft-paper            # lowercase letters, digits, dashes
 name: Minecraft (Paper)
-category: minecraft            # fivem | minecraft | discord-bot | other
+category: minecraft            # fivem | minecraft | discord-bot | website | tunnel | other
 group: plugins                 # optional section inside the category in the wizard
 order: 10                      # optional rank inside the group (lower first, default 100)
 description: { pl: "...", en: "..." }
@@ -76,15 +76,19 @@ runtime), `PYTHON`, `PIP` (the server's own `.venv`, created by the python
 runtime step), `message` (only in `warnCommand`), `MC_VERSION_RESOLVED`
 (the concrete Minecraft version a `paper`, `mojang`, `fabric`, `purpur`,
 `forge`, `neoforge` or `quilt` download picked for `latest`) and
-`LOADER_VERSION` (the Forge/NeoForge/Quilt build, e.g. `1.21.11-61.2.4`).
+`LOADER_VERSION` (the Forge/NeoForge/Quilt build, e.g. `1.21.11-61.2.4`)
+and `HOMEPANEL_BIN` (the panel binary, e.g. for `{{HOMEPANEL_BIN}} static
+--dir public --port {{PORT}}`, the built-in static file server).
 
 ## Categories and groups
 
 The wizard shows templates in category tabs (`minecraft`, `fivem`,
-`discord-bot`, `other`) and, inside a category, in sections by `group`.
-The panel names these groups (in Polish and English): `plugins`, `mods`,
-`vanilla`, `proxy`, `bedrock` (Minecraft), `fxserver` (FiveM), `node`,
-`python` (Discord bots). Any other group (lowercase letters, digits,
+`discord-bot`, `website`, `other`) and, inside a category, in sections by `group`.
+The panel names these groups (in English, Polish and German): `plugins`,
+`mods`, `vanilla`, `proxy`, `bedrock` (Minecraft), `fxserver`, `enhanced`
+(FiveM), `node`, `python` (Discord bots), `static` (websites) and
+`cloudflare` (tunnels). Tunnel templates are created from the Tunnels
+page, not from the new-server wizard. Any other group (lowercase letters, digits,
 dashes) is shown as written, e.g. `group: survival-games` becomes
 "Survival games". Imported and custom templates get their own section.
 
@@ -101,6 +105,8 @@ Built-in templates:
 | fivem | enhanced | FiveM Enhanced (Cfx Server), FiveM Enhanced + txAdmin |
 | discord-bot | node | Node.js bot (your files), Node.js bot from git |
 | discord-bot | python | Python bot (your files), Python bot from git |
+| website | static | Static website |
+| tunnel | cloudflare | Cloudflare Tunnel |
 
 ## Install steps
 
@@ -140,6 +146,10 @@ Built-in templates:
     (`docs.fivem.net/docs/server-download/`); `version` is ignored. The
     archive has the same layout as FXServer (`run.sh` at the top, txAdmin
     built in). HTTPS only, x86_64 only.
+  - `provider: cloudflared` downloads `cloudflared` for this CPU from
+    Cloudflare's GitHub releases (`version: latest` or a tag such as
+    `2026.11.0`), checked against the SHA-256 in the release notes, and
+    makes it executable.
   - `provider: url` downloads a fixed `url` (https only), optionally
     checked against `sha256`.
 - `extract`: unpacks `from` (tar.gz, tar.xz, zip) into `to` (`.` = server

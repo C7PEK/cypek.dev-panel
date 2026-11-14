@@ -109,8 +109,8 @@ export function duplicateYaml(yaml: string, newId: string): string {
   return out
 }
 
-export const CATEGORY_ORDER: ServerCategory[] = ["minecraft", "fivem", "discord-bot", "other"]
-export const GROUP_ORDER = ["plugins", "mods", "vanilla", "proxy", "bedrock", "fxserver", "enhanced", "node", "python"]
+export const CATEGORY_ORDER: ServerCategory[] = ["minecraft", "fivem", "discord-bot", "website", "tunnel", "other"]
+export const GROUP_ORDER = ["plugins", "mods", "vanilla", "proxy", "bedrock", "fxserver", "enhanced", "node", "python", "static", "cloudflare"]
 
 function rankOf(list: readonly string[], v: string) {
   const i = list.indexOf(v)

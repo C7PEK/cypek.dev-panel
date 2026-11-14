@@ -47,6 +47,7 @@ type Deps struct {
 	Quilt         *providers.Quilt
 	Bedrock       *providers.Bedrock
 	FiveMEnhanced *providers.FiveMEnhanced
+	Cloudflared   *providers.Cloudflared
 	Java          *runtimes.Java
 	Node          *runtimes.Node
 	Python        *runtimes.Python
@@ -241,6 +242,9 @@ func (m *Manager) run(ctx context.Context, job *Job, dir string, tpl *templates.
 	if abs, err := filepath.Abs(dir); err == nil {
 		vars[templates.KeyServerDir] = abs
 	}
+	if exe, err := os.Executable(); err == nil {
+		vars[templates.KeyPanelBin] = exe
+	}
 
 	runtimeReady := runtimeBeforeSteps(tpl.Runtime)
 	if runtimeReady {
@@ -430,6 +434,31 @@ func (c *stepCtx) download(ctx context.Context, n int, st *templates.DownloadSte
 		if srv, err := mj.Resolve(ctx, b.Version); err == nil && srv.JavaMajor > 0 {
 			c.vars["JAVA_MIN"] = strconv.Itoa(srv.JavaMajor)
 		}
+		return nil
+	case "cloudflared":
+		c.begin(n, "Downloading cloudflared")
+		cf := c.m.deps.Cloudflared
+		if cf == nil {
+			cf = providers.NewCloudflared()
+		}
+		rel, err := cf.Resolve(ctx, version)
+		if err != nil {
+			return err
+		}
+		c.logf("cloudflared %s", rel.Version)
+		if rel.SHA256 == "" {
+			c.logf("No checksum found in the release notes; downloading over HTTPS only")
+		}
+		if err := providers.Download(ctx, rel.URL, dest, rel.SHA256, c.progress); err != nil {
+			return err
+		}
+		if err := os.Chmod(dest, 0o755); err != nil {
+			return err
+		}
+		if rel.SHA256 != "" {
+			c.logf("Downloaded and verified %s (SHA-256 from the release notes)", filepath.Base(dest))
+		}
+		c.vars["CLOUDFLARED_VERSION"] = rel.Version
 		return nil
 	case "fivem-enhanced":
 		c.begin(n, "Downloading Cfx Server (GTA V Enhanced)")

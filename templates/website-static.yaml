@@ -1,0 +1,47 @@
+id: website-static
+name: Static website
+category: website
+group: static
+order: 10
+icon: website
+description:
+  pl: Strona z gotowych plików (HTML, CSS, JS, zbudowany React, Vue czy Astro). Wrzuć je do folderu public w zakładce Pliki albo przez SFTP. Serwuje je wbudowany serwer panelu, nic nie trzeba instalować. Udostępnisz ją w internecie przez Cloudflare Tunnel w zakładce Tunele.
+  en: A site made of ready files (HTML, CSS, JS, a built React, Vue or Astro app). Upload them to the public folder in the Files tab or over SFTP. The panel's built-in server serves them, nothing to install. Share it on the internet with a Cloudflare Tunnel from the Tunnels page.
+  de: Eine Seite aus fertigen Dateien (HTML, CSS, JS, eine gebaute React-, Vue- oder Astro-App). Lade sie im Tab Dateien oder per SFTP in den Ordner public hoch. Der eingebaute Server des Panels liefert sie aus, nichts zu installieren. Über einen Cloudflare Tunnel auf der Seite Tunnel machst du sie im Internet erreichbar.
+
+variables:
+  - key: PORT
+    label: { pl: Port HTTP, en: HTTP port, de: HTTP-Port }
+    help:
+      pl: Strona będzie pod http://IP-maszyny:PORT w sieci domowej. Ten sam adres (http://localhost:PORT) wpisujesz w tunelu Cloudflare.
+      en: The site will be at http://machine-ip:PORT on your home network. Use the same address (http://localhost:PORT) in a Cloudflare tunnel.
+      de: Die Seite ist im Heimnetz unter http://rechner-ip:PORT erreichbar. Dieselbe Adresse (http://localhost:PORT) trägst du im Cloudflare Tunnel ein.
+    type: number
+    default: 8080
+    min: 1024
+    max: 65535
+  - key: SPA
+    label: { pl: "Aplikacja jednostronicowa (React, Vue)", en: "Single-page app (React, Vue)", de: "Single-Page-App (React, Vue)" }
+    help:
+      pl: Włącz, gdy strona sama obsługuje adresy w przeglądarce (React Router, Vue Router). Nieznane adresy dostaną wtedy index.html zamiast błędu 404.
+      en: Turn on when the site handles its own URLs in the browser (React Router, Vue Router). Unknown paths then get index.html instead of a 404.
+      de: Einschalten, wenn die Seite ihre Adressen selbst im Browser verwaltet (React Router, Vue Router). Unbekannte Pfade bekommen dann index.html statt eines 404.
+    type: bool
+    default: false
+
+runtime:
+  kind: none
+
+install: []
+
+start:
+  shell: |
+    set --
+    [ {{SPA}} = true ] && set -- --spa
+    exec {{HOMEPANEL_BIN}} static --dir public --port {{PORT}} "$@"
+stop:
+  timeoutSec: 10
+readyRegex: 'Serving .* on http://'
+
+ports:
+  - { name: http, port: "{{PORT}}", protocol: tcp }

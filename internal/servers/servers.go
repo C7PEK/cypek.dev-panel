@@ -23,12 +23,14 @@ const (
 	CategoryFiveM     Category = "fivem"
 	CategoryMinecraft Category = "minecraft"
 	CategoryDiscord   Category = "discord-bot"
+	CategoryWebsite   Category = "website"
+	CategoryTunnel    Category = "tunnel"
 	CategoryOther     Category = "other"
 )
 
 func (c Category) Valid() bool {
 	switch c {
-	case CategoryFiveM, CategoryMinecraft, CategoryDiscord, CategoryOther:
+	case CategoryFiveM, CategoryMinecraft, CategoryDiscord, CategoryWebsite, CategoryTunnel, CategoryOther:
 		return true
 	}
 	return false

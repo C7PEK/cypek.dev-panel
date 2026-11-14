@@ -19,6 +19,7 @@ Usage:
   homepanel install-database [--phpmyadmin-port 8081]        install MariaDB + phpMyAdmin for game servers (root)
   homepanel reset-password <username>                        set a new password from the terminal
   homepanel fetch mojang|paper|fabric-installer ...          download server jars (used by imported templates)
+  homepanel static [--dir public] [--port 8080] [--spa]      serve a static website (used by the website template)
   homepanel version                                          print the version
 `, version)
 }
@@ -46,6 +47,8 @@ func main() {
 		err = runResetPassword(os.Args[2:])
 	case "fetch":
 		err = runFetch(os.Args[2:])
+	case "static":
+		err = runStatic(os.Args[2:])
 	case "version", "--version", "-v":
 		fmt.Println(version)
 	case "help", "--help", "-h":

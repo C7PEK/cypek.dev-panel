@@ -40,6 +40,7 @@ export function TemplatePicker({ templates, onPick, onCustom }: { templates: Tem
     const q = query.trim().toLowerCase()
     const lang = i18n.resolvedLanguage
     const visible = templates.filter((tpl) => {
+      if (tpl.category === "tunnel") return false
       if (tab !== "all" && tpl.category !== tab) return false
       if (!q) return true
       return [tpl.name, tpl.id, localized(tpl.description, lang)].some((s) => s?.toLowerCase().includes(q))
@@ -64,7 +65,7 @@ export function TemplatePicker({ templates, onPick, onCustom }: { templates: Tem
     return out
   }, [templates, tab, query, i18n.resolvedLanguage])
 
-  const tabs: Tab[] = ["all", ...CATEGORY_ORDER.filter((c) => c === "other" || counts[c])]
+  const tabs: Tab[] = ["all", ...CATEGORY_ORDER.filter((c) => c !== "tunnel" && (c === "other" || counts[c]))]
   const showCustom = (tab === "all" || tab === "other") && !query.trim()
 
   function sectionTitle(s: Section) {

@@ -23,7 +23,8 @@
     "database": "Databases",
     "templates": "Templates",
     "alerts": "Alerts",
-    "settings": "Settings"
+    "settings": "Settings",
+    "tunnels": "Tunnels"
   },
   "roles": {
     "owner": "Owner",
@@ -194,6 +195,8 @@
       "fivem": "FiveM",
       "minecraft": "Minecraft",
       "discord-bot": "Discord bot",
+      "website": "Website",
+      "tunnel": "Tunnel",
       "other": "Custom"
     },
     "noShell": "Commands run directly, without a shell: no pipes, quotes or $VARIABLES. Put each argument on its own line.",
@@ -393,7 +396,15 @@
         "hint": "discord.py, nextcord, py-cord"
       },
       "imported": "Imported and custom templates",
-      "custom": "Something else"
+      "custom": "Something else",
+      "static": {
+        "title": "Static sites",
+        "hint": "HTML, CSS and JS files, also built React, Vue or Astro apps"
+      },
+      "cloudflare": {
+        "title": "Cloudflare",
+        "hint": "Share sites from this machine on the internet"
+      }
     }
   },
   "install": {
@@ -1415,5 +1426,23 @@
     "progressTitle": "Updating the server",
     "checkFailed": "Could not check for a new version: {{error}}",
     "channelHint": "The build follows the version chosen in the settings below (recommended, latest or a fixed build). Change it there to switch."
+  },
+  "tunnels": {
+    "title": "Tunnels",
+    "subtitle": "Cloudflare Tunnel puts sites from this machine on the internet without opening ports on your router. Each tunnel runs on its own and you start or stop it separately.",
+    "create": "New tunnel",
+    "emptyTitle": "No tunnel yet",
+    "emptyBody": "Create a tunnel to share a site from this panel under your own domain, or try a quick test tunnel without an account.",
+    "howTitle": "How to set it up",
+    "howIntro": "With your own domain on Cloudflare (free plan is enough):",
+    "step1": "In the Cloudflare dashboard open Zero Trust, then Networks, Tunnels, and create a tunnel of type Cloudflared.",
+    "step2": "Copy the token (the long string after --token) and paste it when you create the tunnel here.",
+    "step3": "In the tunnel's Public hostnames add your domain, for example www.example.com, with the type HTTP and the local address of the site from the list next to this.",
+    "step4": "Start the tunnel here. Cloudflare provides HTTPS, so the site works at https://your-domain.",
+    "quick": "No domain? Leave the token empty: the tunnel gets a random https://...trycloudflare.com address, shown in its console. Good for a quick test, the address changes on every restart.",
+    "sitesTitle": "Your sites",
+    "sitesIntro": "Local addresses to use as the service in Cloudflare.",
+    "noSites": "No website yet. Create one and it will show up here.",
+    "createSite": "New website"
   }
 }

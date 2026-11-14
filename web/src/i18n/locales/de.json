@@ -23,7 +23,8 @@
     "database": "Datenbanken",
     "templates": "Vorlagen",
     "alerts": "Benachrichtigungen",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "tunnels": "Tunnel"
   },
   "roles": {
     "owner": "Besitzer",
@@ -194,6 +195,8 @@
       "fivem": "FiveM",
       "minecraft": "Minecraft",
       "discord-bot": "Discord-Bot",
+      "website": "Webseite",
+      "tunnel": "Tunnel",
       "other": "Eigener"
     },
     "noShell": "Befehle laufen direkt, ohne Shell: keine Pipes, Anführungszeichen oder $VARIABLEN. Schreib jedes Argument in eine eigene Zeile.",
@@ -393,7 +396,15 @@
         "hint": "discord.py, nextcord, py-cord"
       },
       "imported": "Importierte und eigene Vorlagen",
-      "custom": "Etwas anderes"
+      "custom": "Etwas anderes",
+      "static": {
+        "title": "Statische Seiten",
+        "hint": "HTML-, CSS- und JS-Dateien, auch gebaute React-, Vue- oder Astro-Apps"
+      },
+      "cloudflare": {
+        "title": "Cloudflare",
+        "hint": "Seiten von diesem Rechner im Internet erreichbar machen"
+      }
     }
   },
   "install": {
@@ -1415,5 +1426,23 @@
     "progressTitle": "Server wird aktualisiert",
     "checkFailed": "Neue Version konnte nicht geprüft werden: {{error}}",
     "channelHint": "Der Build richtet sich nach der unten in den Einstellungen gewählten Version (recommended, latest oder ein fester Build). Ändere sie dort, um zu wechseln."
+  },
+  "tunnels": {
+    "title": "Tunnel",
+    "subtitle": "Cloudflare Tunnel macht Seiten von diesem Rechner im Internet erreichbar, ohne Ports am Router zu öffnen. Jeder Tunnel läuft für sich, du startest und stoppst ihn einzeln.",
+    "create": "Neuer Tunnel",
+    "emptyTitle": "Noch kein Tunnel",
+    "emptyBody": "Erstelle einen Tunnel, um eine Seite aus diesem Panel unter deiner eigenen Domain zu teilen, oder probiere einen schnellen Testtunnel ohne Konto.",
+    "howTitle": "So richtest du es ein",
+    "howIntro": "Mit deiner eigenen Domain bei Cloudflare (der kostenlose Plan reicht):",
+    "step1": "Öffne im Cloudflare-Dashboard Zero Trust, dann Networks, Tunnels, und erstelle einen Tunnel vom Typ Cloudflared.",
+    "step2": "Kopiere den Token (die lange Zeichenfolge nach --token) und füge ihn hier beim Erstellen des Tunnels ein.",
+    "step3": "Füge unter Public hostnames des Tunnels deine Domain hinzu, zum Beispiel www.example.com, mit dem Typ HTTP und der lokalen Adresse der Seite aus der Liste daneben.",
+    "step4": "Starte den Tunnel hier. HTTPS kommt von Cloudflare, die Seite läuft also unter https://deine-domain.",
+    "quick": "Keine Domain? Lass den Token leer: Der Tunnel bekommt eine zufällige Adresse https://...trycloudflare.com, die in seiner Konsole steht. Gut für einen schnellen Test, die Adresse ändert sich bei jedem Neustart.",
+    "sitesTitle": "Deine Seiten",
+    "sitesIntro": "Lokale Adressen, die du in Cloudflare als Dienst einträgst.",
+    "noSites": "Noch keine Webseite. Erstelle eine, dann erscheint sie hier.",
+    "createSite": "Neue Webseite"
   }
 }
