@@ -101,3 +101,18 @@ func toStrings(v any) []string {
 	}
 	return out
 }
+
+func TestCreateWebsite(t *testing.T) {
+	e := newEnv(t)
+	e.completeSetup("owner", "password123")
+	for _, c := range []struct{ tpl, category string }{{"website-static", "website"}} {
+		resp, body := e.do(http.MethodPost, "/api/v1/servers", map[string]any{"name": c.tpl, "templateId": c.tpl, "variables": map[string]string{}})
+		if resp.StatusCode != 201 {
+			t.Fatalf("create %s: %d %v", c.tpl, resp.StatusCode, body)
+		}
+		_, got := e.do(http.MethodGet, "/api/v1/servers/"+body["id"].(string), nil)
+		if got["category"] != c.category {
+			t.Errorf("%s category = %v", c.tpl, got["category"])
+		}
+	}
+}

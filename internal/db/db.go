@@ -76,13 +76,31 @@ func Migrate(ctx context.Context, sqlDB *sql.DB, path string, log *slog.Logger) 
 		}
 	}
 	results, err := provider.Up(ctx)
+	if _, ferr := sqlDB.ExecContext(ctx, "PRAGMA foreign_keys = ON"); ferr != nil && err == nil {
+		err = ferr
+	}
 	if err != nil {
 		return fmt.Errorf("apply migrations: %w", err)
+	}
+	if err := checkForeignKeys(ctx, sqlDB); err != nil {
+		return err
 	}
 	for _, r := range results {
 		log.Info("applied migration", "version", r.Source.Version, "name", filepath.Base(r.Source.Path))
 	}
 	return nil
+}
+
+func checkForeignKeys(ctx context.Context, sqlDB *sql.DB) error {
+	rows, err := sqlDB.QueryContext(ctx, "PRAGMA foreign_key_check")
+	if err != nil {
+		return fmt.Errorf("check foreign keys: %w", err)
+	}
+	defer rows.Close()
+	if rows.Next() {
+		return errors.New("database integrity check failed after migration: foreign key violations; restore the panel.db.bak file made before the migration")
+	}
+	return rows.Err()
 }
 
 func backupFile(path string) (string, error) {
