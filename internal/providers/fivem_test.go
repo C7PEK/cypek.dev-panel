@@ -46,3 +46,20 @@ func TestFiveMResolveAndOptions(t *testing.T) {
 		t.Error("garbage selector resolved")
 	}
 }
+
+func TestParseEnhancedDownloads(t *testing.T) {
+	page := `<script>var data = {"other":{"x":1},"enhanced":{"linux":[{"displayName":"cfx-server_linux_x64.tar.xz","subtitle":"build 177","downloadURL":"https://cfx-downloads.akamaized.net/prod/abc/cfx-server_linux_x64.tar.xz"}],"windows":[]},"legacy":{}}</script>`
+	a, err := parseEnhancedDownloads(page)
+	if err != nil || a.Build != 177 || a.URL != "https://cfx-downloads.akamaized.net/prod/abc/cfx-server_linux_x64.tar.xz" {
+		t.Fatalf("got %+v, %v", a, err)
+	}
+	for _, bad := range []string{
+		`{"legacy":{}}`,
+		`{"enhanced":{"linux":[{"subtitle":"build 1","downloadURL":"http://cfx-downloads.akamaized.net/a.tar.xz"}]}}`,
+		`{"enhanced":{"linux":[{"subtitle":"build 1","downloadURL":"https://evil.example.com/a.tar.xz"}]}}`,
+	} {
+		if _, err := parseEnhancedDownloads(bad); err == nil {
+			t.Errorf("accepted %s", bad)
+		}
+	}
+}

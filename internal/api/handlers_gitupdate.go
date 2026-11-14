@@ -10,13 +10,38 @@ import (
 	"github.com/C7PEK/cypek.dev-panel/internal/audit"
 	"github.com/C7PEK/cypek.dev-panel/internal/installer"
 	"github.com/C7PEK/cypek.dev-panel/internal/servers"
+	"github.com/C7PEK/cypek.dev-panel/internal/templates"
 )
 
-const CodeNoGit = "no_git_source"
+const (
+	CodeNoGit    = "no_git_source"
+	CodeNoUpdate = "no_update"
+)
 
 func (s *Server) handleGitUpdate(w http.ResponseWriter, r *http.Request) {
-	_, user := sessionFromContext(r.Context())
 	srv := serverFromContext(r.Context())
+	tpl, ok := s.templates.Get(srv.TemplateID)
+	if !ok || !isTemplateServer(srv) || !tpl.UsesGit() {
+		writeError(w, http.StatusConflict, CodeNoGit, "This server does not get its code from git.")
+		return
+	}
+	s.runUpdate(w, r, srv, tpl, "server.git_update")
+}
+
+func (s *Server) handleGameUpdate(w http.ResponseWriter, r *http.Request) {
+	srv := serverFromContext(r.Context())
+	tpl, ok := s.templates.Get(srv.TemplateID)
+	if !ok || !isTemplateServer(srv) || !tpl.HasUpdate() {
+		writeError(w, http.StatusConflict, CodeNoUpdate, "This server has no automatic update. Reinstall it in Settings instead.")
+		return
+	}
+	upd := *tpl
+	upd.Install = tpl.Update
+	s.runUpdate(w, r, srv, &upd, "server.game_update")
+}
+
+func (s *Server) runUpdate(w http.ResponseWriter, r *http.Request, srv *servers.Server, tpl *templates.Template, action string) {
+	_, user := sessionFromContext(r.Context())
 	var in struct {
 		Restart *bool `json:"restart"`
 	}
@@ -24,11 +49,6 @@ func (s *Server) handleGitUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	restart := in.Restart == nil || *in.Restart
-	tpl, ok := s.templates.Get(srv.TemplateID)
-	if !ok || !isTemplateServer(srv) || !tpl.UsesGit() {
-		writeError(w, http.StatusConflict, CodeNoGit, "This server does not get its code from git.")
-		return
-	}
 	if srv.InstallState == servers.InstallInstalling || s.installer.Running(srv.ID) {
 		writeError(w, http.StatusConflict, CodeInstalling, "An installation or update is already running.")
 		return
@@ -73,7 +93,7 @@ func (s *Server) handleGitUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 		s.applyConfigDefaults(cur)
 		if err := s.sup.Start(ctx, srv.ID); err != nil {
-			s.log.Warn("start after git update", "server", srv.ID, "err", err)
+			s.log.Warn("start after update", "server", srv.ID, "err", err)
 		}
 	}
 	if err := s.startInstallWith(srv, tpl, userVars, hooks, then); err != nil {
@@ -84,7 +104,7 @@ func (s *Server) handleGitUpdate(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, err)
 		return
 	}
-	s.audit.Log(r.Context(), audit.Entry{UserID: &user.ID, Username: user.Username, Action: "server.git_update", Target: srv.ID, IP: clientIP(r),
+	s.audit.Log(r.Context(), audit.Entry{UserID: &user.ID, Username: user.Username, Action: action, Target: srv.ID, IP: clientIP(r),
 		Details: map[string]any{"restart": restart, "wasRunning": wasRunning}})
 	w.WriteHeader(http.StatusAccepted)
 }

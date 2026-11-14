@@ -1,13 +1,13 @@
 id: fivem
-name: FiveM (FXServer)
+name: FiveM Legacy (FXServer)
 category: fivem
 group: fxserver
 order: 10
 icon: fivem
 description:
-  pl: Czysty FXServer z podstawowymi zasobami (cfx-server-data). Konfigurację robisz w server.cfg, serwer startuje od razu. Wymaga klucza z keymaster.fivem.net. Tylko hosty x86_64.
-  en: Plain FXServer with the default resources (cfx-server-data). You configure server.cfg yourself and the server starts right away. Needs a key from keymaster.fivem.net. x86_64 hosts only.
-  de: Reiner FXServer mit den Standard-Ressourcen (cfx-server-data). Du konfigurierst die server.cfg selbst, und der Server startet sofort. Braucht einen Schlüssel von keymaster.fivem.net. Nur für x86_64-Hosts.
+  pl: Czysty FXServer dla GTA V Legacy z podstawowymi zasobami (cfx-server-data). Konfigurację robisz w server.cfg, serwer startuje od razu. Nową wersję FXServer zainstalujesz jednym przyciskiem w Ustawieniach. Wymaga klucza z keymaster.fivem.net. Tylko hosty x86_64.
+  en: Plain FXServer for GTA V Legacy with the default resources (cfx-server-data). You configure server.cfg yourself and the server starts right away. Install a new FXServer version with one button in Settings. Needs a key from keymaster.fivem.net. x86_64 hosts only.
+  de: Reiner FXServer für GTA V Legacy mit den Standard-Ressourcen (cfx-server-data). Du konfigurierst die server.cfg selbst, und der Server startet sofort. Eine neue FXServer-Version installierst du mit einem Klick in den Einstellungen. Braucht einen Schlüssel von keymaster.fivem.net. Nur für x86_64-Hosts.
 
 variables:
   - key: LICENSE_KEY
@@ -103,6 +103,16 @@ install:
 
         # Keep this secret. Generated at https://keymaster.fivem.net
         sv_licenseKey "{{LICENSE_KEY}}"
+
+update:
+  - download:
+      provider: fivem
+      version: "{{ARTIFACT}}"
+      to: fx.tar.xz
+  - extract:
+      from: fx.tar.xz
+      to: artifact
+      clean: true
 
 start:
   command: artifact/run.sh

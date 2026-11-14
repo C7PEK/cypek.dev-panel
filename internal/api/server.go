@@ -308,6 +308,8 @@ func New(d Deps) (http.Handler, error) {
 				sr.With(s.withServer(auth.PermConsoleRead)).Get("/install", s.handleInstallStatus)
 				sr.With(s.withServer(auth.PermSettings)).Post("/install", s.handleReinstall)
 				sr.With(s.withServer(auth.PermSettings)).Post("/git-update", s.handleGitUpdate)
+				sr.With(s.withServer(auth.PermSettings)).Get("/game-update", s.handleGameUpdateInfo)
+				sr.With(s.withServer(auth.PermSettings)).Post("/game-update", s.handleGameUpdate)
 				sr.With(s.requireRole(auth.RoleAdmin), s.withServer(auth.PermSettings)).Put("/expiry", s.handleSetExpiry)
 
 				sr.Route("/users", func(sur chi.Router) {

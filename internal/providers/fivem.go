@@ -3,8 +3,11 @@ package providers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net/url"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -127,4 +130,78 @@ func (f *FiveM) Resolve(ctx context.Context, selector string) (*FiveMArtifact, e
 		}
 	}
 	return nil, fmt.Errorf("fivem: build %d cannot be downloaded through the changelog API; choose recommended or latest", build)
+}
+
+type FiveMEnhanced struct {
+	PageURL string
+
+	mu      sync.Mutex
+	cached  *FiveMArtifact
+	fetched time.Time
+}
+
+func NewFiveMEnhanced() *FiveMEnhanced {
+	return &FiveMEnhanced{PageURL: "https://docs.fivem.net/docs/server-download/"}
+}
+
+var enhancedBuildRe = regexp.MustCompile(`(?i)build\s+(\d+)`)
+
+func (f *FiveMEnhanced) Resolve(ctx context.Context) (*FiveMArtifact, error) {
+	f.mu.Lock()
+	if f.cached != nil && time.Since(f.fetched) < 10*time.Minute {
+		a := *f.cached
+		f.mu.Unlock()
+		return &a, nil
+	}
+	f.mu.Unlock()
+	if err := (&FiveM{}).CheckArch(); err != nil {
+		return nil, err
+	}
+	page, err := getText(ctx, f.PageURL, 8<<20)
+	if err != nil {
+		return nil, fmt.Errorf("cfx server download page: %w", err)
+	}
+	art, err := parseEnhancedDownloads(page)
+	if err != nil {
+		return nil, err
+	}
+	f.mu.Lock()
+	f.cached, f.fetched = art, time.Now()
+	f.mu.Unlock()
+	a := *art
+	return &a, nil
+}
+
+func parseEnhancedDownloads(page string) (*FiveMArtifact, error) {
+	const marker = `"enhanced":`
+	i := strings.Index(page, marker)
+	if i < 0 {
+		return nil, errors.New("cfx server download page: no GTA V Enhanced downloads listed (the page layout may have changed)")
+	}
+	var data struct {
+		Linux []struct {
+			DisplayName string `json:"displayName"`
+			Subtitle    string `json:"subtitle"`
+			DownloadURL string `json:"downloadURL"`
+		} `json:"linux"`
+	}
+	if err := json.NewDecoder(strings.NewReader(page[i+len(marker):])).Decode(&data); err != nil {
+		return nil, fmt.Errorf("cfx server download page: %w", err)
+	}
+	for _, d := range data.Linux {
+		u, err := url.Parse(d.DownloadURL)
+		if err != nil || u.Scheme != "https" || !strings.HasSuffix(u.Path, ".tar.xz") {
+			continue
+		}
+		host := strings.ToLower(u.Hostname())
+		if !strings.HasSuffix(host, ".akamaized.net") && !strings.HasSuffix(host, ".fivem.net") && !strings.HasSuffix(host, ".cfx.re") {
+			continue
+		}
+		build := 0
+		if m := enhancedBuildRe.FindStringSubmatch(d.Subtitle); m != nil {
+			build, _ = strconv.Atoi(m[1])
+		}
+		return &FiveMArtifact{Build: build, URL: d.DownloadURL, Channel: "enhanced"}, nil
+	}
+	return nil, errors.New("cfx server download page: no Linux download for GTA V Enhanced")
 }

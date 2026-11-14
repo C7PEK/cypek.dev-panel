@@ -1,13 +1,13 @@
 id: fivem-txadmin
-name: FiveM z txAdmin
+name: FiveM Legacy + txAdmin
 category: fivem
 group: fxserver
 order: 20
 icon: fivem
 description:
-  pl: FXServer uruchamiany przez txAdmin, czyli własny panel FiveM na porcie 40120 (konfiguracja, zasoby, bany). Do przepisów ESX/QBCore najpierw utwórz bazę w zakładce Bazy danych panelu i wpisz jej użytkownika, hasło i nazwę w kreatorze txAdmin (host 127.0.0.1). UWAGA, txAdmin ma własny harmonogram restartów, który dubluje harmonogram tego panelu; włącz tylko jeden. Przy pierwszym starcie PIN logowania pojawi się w konsoli. Tylko hosty x86_64.
-  en: FXServer started through txAdmin, FiveM's own web panel on port 40120 (setup, resources, bans). For ESX/QBCore recipes create a database in the panel's Databases tab first and enter its user, password and name in the txAdmin deployer (host 127.0.0.1). NOTE, txAdmin has its own restart scheduler that duplicates this panel's; enable only one. The first-login PIN shows up in the console. x86_64 hosts only.
-  de: FXServer, gestartet über txAdmin, das eigene Webpanel von FiveM auf Port 40120 (Einrichtung, Ressourcen, Bans). Für ESX/QBCore-Rezepte erstellst du zuerst im Tab Datenbanken des Panels eine Datenbank und trägst Benutzer, Passwort und Name im txAdmin-Deployer ein (Host 127.0.0.1). WICHTIG, txAdmin hat einen eigenen Neustart-Planer, der den des Panels doppelt. Aktiviere nur einen. Die PIN für die erste Anmeldung erscheint in der Konsole. Nur für x86_64-Hosts.
+  pl: FXServer dla GTA V Legacy uruchamiany przez txAdmin, czyli własny panel FiveM na porcie 40120 (konfiguracja, zasoby, bany). Do przepisów ESX/QBCore najpierw utwórz bazę w zakładce Bazy danych panelu i wpisz jej użytkownika, hasło i nazwę w kreatorze txAdmin (host 127.0.0.1). UWAGA, txAdmin ma własny harmonogram restartów, który dubluje harmonogram tego panelu; włącz tylko jeden. Przy pierwszym starcie PIN logowania pojawi się w konsoli. FXServer i txAdmin zaktualizujesz jednym przyciskiem w Ustawieniach. Tylko hosty x86_64.
+  en: FXServer for GTA V Legacy started through txAdmin, FiveM's own web panel on port 40120 (setup, resources, bans). For ESX/QBCore recipes create a database in the panel's Databases tab first and enter its user, password and name in the txAdmin deployer (host 127.0.0.1). NOTE, txAdmin has its own restart scheduler that duplicates this panel's; enable only one. The first-login PIN shows up in the console. Update FXServer and txAdmin with one button in Settings. x86_64 hosts only.
+  de: FXServer für GTA V Legacy, gestartet über txAdmin, das eigene Webpanel von FiveM auf Port 40120 (Einrichtung, Ressourcen, Bans). Für ESX/QBCore-Rezepte erstellst du zuerst im Tab Datenbanken des Panels eine Datenbank und trägst Benutzer, Passwort und Name im txAdmin-Deployer ein (Host 127.0.0.1). WICHTIG, txAdmin hat einen eigenen Neustart-Planer, der den des Panels doppelt. Aktiviere nur einen. Die PIN für die erste Anmeldung erscheint in der Konsole. FXServer und txAdmin aktualisierst du mit einem Klick in den Einstellungen. Nur für x86_64-Hosts.
 
 variables:
   - key: LICENSE_KEY
@@ -97,9 +97,22 @@ install:
 
         sv_licenseKey "{{LICENSE_KEY}}"
 
+update:
+  - download:
+      provider: fivem
+      version: "{{ARTIFACT}}"
+      to: fx.tar.xz
+  - extract:
+      from: fx.tar.xz
+      to: artifact
+      clean: true
+
 start:
   command: artifact/run.sh
-  args: ["+set", "serverProfile", "default", "+set", "txAdminPort", "{{TX_PORT}}", "+set", "txDataPath", "txData"]
+  args: ["+set", "serverProfile", "default"]
+  env:
+    TXHOST_TXA_PORT: "{{TX_PORT}}"
+    TXHOST_DATA_PATH: "{{SERVER_DIR}}/txData"
 stop:
   command: "^C"
   timeoutSec: 90

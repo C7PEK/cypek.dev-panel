@@ -36,7 +36,7 @@ func TestRealTemplates(t *testing.T) {
 	}
 	for i, name := range strings.Split(list, ",") {
 		name = strings.TrimSpace(name)
-		id, vars := name, map[string]string{"EULA": "true", "RAM_MB": "1024", "PORT": strconv.Itoa(25700 + i)}
+		id, vars := name, map[string]string{"EULA": "true", "RAM_MB": "1024", "PORT": strconv.Itoa(25700 + i), "LICENSE_KEY": "cfxk_realtestrealtestrealtest00"}
 		for k, v := range extra[name] {
 			vars[k] = v
 			id = strings.TrimSuffix(name, "-"+v)
@@ -54,7 +54,7 @@ func realBoot(t *testing.T, id string, values map[string]string) {
 	os.RemoveAll(serverDir)
 	t.Cleanup(func() { os.RemoveAll(serverDir) })
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	m := New(Deps{Paper: providers.NewPaper(), Java: &runtimes.Java{Dir: filepath.Join(root, "runtimes"), Adoptium: providers.NewAdoptium()}, Log: log})
+	m := New(Deps{Paper: providers.NewPaper(), FiveM: providers.NewFiveM(), Java: &runtimes.Java{Dir: filepath.Join(root, "runtimes"), Adoptium: providers.NewAdoptium()}, Log: log})
 	reg, _ := templates.Load(builtin.Builtin, "")
 	tpl, ok := reg.Get(id)
 	if !ok {
@@ -151,6 +151,10 @@ func realBoot(t *testing.T, id string, values map[string]string) {
 }
 
 func inspectInstall(t *testing.T, id, dir string, m *Manager, tpl *templates.Template, vars map[string]string) {
+	if strings.HasPrefix(id, "fivem") {
+		inspectFiveMUpdate(t, dir, m, tpl, vars)
+		return
+	}
 	if id != "minecraft-bedrock" {
 		return
 	}
@@ -180,6 +184,38 @@ func inspectInstall(t *testing.T, id, dir string, m *Manager, tpl *templates.Tem
 		t.Error("reinstall overwrote the user's server.properties")
 	}
 	t.Logf("bedrock install checked (%d bytes of server.properties kept)", len(after))
+}
+
+func inspectFiveMUpdate(t *testing.T, dir string, m *Manager, tpl *templates.Template, vars map[string]string) {
+	if st, err := os.Stat(filepath.Join(dir, "artifact", "run.sh")); err != nil || st.Mode()&0o100 == 0 {
+		t.Fatalf("artifact/run.sh missing or not executable: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "resources")); err != nil {
+		t.Fatalf("cfx-server-data resources missing: %v", err)
+	}
+	_ = os.WriteFile(filepath.Join(dir, "server.cfg"), []byte("edited\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "artifact", "stale.txt"), []byte("x"), 0o644)
+	upd := *tpl
+	upd.Install = tpl.Update
+	done := make(chan error, 1)
+	if err := m.Start(context.Background(), "realtest", dir, &upd, vars, func(_ *Result, e error) { done <- e }); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err != nil {
+		job, _ := m.Get("realtest")
+		t.Fatalf("update: %v\n%s", err, tail(strings.Join(job.Lines, "\n"), 20))
+	}
+	job, _ := m.Get("realtest")
+	if b, _ := os.ReadFile(filepath.Join(dir, "server.cfg")); string(b) != "edited\n" {
+		t.Error("update rewrote server.cfg")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "artifact", "stale.txt")); err == nil {
+		t.Error("update kept files from the old artifact")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "artifact", "run.sh")); err != nil {
+		t.Error("artifact missing after the update")
+	}
+	t.Logf("update log:\n%s", tail(strings.Join(job.Lines, "\n"), 8))
 }
 
 func tail(s string, n int) string {

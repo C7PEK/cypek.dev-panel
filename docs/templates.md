@@ -97,7 +97,8 @@ Built-in templates:
 | minecraft | vanilla | Vanilla |
 | minecraft | proxy | Velocity |
 | minecraft | bedrock | Bedrock Dedicated Server |
-| fivem | fxserver | FXServer, FXServer + txAdmin |
+| fivem | fxserver | FiveM Legacy (FXServer), FiveM Legacy + txAdmin |
+| fivem | enhanced | FiveM Enhanced (Cfx Server), FiveM Enhanced + txAdmin |
 | discord-bot | node | Node.js bot (your files), Node.js bot from git |
 | discord-bot | python | Python bot (your files), Python bot from git |
 
@@ -133,6 +134,12 @@ Built-in templates:
   - `provider: fivem` resolves `version` (`recommended`, `latest` or a
     build number from the changelog API) to an FXServer Linux artifact.
     Cfx.re publishes no checksums; HTTPS only. x86_64 hosts only.
+  - `provider: fivem-enhanced` downloads the current Cfx Server build for
+    GTA V Enhanced (`cfx-server_linux_x64.tar.xz`). Cfx.re lists only one
+    build, read from the official download page
+    (`docs.fivem.net/docs/server-download/`); `version` is ignored. The
+    archive has the same layout as FXServer (`run.sh` at the top, txAdmin
+    built in). HTTPS only, x86_64 only.
   - `provider: url` downloads a fixed `url` (https only), optionally
     checked against `sha256`.
 - `extract`: unpacks `from` (tar.gz, tar.xz, zip) into `to` (`.` = server
@@ -141,7 +148,10 @@ Built-in templates:
   deleted afterwards unless `delete: false`. `keep: [server.properties,
   "*.json"]` (globs relative to `to`) leaves those files alone when they
   already exist, so reinstalling over a new server archive keeps the
-  user's settings.
+  user's settings. `clean: true` replaces the `to` folder as a whole: the
+  archive is unpacked next to it, then swapped in, so files from the old
+  version do not linger and a failed download leaves the old folder in
+  place (not allowed for `.` and not together with `keep`).
 - `write`: writes a small text file. With `requireConsent: VAR` the step
   fails unless the user switched that bool on.
 - `properties`: sets keys in a `key=value` file, keeping other lines and
@@ -163,6 +173,29 @@ Built-in templates:
 
 Paths are relative to the server directory; `..` and absolute paths are
 rejected.
+
+## Updates
+
+`install` runs on create and on "Reinstall". A template can add an
+`update` list with the same kinds of steps for a safe update that only
+touches the game files. When it exists, the server's Settings tab and
+header get an "Update" button: the panel stops the server, runs the
+`update` steps, keeps everything else and starts the server again.
+
+```yaml
+update:
+  - download: { provider: fivem, version: "{{ARTIFACT}}", to: fx.tar.xz }
+  - extract: { from: fx.tar.xz, to: artifact, clean: true }
+```
+
+For FiveM the panel also shows the installed build and txAdmin version
+(read from `artifact/.../fxmanifest.lua`) next to the newest one.
+txAdmin ships inside the artifact, so updating the artifact updates
+txAdmin. The API is `GET` and `POST /api/v1/servers/{id}/game-update`.
+
+The txAdmin templates set `TXHOST_TXA_PORT` and `TXHOST_DATA_PATH`
+(txAdmin 8+); the old `txAdminPort` and `txDataPath` convars are
+deprecated by txAdmin.
 
 ## Dynamic option sources
 
@@ -232,6 +265,17 @@ template may use them.
   `{{JAVA_VERSION}}`.
 - **`stop.command: "^C"`** sends SIGINT instead of console input (also
   accepted: `SIGTERM`, `SIGKILL`).
+
+## To verify
+
+Things that could not be tested end to end on the development machine:
+
+- FiveM Enhanced: the server was installed and updated, but not started
+  (it needs a license key and a GTA V Enhanced client). The ready line is
+  unknown, so the Enhanced templates count the server as running once the
+  process is up. The download link comes from the JSON embedded in the
+  official download page, which has no documented API.
+- Bedrock: installed and reinstalled, not started.
 
 ## Importing from Pterodactyl, Pelican and PufferPanel
 

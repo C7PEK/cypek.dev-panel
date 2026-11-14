@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { api } from "@/lib/api"
-import type { ConsoleHints, CreateServerInput, ExpiryInfo, ExpiryInput, InstallJob, InstallState, LiveServer, PowerAction, Server, ServerState, ServerStatus, UpdateServerInput } from "@/lib/types"
+import type { ConsoleHints, CreateServerInput, ExpiryInfo, ExpiryInput, GameUpdateInfo, InstallJob, InstallState, LiveServer, PowerAction, Server, ServerState, ServerStatus, UpdateServerInput } from "@/lib/types"
 
 export function mergeLive(server: Server, live?: LiveServer): Server {
   if (!live) return server
@@ -164,6 +164,29 @@ export function useGitUpdate(id: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: serverKey(id) })
       void qc.invalidateQueries({ queryKey: installJobKey(id) })
+    },
+  })
+}
+
+export const gameUpdateKey = (id: string) => ["servers", id, "game-update"] as const
+
+export function useGameUpdateInfo(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: gameUpdateKey(id),
+    queryFn: () => api<GameUpdateInfo>("GET", `${serverPath(id)}/game-update`),
+    enabled,
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useGameUpdate(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (restart: boolean) => api<void>("POST", `${serverPath(id)}/game-update`, { restart }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: serverKey(id) })
+      void qc.invalidateQueries({ queryKey: installJobKey(id) })
+      void qc.invalidateQueries({ queryKey: gameUpdateKey(id) })
     },
   })
 }

@@ -155,7 +155,8 @@
     "self_update_unavailable": "Tego panelu nie da się zaktualizować z przeglądarki. Użyj w terminalu: sudo homepanel update",
     "server_expired": "Ten serwer wygasł. Admin musi go przedłużyć, zanim znów się uruchomi.",
     "bad_link": "Ten link nie zadziała. Sprawdź, czy prowadzi do pliku.",
-    "too_many_jobs": "Za dużo pobierań naraz. Poczekaj, aż któreś się skończy."
+    "too_many_jobs": "Za dużo pobierań naraz. Poczekaj, aż któreś się skończy.",
+    "no_update": "Ten serwer nie ma automatycznej aktualizacji. Zamiast tego zainstaluj go ponownie w Ustawieniach."
   },
   "servers": {
     "create": "Utwórz serwer",
@@ -378,8 +379,12 @@
         "hint": "Telefony, konsole i Windows 10/11"
       },
       "fxserver": {
-        "title": "FXServer",
-        "hint": "Serwer GTA V roleplay i nie tylko"
+        "title": "GTA V Legacy",
+        "hint": "FXServer, klasyczny serwer FiveM"
+      },
+      "enhanced": {
+        "title": "GTA V Enhanced",
+        "hint": "Cfx Server dla nowej edycji gry, wczesny dostęp"
       },
       "node": {
         "title": "Node.js",
@@ -1434,5 +1439,27 @@
     "extracted": "Rozpakowano {{name}}",
     "failedToast": "Nie udało się: {{name}}",
     "extractStarted": "Rozpakowywanie {{name}} rozpoczęte"
+  },
+  "gameUpdate": {
+    "title": "Aktualizacja plików serwera",
+    "titleFiveM": "Aktualizacja FXServer i txAdmin",
+    "description": "Pobiera najnowszą wersję plików serwera. Ustawienia, światy i dane zostają bez zmian.",
+    "descriptionFiveM": "Podmienia tylko program serwera (folder artifact) na najnowszy build. txAdmin aktualizuje się razem z nim. server.cfg, zasoby i txData zostają bez zmian.",
+    "button": "Aktualizuj",
+    "confirmTitle": "Zaktualizować serwer?",
+    "confirm": "Serwer się zatrzyma, panel pobierze nowe pliki i uruchomi go ponownie.",
+    "confirmFiveM": "Serwer się zatrzyma, panel pobierze nowy build i podmieni folder artifact, a potem uruchomi serwer ponownie. Gracze zostaną rozłączeni na około minutę.",
+    "installed": "Zainstalowana",
+    "latest": "Najnowsza",
+    "build": "build {{build}}",
+    "upToDate": "Aktualna",
+    "available": "Dostępna aktualizacja",
+    "restart": "Uruchom po aktualizacji",
+    "restartHelp": "Wyłączone: serwer wystartuje tylko, jeśli działał przed aktualizacją.",
+    "run": "Aktualizuj teraz",
+    "started": "Aktualizacja ruszyła",
+    "progressTitle": "Aktualizacja serwera",
+    "checkFailed": "Nie udało się sprawdzić nowej wersji: {{error}}",
+    "channelHint": "Build zależy od wersji wybranej niżej w ustawieniach (recommended, latest albo konkretny build). Zmień ją tam, żeby przejść na inną."
   }
 }

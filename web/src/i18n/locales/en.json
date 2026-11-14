@@ -153,7 +153,8 @@
     "self_update_unavailable": "This panel cannot be updated from the browser. In a terminal run: sudo homepanel update",
     "server_expired": "This server has expired. An admin has to extend it before it can start again.",
     "bad_link": "This link will not work. Check that it points to a file.",
-    "too_many_jobs": "Too many downloads at once. Wait for one to finish."
+    "too_many_jobs": "Too many downloads at once. Wait for one to finish.",
+    "no_update": "This server has no automatic update. Reinstall it in Settings instead."
   },
   "servers": {
     "create": "Create a server",
@@ -376,8 +377,12 @@
         "hint": "Phones, consoles and Windows 10/11"
       },
       "fxserver": {
-        "title": "FXServer",
-        "hint": "GTA V roleplay servers and more"
+        "title": "GTA V Legacy",
+        "hint": "FXServer, the classic FiveM server"
+      },
+      "enhanced": {
+        "title": "GTA V Enhanced",
+        "hint": "Cfx Server for the new edition of the game, early access"
       },
       "node": {
         "title": "Node.js",
@@ -1388,5 +1393,27 @@
     "extracted": "Extracted {{name}}",
     "failedToast": "Failed: {{name}}",
     "extractStarted": "Extracting {{name}} started"
+  },
+  "gameUpdate": {
+    "title": "Update server files",
+    "titleFiveM": "Update FXServer and txAdmin",
+    "description": "Downloads the newest version of the server files. Your settings, worlds and data stay as they are.",
+    "descriptionFiveM": "Replaces only the server program (the artifact folder) with the newest build. txAdmin comes with it. server.cfg, resources and txData stay as they are.",
+    "button": "Update",
+    "confirmTitle": "Update the server?",
+    "confirm": "The server stops, the new files are downloaded and it starts again.",
+    "confirmFiveM": "The server stops, the new build is downloaded and replaces the artifact folder, then the server starts again. Players are disconnected for about a minute.",
+    "installed": "Installed",
+    "latest": "Newest",
+    "build": "build {{build}}",
+    "upToDate": "Up to date",
+    "available": "Update available",
+    "restart": "Start after the update",
+    "restartHelp": "Off: the server starts only if it was running before the update.",
+    "run": "Update now",
+    "started": "Update started",
+    "progressTitle": "Updating the server",
+    "checkFailed": "Could not check for a new version: {{error}}",
+    "channelHint": "The build follows the version chosen in the settings below (recommended, latest or a fixed build). Change it there to switch."
   }
 }

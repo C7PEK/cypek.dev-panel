@@ -127,12 +127,24 @@ func TestBuiltinTemplatesComplete(t *testing.T) {
 		"minecraft-paper", "minecraft-purpur", "minecraft-folia",
 		"minecraft-forge", "minecraft-neoforge", "minecraft-fabric", "minecraft-quilt",
 		"minecraft-vanilla", "minecraft-velocity", "minecraft-bedrock",
-		"fivem", "fivem-txadmin",
+		"fivem", "fivem-txadmin", "fivem-enhanced", "fivem-enhanced-txadmin",
 		"discord-node", "discord-node-git", "discord-python", "discord-python-git",
 	}
 	for _, id := range want {
 		if _, ok := r.Get(id); !ok {
 			t.Errorf("built-in template %s missing", id)
+		}
+	}
+	for _, id := range []string{"fivem", "fivem-txadmin", "fivem-enhanced", "fivem-enhanced-txadmin"} {
+		tp, _ := r.Get(id)
+		if tp == nil || !tp.HasUpdate() {
+			t.Errorf("%s has no update section", id)
+			continue
+		}
+		for _, st := range tp.Update {
+			if st.Write != nil || (st.Extract != nil && st.Extract.To == ".") {
+				t.Errorf("%s: the update must not touch server.cfg or the server folder", id)
+			}
 		}
 	}
 	for _, tp := range r.List() {
@@ -166,5 +178,22 @@ func TestBuiltinTemplatesComplete(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestUpdateStepsAreValidated(t *testing.T) {
+	base := "id: up\nname: U\ncategory: other\nvariables: []\ninstall: []\nstart: {command: /bin/true}\n"
+	if _, err := Parse([]byte(base + "update: [{extract: {from: a.zip, to: ., clean: true}}]\n")); err == nil {
+		t.Error("clean extraction into the server folder accepted")
+	}
+	if _, err := Parse([]byte(base + "update: [{write: {path: ../x, content: y}}]\n")); err == nil {
+		t.Error("update step escaping the server folder accepted")
+	}
+	if _, err := Parse([]byte(base + "update: [{download: {provider: url, url: \"https://x/{{NOPE}}\", to: a}}]\n")); err == nil {
+		t.Error("unknown placeholder in an update step accepted")
+	}
+	tp, err := Parse([]byte(base + "update: [{extract: {from: a.zip, to: app, clean: true}}]\n"))
+	if err != nil || !tp.HasUpdate() {
+		t.Fatalf("valid update: %v", err)
 	}
 }

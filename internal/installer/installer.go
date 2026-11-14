@@ -42,13 +42,14 @@ type Deps struct {
 	Fabric *providers.Fabric
 	Purpur *providers.Purpur
 
-	Forge    *providers.Forge
-	NeoForge *providers.NeoForge
-	Quilt    *providers.Quilt
-	Bedrock  *providers.Bedrock
-	Java     *runtimes.Java
-	Node     *runtimes.Node
-	Python   *runtimes.Python
+	Forge         *providers.Forge
+	NeoForge      *providers.NeoForge
+	Quilt         *providers.Quilt
+	Bedrock       *providers.Bedrock
+	FiveMEnhanced *providers.FiveMEnhanced
+	Java          *runtimes.Java
+	Node          *runtimes.Node
+	Python        *runtimes.Python
 
 	Scripts ScriptRunner
 	Log     *slog.Logger
@@ -430,6 +431,23 @@ func (c *stepCtx) download(ctx context.Context, n int, st *templates.DownloadSte
 			c.vars["JAVA_MIN"] = strconv.Itoa(srv.JavaMajor)
 		}
 		return nil
+	case "fivem-enhanced":
+		c.begin(n, "Downloading Cfx Server (GTA V Enhanced)")
+		fe := c.m.deps.FiveMEnhanced
+		if fe == nil {
+			fe = providers.NewFiveMEnhanced()
+		}
+		art, err := fe.Resolve(ctx)
+		if err != nil {
+			return err
+		}
+		c.logf("Cfx Server build %d for GTA V Enhanced", art.Build)
+		c.logf("Cfx.re publishes no checksums; downloading over HTTPS only")
+		if err := providers.Download(ctx, art.URL, dest, "", c.progress); err != nil {
+			return err
+		}
+		c.vars["FX_BUILD"] = strconv.Itoa(art.Build)
+		return nil
 	case "fivem":
 		c.begin(n, "Downloading FXServer")
 		if c.m.deps.FiveM == nil {
@@ -501,13 +519,43 @@ func (c *stepCtx) extract(n int, st *templates.ExtractStep) error {
 	if len(st.Keep) > 0 {
 		opts.Keep = func(rel string) bool { return st.Keeps(rel) }
 	}
-	if err := archive.Extract(src, dest, opts); err != nil {
+	if st.Clean {
+		if err := c.extractReplacing(src, dest, opts); err != nil {
+			return fmt.Errorf("extract %s: %w", from, err)
+		}
+	} else if err := archive.Extract(src, dest, opts); err != nil {
 		return fmt.Errorf("extract %s: %w", from, err)
 	}
 	if st.Delete == nil || *st.Delete {
 		_ = os.Remove(src)
 	}
 	c.logf("Extracted %s to %s", from, to)
+	return nil
+}
+
+func (c *stepCtx) extractReplacing(src, dest string, opts archive.Options) error {
+	if filepath.Clean(dest) == filepath.Clean(c.dir) {
+		return errors.New("clean needs its own folder, not the server folder")
+	}
+	staging, previous := dest+".new", dest+".old"
+	_ = os.RemoveAll(staging)
+	_ = os.RemoveAll(previous)
+	if err := archive.Extract(src, staging, opts); err != nil {
+		_ = os.RemoveAll(staging)
+		return err
+	}
+	if _, err := os.Lstat(dest); err == nil {
+		if err := os.Rename(dest, previous); err != nil {
+			_ = os.RemoveAll(staging)
+			return err
+		}
+	}
+	if err := os.Rename(staging, dest); err != nil {
+		_ = os.Rename(previous, dest)
+		return err
+	}
+	_ = os.RemoveAll(previous)
+	c.logf("Replaced %s with the new version", filepath.Base(dest))
 	return nil
 }
 

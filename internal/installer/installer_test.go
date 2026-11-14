@@ -230,3 +230,62 @@ func TestExtractAndURLSteps(t *testing.T) {
 }
 
 func zipWriter(buf *bytes.Buffer) *zip.Writer { return zip.NewWriter(buf) }
+
+func TestCleanExtractReplacesTheFolder(t *testing.T) {
+	version := "v1"
+	build := func() []byte {
+		var b bytes.Buffer
+		zw := zipWriter(&b)
+		w, _ := zw.Create("run.sh")
+		_, _ = w.Write([]byte(version))
+		if version == "v1" {
+			w, _ = zw.Create("old-only.txt")
+			_, _ = w.Write([]byte("stale"))
+		}
+		zw.Close()
+		return b.Bytes()
+	}
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(build()) }))
+	defer srv.Close()
+	oldD := providers.DownloadClient
+	providers.DownloadClient = srv.Client()
+	defer func() { providers.DownloadClient = oldD }()
+
+	tpl, err := templates.Parse([]byte("id: cleaner\nname: C\ncategory: other\nvariables: []\ninstall:\n" +
+		"  - download: {provider: url, url: \"" + srv.URL + "/a.zip\", to: a.zip}\n" +
+		"  - extract: {from: a.zip, to: artifact, clean: true}\n" +
+		"start: {command: /bin/true}\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := New(Deps{Log: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))})
+	dir := filepath.Join(t.TempDir(), "s")
+	run := func() {
+		done := make(chan error, 1)
+		if err := m.Start(context.Background(), "cleaner1", dir, tpl, map[string]string{}, func(_ *Result, e error) { done <- e }); err != nil {
+			t.Fatal(err)
+		}
+		if err := <-done; err != nil {
+			job, _ := m.Get("cleaner1")
+			t.Fatalf("install: %v\n%s", err, strings.Join(job.Lines, "\n"))
+		}
+	}
+	run()
+	_ = os.WriteFile(filepath.Join(dir, "server.cfg"), []byte("mine"), 0o644)
+	version = "v2"
+	run()
+	if b, _ := os.ReadFile(filepath.Join(dir, "artifact", "run.sh")); string(b) != "v2" {
+		t.Errorf("run.sh = %q", b)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "artifact", "old-only.txt")); err == nil {
+		t.Error("a file from the old version survived")
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "server.cfg")); string(b) != "mine" {
+		t.Error("a file outside the replaced folder changed")
+	}
+	for _, leftover := range []string{"artifact.new", "artifact.old"} {
+		if _, err := os.Stat(filepath.Join(dir, leftover)); err == nil {
+			t.Errorf("%s left behind", leftover)
+		}
+	}
+}

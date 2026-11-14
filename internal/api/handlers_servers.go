@@ -35,7 +35,8 @@ type serverResponse struct {
 	Variables map[string]string `json:"variables"`
 	Players   *query.Players    `json:"players,omitempty"`
 
-	GitUpdate bool `json:"gitUpdate"`
+	GitUpdate  bool `json:"gitUpdate"`
+	GameUpdate bool `json:"gameUpdate"`
 	expiryView
 }
 
@@ -45,7 +46,7 @@ func (s *Server) toResponse(ctx context.Context, srv *servers.Server) serverResp
 		tpl, _ = s.templates.Get(srv.TemplateID)
 	}
 	st := s.statusOf(ctx, srv.ID)
-	resp := serverResponse{Server: s.redactRun(ctx, srv, tpl), Status: st, Variables: maskedVariables(tpl, srv.Variables), GitUpdate: tpl != nil && tpl.UsesGit()}
+	resp := serverResponse{Server: s.redactRun(ctx, srv, tpl), Status: st, Variables: maskedVariables(tpl, srv.Variables), GitUpdate: tpl != nil && tpl.UsesGit(), GameUpdate: tpl != nil && tpl.HasUpdate()}
 	if e, err := s.servers.Expiry(ctx, srv.ID); err == nil {
 		resp.expiryView = viewExpiry(e)
 	}

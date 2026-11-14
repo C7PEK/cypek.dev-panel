@@ -122,6 +122,8 @@ type ExtractStep struct {
 	Delete *bool `yaml:"delete,omitempty" json:"delete,omitempty"`
 
 	Keep []string `yaml:"keep,omitempty" json:"keep,omitempty"`
+
+	Clean bool `yaml:"clean,omitempty" json:"clean,omitempty"`
 }
 
 func (e *ExtractStep) Keeps(rel string) bool {
@@ -214,6 +216,7 @@ type Template struct {
 	Variables   []Variable `yaml:"variables" json:"variables"`
 	Runtime     Runtime    `yaml:"runtime" json:"runtime"`
 	Install     []Step     `yaml:"install" json:"install"`
+	Update      []Step     `yaml:"update,omitempty" json:"update,omitempty"`
 	Start       Start      `yaml:"start" json:"start"`
 	Stop        Stop       `yaml:"stop" json:"stop"`
 	ReadyRegex  string     `yaml:"readyRegex,omitempty" json:"readyRegex,omitempty"`
@@ -302,99 +305,11 @@ func (t *Template) Validate() error {
 	default:
 		return fmt.Errorf("template %s: unknown runtime %q", t.ID, t.Runtime.Kind)
 	}
-	for i, s := range t.Install {
-		n := 0
-		if s.Download != nil {
-			n++
-			if s.Download.Provider == "" || s.Download.To == "" {
-				return fmt.Errorf("template %s: install step %d: download needs provider and to", t.ID, i+1)
-			}
-			if s.Download.Provider == "url" && !strings.HasPrefix(s.Download.URL, "https://") {
-				return fmt.Errorf("template %s: install step %d: url downloads must use https", t.ID, i+1)
-			}
-			if err := safeRelPath(s.Download.To); err != nil {
-				return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
-			}
-		}
-		if s.Extract != nil {
-			n++
-			if err := safeRelPath(s.Extract.From); err != nil {
-				return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
-			}
-			if s.Extract.To != "." {
-				if err := safeRelPath(s.Extract.To); err != nil {
-					return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
-				}
-			}
-			for _, k := range s.Extract.Keep {
-				if _, err := path.Match(k, ""); err != nil || safeRelPath(k) != nil {
-					return fmt.Errorf("template %s: install step %d: keep pattern %q is not a relative glob", t.ID, i+1, k)
-				}
-			}
-			if s.Extract.Strip < 0 || s.Extract.Strip > 8 {
-				return fmt.Errorf("template %s: install step %d: strip must be 0-8", t.ID, i+1)
-			}
-		}
-		if s.Write != nil {
-			n++
-			if err := safeRelPath(s.Write.Path); err != nil {
-				return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
-			}
-			if s.Write.RequireConsent != "" && !seen[s.Write.RequireConsent] {
-				return fmt.Errorf("template %s: install step %d: requireConsent names unknown variable %s", t.ID, i+1, s.Write.RequireConsent)
-			}
-		}
-		if s.Properties != nil {
-			n++
-			if err := safeRelPath(s.Properties.Path); err != nil {
-				return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
-			}
-		}
-		if s.Git != nil {
-			n++
-			if s.Git.URL == "" || s.Git.To == "" {
-				return fmt.Errorf("template %s: install step %d: git needs url and to", t.ID, i+1)
-			}
-			if err := safeRelPath(s.Git.To); err != nil {
-				return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
-			}
-			if s.Git.Token != "" && !seen[s.Git.Token] {
-				return fmt.Errorf("template %s: install step %d: token names unknown variable %s", t.ID, i+1, s.Git.Token)
-			}
-		}
-		if s.Exec != nil {
-			n++
-			if s.Exec.Command == "" {
-				return fmt.Errorf("template %s: install step %d: exec needs a command", t.ID, i+1)
-			}
-			if s.Exec.Dir != "" {
-				if err := safeRelPath(s.Exec.Dir); err != nil {
-					return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
-				}
-			}
-			if s.Exec.IfMissing != "" {
-				if err := safeRelPath(s.Exec.IfMissing); err != nil {
-					return fmt.Errorf("template %s: install step %d: ifMissing: %w", t.ID, i+1, err)
-				}
-			}
-			if s.Exec.IfExists != "" {
-				if err := safeRelPath(s.Exec.IfExists); err != nil {
-					return fmt.Errorf("template %s: install step %d: %w", t.ID, i+1, err)
-				}
-			}
-		}
-		if s.Script != nil {
-			n++
-			if strings.TrimSpace(s.Script.Content) == "" {
-				return fmt.Errorf("template %s: install step %d: script is empty", t.ID, i+1)
-			}
-			if s.Script.TimeoutSec < 0 || s.Script.TimeoutSec > 4*3600 {
-				return fmt.Errorf("template %s: install step %d: timeoutSec must be 0-14400", t.ID, i+1)
-			}
-		}
-		if n != 1 {
-			return fmt.Errorf("template %s: install step %d must have exactly one of download, extract, write, properties, git, exec, script", t.ID, i+1)
-		}
+	if err := t.validateSteps("install", t.Install, seen); err != nil {
+		return err
+	}
+	if err := t.validateSteps("update", t.Update, seen); err != nil {
+		return err
 	}
 	if (t.Start.Command == "") == (t.Start.Shell == "") {
 		return fmt.Errorf("template %s: start needs exactly one of command or shell", t.ID)
@@ -453,6 +368,110 @@ func (t *Template) Validate() error {
 	return nil
 }
 
+func (t *Template) validateSteps(section string, steps []Step, seen map[string]bool) error {
+	for i, s := range steps {
+		n := 0
+		if s.Download != nil {
+			n++
+			if s.Download.Provider == "" || s.Download.To == "" {
+				return fmt.Errorf("template %s: %s step %d: download needs provider and to", t.ID, section, i+1)
+			}
+			if s.Download.Provider == "url" && !strings.HasPrefix(s.Download.URL, "https://") {
+				return fmt.Errorf("template %s: %s step %d: url downloads must use https", t.ID, section, i+1)
+			}
+			if err := safeRelPath(s.Download.To); err != nil {
+				return fmt.Errorf("template %s: %s step %d: %w", t.ID, section, i+1, err)
+			}
+		}
+		if s.Extract != nil {
+			n++
+			if err := safeRelPath(s.Extract.From); err != nil {
+				return fmt.Errorf("template %s: %s step %d: %w", t.ID, section, i+1, err)
+			}
+			if s.Extract.To != "." {
+				if err := safeRelPath(s.Extract.To); err != nil {
+					return fmt.Errorf("template %s: %s step %d: %w", t.ID, section, i+1, err)
+				}
+			}
+			if s.Extract.Clean && (s.Extract.To == "." || s.Extract.To == "") {
+				return fmt.Errorf("template %s: %s step %d: clean needs its own folder in to, not the server folder", t.ID, section, i+1)
+			}
+			if s.Extract.Clean && len(s.Extract.Keep) > 0 {
+				return fmt.Errorf("template %s: %s step %d: clean and keep cannot be combined", t.ID, section, i+1)
+			}
+			for _, k := range s.Extract.Keep {
+				if _, err := path.Match(k, ""); err != nil || safeRelPath(k) != nil {
+					return fmt.Errorf("template %s: %s step %d: keep pattern %q is not a relative glob", t.ID, section, i+1, k)
+				}
+			}
+			if s.Extract.Strip < 0 || s.Extract.Strip > 8 {
+				return fmt.Errorf("template %s: %s step %d: strip must be 0-8", t.ID, section, i+1)
+			}
+		}
+		if s.Write != nil {
+			n++
+			if err := safeRelPath(s.Write.Path); err != nil {
+				return fmt.Errorf("template %s: %s step %d: %w", t.ID, section, i+1, err)
+			}
+			if s.Write.RequireConsent != "" && !seen[s.Write.RequireConsent] {
+				return fmt.Errorf("template %s: %s step %d: requireConsent names unknown variable %s", t.ID, section, i+1, s.Write.RequireConsent)
+			}
+		}
+		if s.Properties != nil {
+			n++
+			if err := safeRelPath(s.Properties.Path); err != nil {
+				return fmt.Errorf("template %s: %s step %d: %w", t.ID, section, i+1, err)
+			}
+		}
+		if s.Git != nil {
+			n++
+			if s.Git.URL == "" || s.Git.To == "" {
+				return fmt.Errorf("template %s: %s step %d: git needs url and to", t.ID, section, i+1)
+			}
+			if err := safeRelPath(s.Git.To); err != nil {
+				return fmt.Errorf("template %s: %s step %d: %w", t.ID, section, i+1, err)
+			}
+			if s.Git.Token != "" && !seen[s.Git.Token] {
+				return fmt.Errorf("template %s: %s step %d: token names unknown variable %s", t.ID, section, i+1, s.Git.Token)
+			}
+		}
+		if s.Exec != nil {
+			n++
+			if s.Exec.Command == "" {
+				return fmt.Errorf("template %s: %s step %d: exec needs a command", t.ID, section, i+1)
+			}
+			if s.Exec.Dir != "" {
+				if err := safeRelPath(s.Exec.Dir); err != nil {
+					return fmt.Errorf("template %s: %s step %d: %w", t.ID, section, i+1, err)
+				}
+			}
+			if s.Exec.IfMissing != "" {
+				if err := safeRelPath(s.Exec.IfMissing); err != nil {
+					return fmt.Errorf("template %s: %s step %d: ifMissing: %w", t.ID, section, i+1, err)
+				}
+			}
+			if s.Exec.IfExists != "" {
+				if err := safeRelPath(s.Exec.IfExists); err != nil {
+					return fmt.Errorf("template %s: %s step %d: %w", t.ID, section, i+1, err)
+				}
+			}
+		}
+		if s.Script != nil {
+			n++
+			if strings.TrimSpace(s.Script.Content) == "" {
+				return fmt.Errorf("template %s: %s step %d: script is empty", t.ID, section, i+1)
+			}
+			if s.Script.TimeoutSec < 0 || s.Script.TimeoutSec > 4*3600 {
+				return fmt.Errorf("template %s: %s step %d: timeoutSec must be 0-14400", t.ID, section, i+1)
+			}
+		}
+		if n != 1 {
+			return fmt.Errorf("template %s: %s step %d must have exactly one of download, extract, write, properties, git, exec, script", t.ID, section, i+1)
+		}
+	}
+	return nil
+}
+
 func safeRelPath(p string) error {
 	if p == "" || filepath.IsAbs(p) || strings.Contains(p, "..") || strings.ContainsAny(p, "\x00\n") {
 		return fmt.Errorf("path %q must be relative and inside the server directory", p)
@@ -472,7 +491,7 @@ func (t *Template) allTemplatedStrings() []string {
 	for _, v := range t.Start.Env {
 		out = append(out, v)
 	}
-	for _, s := range t.Install {
+	for _, s := range append(append([]Step{}, t.Install...), t.Update...) {
 		if s.Download != nil {
 			out = append(out, s.Download.Version, s.Download.To, s.Download.URL)
 		}
@@ -672,8 +691,10 @@ func (t *Template) UsesGit() bool {
 	return false
 }
 
+func (t *Template) HasUpdate() bool { return len(t.Update) > 0 }
+
 func (t *Template) UsesScript() bool {
-	for _, s := range t.Install {
+	for _, s := range append(append([]Step{}, t.Install...), t.Update...) {
 		if s.Script != nil {
 			return true
 		}

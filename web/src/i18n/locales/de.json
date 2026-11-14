@@ -153,7 +153,8 @@
     "self_update_unavailable": "Dieses Panel kann nicht im Browser aktualisiert werden. Führe im Terminal aus: sudo homepanel update",
     "server_expired": "Dieser Server ist abgelaufen. Ein Admin muss ihn verlängern, bevor er wieder starten kann.",
     "bad_link": "Dieser Link funktioniert nicht. Prüfe, ob er auf eine Datei zeigt.",
-    "too_many_jobs": "Zu viele Downloads gleichzeitig. Warte, bis einer fertig ist."
+    "too_many_jobs": "Zu viele Downloads gleichzeitig. Warte, bis einer fertig ist.",
+    "no_update": "Dieser Server hat kein automatisches Update. Installiere ihn stattdessen in den Einstellungen neu."
   },
   "servers": {
     "create": "Server erstellen",
@@ -376,8 +377,12 @@
         "hint": "Handys, Konsolen und Windows 10/11"
       },
       "fxserver": {
-        "title": "FXServer",
-        "hint": "GTA-V-Roleplay-Server und mehr"
+        "title": "GTA V Legacy",
+        "hint": "FXServer, der klassische FiveM-Server"
+      },
+      "enhanced": {
+        "title": "GTA V Enhanced",
+        "hint": "Cfx Server für die neue Edition des Spiels, Early Access"
       },
       "node": {
         "title": "Node.js",
@@ -1388,5 +1393,27 @@
     "extracted": "{{name}} entpackt",
     "failedToast": "Fehlgeschlagen: {{name}}",
     "extractStarted": "Entpacken von {{name}} gestartet"
+  },
+  "gameUpdate": {
+    "title": "Serverdateien aktualisieren",
+    "titleFiveM": "FXServer und txAdmin aktualisieren",
+    "description": "Lädt die neueste Version der Serverdateien. Deine Einstellungen, Welten und Daten bleiben unverändert.",
+    "descriptionFiveM": "Ersetzt nur das Serverprogramm (Ordner artifact) durch den neuesten Build. txAdmin wird dabei mit aktualisiert. server.cfg, Ressourcen und txData bleiben unverändert.",
+    "button": "Aktualisieren",
+    "confirmTitle": "Server aktualisieren?",
+    "confirm": "Der Server stoppt, die neuen Dateien werden geladen und er startet wieder.",
+    "confirmFiveM": "Der Server stoppt, der neue Build wird geladen und ersetzt den Ordner artifact, danach startet der Server wieder. Spieler werden für etwa eine Minute getrennt.",
+    "installed": "Installiert",
+    "latest": "Neueste",
+    "build": "Build {{build}}",
+    "upToDate": "Aktuell",
+    "available": "Update verfügbar",
+    "restart": "Nach dem Update starten",
+    "restartHelp": "Aus: Der Server startet nur, wenn er vor dem Update lief.",
+    "run": "Jetzt aktualisieren",
+    "started": "Update gestartet",
+    "progressTitle": "Server wird aktualisiert",
+    "checkFailed": "Neue Version konnte nicht geprüft werden: {{error}}",
+    "channelHint": "Der Build richtet sich nach der unten in den Einstellungen gewählten Version (recommended, latest oder ein fester Build). Ändere sie dort, um zu wechseln."
   }
 }

@@ -1,5 +1,6 @@
 import { RotateCcwIcon } from "lucide-react"
 
+import { GameUpdateCard } from "@/components/servers/game-update"
 import { GitUpdateButton } from "@/components/servers/git-update-button"
 import { PortConflictNotice } from "@/components/servers/port-conflict-notice"
 import { type FormEvent, useMemo, useState } from "react"
@@ -35,6 +36,7 @@ export function TemplateSettings({ server }: { server: Server }) {
   return (
     <>
       {server.gitUpdate && <GitUpdateCard server={server} />}
+      {server.gameUpdate && <GameUpdateCard server={server} />}
       <SettingsForm key={server.updatedAt} server={server} tplId={tpl.id} variables={tpl.variables} />
       <ReinstallCard server={server} />
     </>

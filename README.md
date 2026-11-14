@@ -37,7 +37,7 @@ More in [docs/install.md](docs/install.md).
 | Minecraft, plugins | Paper, Purpur, Folia |
 | Minecraft, mods | Forge, NeoForge, Fabric, Quilt |
 | Minecraft, other | Vanilla, Velocity proxy, Bedrock |
-| FiveM | FXServer, FXServer with txAdmin |
+| FiveM | GTA V Legacy (FXServer) and GTA V Enhanced (Cfx Server), each plain or with txAdmin |
 | Discord bots | Node.js and Python, from your own files or a git repository |
 
 Java, Node.js and Python are downloaded by the panel, nothing has to be installed on the system. Templates from Pterodactyl, Pelican and PufferPanel can be imported, and you can write your own in YAML ([docs/templates.md](docs/templates.md)).
@@ -48,6 +48,7 @@ Java, Node.js and Python are downloaded by the panel, nothing has to be installe
 - File manager with an editor, upload, download from a link (Google Drive, Dropbox, OneDrive, GitHub) and unzip
 - Built-in SFTP on port 2022 for WinSCP or FileZilla ([docs/sftp.md](docs/sftp.md))
 - Mods and plugins from Modrinth in one click ([docs/mods.md](docs/mods.md))
+- One-click updates of FXServer, Cfx Server and txAdmin that keep server.cfg, resources and txData
 - Scheduled restarts with in-game warnings, commands and backups
 - Backups to any folder, including a mounted NAS, with retention
 - MariaDB and phpMyAdmin for servers that need a database ([docs/database.md](docs/database.md))

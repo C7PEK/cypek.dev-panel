@@ -102,6 +102,7 @@ export interface Server {
   status: ServerStatus
   players?: Players
   gitUpdate?: boolean
+  gameUpdate?: boolean
   expiresAt?: string
   expired?: boolean
   expiredAt?: string
@@ -592,4 +593,18 @@ export interface FetchInput {
   path: string
   extract: boolean
   deleteArchive: boolean
+}
+
+export interface GameVersion {
+  build?: number
+  txAdmin?: string
+}
+
+export interface GameUpdateInfo {
+  kind: "files" | "fivem" | "fivem-enhanced"
+  channel?: string
+  current: GameVersion
+  latest?: GameVersion
+  upToDate?: boolean
+  checkError?: string
 }
