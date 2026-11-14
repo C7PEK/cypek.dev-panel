@@ -5,6 +5,7 @@ import { Link } from "react-router"
 import { AppShell } from "@/components/layout/app-shell"
 import { CopyField } from "@/components/databases/copy-field"
 import { ServerTile } from "@/components/servers/server-tile"
+import { ShareSiteButton } from "@/components/servers/share-site"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -108,7 +109,14 @@ export function TunnelsPage({ user }: { user: User }) {
                   )}
                 </div>
               ) : (
-                sites.map((s) => <CopyField key={s.id} label={s.name} value={localAddress(s)} />)
+                sites.map((s) => (
+                  <div key={s.id} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <div className="min-w-0 flex-1">
+                      <CopyField label={s.name} value={localAddress(s)} />
+                    </div>
+                    {canCreate && <ShareSiteButton server={s} size="sm" />}
+                  </div>
+                ))
               )}
             </CardContent>
           </Card>

@@ -1490,5 +1490,22 @@
     "sitesIntro": "Lokalne adresy do wpisania jako usługa w Cloudflare.",
     "noSites": "Nie masz jeszcze strony. Utwórz ją, a pojawi się tutaj.",
     "createSite": "Nowa strona"
+  },
+  "share": {
+    "button": "Udostępnij przez Cloudflare",
+    "title": "Udostępnij stronę w internecie",
+    "description": "Tworzy tunel Cloudflare dla tej strony. Działa jako osobna usługa, startuje od razu i przy każdym uruchomieniu maszyny. Zatrzymasz albo usuniesz go na stronie Tunele.",
+    "quick": "Szybki test bez konta",
+    "quickHelp": "Losowy adres https://...trycloudflare.com, widoczny w konsoli tunelu. Zmienia się po każdym restarcie.",
+    "step1": "W Cloudflare otwórz Zero Trust, potem Networks, Tunnels i utwórz tunel typu Cloudflared.",
+    "step2": "Skopiuj komendę instalacji, którą pokazuje Cloudflare (zawiera token), i wklej ją poniżej.",
+    "commandLabel": "Komenda albo token z Cloudflare",
+    "commandHelp": "Na przykład cloudflared service install eyJ... Panel zachowuje tylko token i trzyma go zaszyfrowanego.",
+    "noToken": "Nie znaleziono tokenu tunelu. Skopiuj całą komendę z Cloudflare; token zaczyna się od eyJ.",
+    "step3": "W Public hostnames tunelu dodaj swoją domenę z typem HTTP i tym adresem:",
+    "serviceLabel": "Adres usługi",
+    "nameLabel": "Nazwa tunelu",
+    "create": "Utwórz tunel",
+    "created": "Tunel utworzony, wystartuje po pobraniu"
   }
 }

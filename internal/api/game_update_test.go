@@ -116,3 +116,21 @@ func TestCreateWebsite(t *testing.T) {
 		}
 	}
 }
+
+func TestStartAfterInstall(t *testing.T) {
+	e := newEnv(t)
+	e.completeSetup("owner", "password123")
+	yml := "id: sai\nname: S\ncategory: other\nvariables: []\ninstall: []\nstart: {command: /bin/sleep, args: [\"60\"]}\n"
+	if resp, body := e.do(http.MethodPost, "/api/v1/templates", map[string]any{"yaml": yml}); resp.StatusCode != 201 {
+		t.Fatalf("template: %d %v", resp.StatusCode, body)
+	}
+	resp, body := e.do(http.MethodPost, "/api/v1/servers", map[string]any{"name": "S", "templateId": "sai", "variables": map[string]string{}, "startAfterInstall": true})
+	if resp.StatusCode != 201 {
+		t.Fatalf("create: %d %v", resp.StatusCode, body)
+	}
+	id := body["id"].(string)
+	e.waitInstall(id)
+	e.waitServerState(id, "running")
+	e.do(http.MethodPost, "/api/v1/servers/"+id+"/power", map[string]any{"action": "stop"})
+	e.waitServerState(id, "stopped")
+}

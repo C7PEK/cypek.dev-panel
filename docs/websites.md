@@ -27,11 +27,21 @@ The panel downloads `cloudflared` from Cloudflare's GitHub releases and
 checks it against the SHA-256 listed in the release notes. "Update" in the
 tunnel's settings fetches the newest release.
 
+### From the site's page
+
+A website's page has a "Share with Cloudflare" button (also next to each
+site on the Tunnels page). Paste the command Cloudflare shows when you
+create a tunnel, for example `cloudflared service install eyJ...`: the
+panel keeps only the token, creates the tunnel as its own unit with
+autostart on and starts it once `cloudflared` is downloaded. The dialog
+shows the local address to enter as the service in Cloudflare. The same
+field in the tunnel wizard also accepts the whole command.
+
 ### With your own domain
 
 1. Cloudflare dashboard: Zero Trust, Networks, Tunnels, Create a tunnel,
    type Cloudflared.
-2. Copy the token (the long string after `--token`) and paste it when you
+2. Copy the install command (or just the token) and paste it when you
    create the tunnel in the panel. It is stored encrypted and passed to
    `cloudflared` as `TUNNEL_TOKEN`, never on the command line.
 3. Under Public hostnames add your domain with type HTTP and the site's

@@ -82,19 +82,7 @@ func (s *Server) runUpdate(w http.ResponseWriter, r *http.Request, srv *servers.
 		if !restart && !wasRunning {
 			return
 		}
-		ctx, cancel := context.WithTimeout(s.bgCtx, 60*time.Second)
-		defer cancel()
-		cur, err := s.servers.Get(ctx, srv.ID)
-		if err != nil {
-			return
-		}
-		if s.servers.CheckStartable(ctx, srv.ID) != nil {
-			return
-		}
-		s.applyConfigDefaults(cur)
-		if err := s.sup.Start(ctx, srv.ID); err != nil {
-			s.log.Warn("start after update", "server", srv.ID, "err", err)
-		}
+		s.startAfterInstall(srv.ID)
 	}
 	if err := s.startInstallWith(srv, tpl, userVars, hooks, then); err != nil {
 		if errors.Is(err, installer.ErrInstallRunning) {
@@ -107,4 +95,17 @@ func (s *Server) runUpdate(w http.ResponseWriter, r *http.Request, srv *servers.
 	s.audit.Log(r.Context(), audit.Entry{UserID: &user.ID, Username: user.Username, Action: action, Target: srv.ID, IP: clientIP(r),
 		Details: map[string]any{"restart": restart, "wasRunning": wasRunning}})
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func (s *Server) startAfterInstall(id string) {
+	ctx, cancel := context.WithTimeout(s.bgCtx, 60*time.Second)
+	defer cancel()
+	cur, err := s.servers.Get(ctx, id)
+	if err != nil || s.servers.CheckStartable(ctx, id) != nil {
+		return
+	}
+	s.applyConfigDefaults(cur)
+	if err := s.sup.Start(ctx, id); err != nil {
+		s.log.Warn("start after install", "server", id, "err", err)
+	}
 }

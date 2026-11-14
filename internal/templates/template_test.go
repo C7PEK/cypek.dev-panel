@@ -198,3 +198,31 @@ func TestUpdateStepsAreValidated(t *testing.T) {
 		t.Fatalf("valid update: %v", err)
 	}
 }
+
+func TestExtractTunnelToken(t *testing.T) {
+	r, err := Load(builtin.Builtin, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tp, _ := r.Get("cloudflare-tunnel")
+	token := "eyJhIjoiMTIzNDU2Nzg5MCIsInQiOiJhYmNkZWYiLCJzIjoiWldGemRIZGxjM1E9In0="
+	for _, in := range []string{
+		token,
+		"  " + token + "  ",
+		"sudo cloudflared service install " + token,
+		"cloudflared.exe service install " + token,
+		"cloudflared tunnel run --token " + token,
+		"docker run cloudflare/cloudflared:latest tunnel --no-autoupdate run --token " + token,
+	} {
+		vals, err := tp.ValidateValues(map[string]string{"TUNNEL_TOKEN": in})
+		if err != nil || vals["TUNNEL_TOKEN"] != token {
+			t.Errorf("%q -> %q, %v", in, vals["TUNNEL_TOKEN"], err)
+		}
+	}
+	if _, err := tp.ValidateValues(map[string]string{"TUNNEL_TOKEN": "cloudflared tunnel run --token short"}); err == nil {
+		t.Error("a command without a token was accepted")
+	}
+	if _, err := Parse([]byte("id: ex\nname: E\ncategory: other\nvariables: [{key: A, type: string, extract: 'no-group'}]\nstart: {command: x}\n")); err == nil {
+		t.Error("extract without a group accepted")
+	}
+}

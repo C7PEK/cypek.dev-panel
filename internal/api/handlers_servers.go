@@ -13,6 +13,7 @@ import (
 
 	"github.com/C7PEK/cypek.dev-panel/internal/audit"
 	"github.com/C7PEK/cypek.dev-panel/internal/auth"
+	"github.com/C7PEK/cypek.dev-panel/internal/installer"
 	"github.com/C7PEK/cypek.dev-panel/internal/query"
 	"github.com/C7PEK/cypek.dev-panel/internal/servers"
 	"github.com/C7PEK/cypek.dev-panel/internal/shim"
@@ -133,6 +134,8 @@ type serverInput struct {
 	ForcePorts bool `json:"forcePorts"`
 
 	ExpiresInDays *int `json:"expiresInDays"`
+
+	StartAfterInstall bool `json:"startAfterInstall"`
 }
 
 type runInput struct {
@@ -456,7 +459,16 @@ func (s *Server) handleCreateServer(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if tpl != nil {
-		if err := s.startInstall(created, tpl, userVars); err != nil {
+		var then func(bool, error)
+		if in.StartAfterInstall {
+			id := created.ID
+			then = func(ok bool, _ error) {
+				if ok {
+					s.startAfterInstall(id)
+				}
+			}
+		}
+		if err := s.startInstallWith(created, tpl, userVars, installer.Hooks{}, then); err != nil {
 			s.log.Error("start install", "server", created.ID, "err", err)
 			_ = s.servers.SetInstallState(r.Context(), created.ID, servers.InstallFailed, err.Error())
 		}

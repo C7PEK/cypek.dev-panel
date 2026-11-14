@@ -57,6 +57,7 @@ type Variable struct {
 	Max       *float64 `yaml:"max,omitempty" json:"max,omitempty"`
 	MaxLength int      `yaml:"maxLength,omitempty" json:"maxLength,omitempty"`
 	Pattern   string   `yaml:"pattern,omitempty" json:"pattern,omitempty"`
+	Extract   string   `yaml:"extract,omitempty" json:"extract,omitempty"`
 	Required  bool     `yaml:"required,omitempty" json:"required,omitempty"`
 
 	Consent bool `yaml:"consent,omitempty" json:"consent,omitempty"`
@@ -290,6 +291,12 @@ func (t *Template) Validate() error {
 			}
 		default:
 			return fmt.Errorf("template %s: variable %s has unknown type %q", t.ID, v.Key, v.Type)
+		}
+		if v.Extract != "" {
+			re, err := regexp.Compile(v.Extract)
+			if err != nil || re.NumSubexp() != 1 || (v.Type != TypeString && v.Type != TypeSecret) {
+				return fmt.Errorf("template %s: variable %s extract must be a regular expression with one group, on a string or secret", t.ID, v.Key)
+			}
 		}
 		if v.Pattern != "" {
 			if _, err := regexp.Compile(v.Pattern); err != nil {
@@ -652,6 +659,12 @@ func (t *Template) ValidateValues(in map[string]string) (map[string]string, erro
 				return nil, &ValueError{Key: v.Key, Message: "is not one of the allowed options"}
 			}
 		case TypeString, TypeSecret:
+			if v.Extract != "" && raw != "" {
+				raw = strings.TrimSpace(raw)
+				if m := regexp.MustCompile(v.Extract).FindStringSubmatch(raw); m != nil {
+					raw = m[1]
+				}
+			}
 			if raw == "" && v.Required {
 				return nil, &ValueError{Key: v.Key, Message: "is required"}
 			}

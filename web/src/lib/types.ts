@@ -126,6 +126,7 @@ export interface CreateServerInput {
   ports?: Port[]
   forcePorts?: boolean
   expiresInDays?: number
+  startAfterInstall?: boolean
 }
 
 export type UpdateServerInput = Partial<Pick<Server, "name" | "run" | "limits" | "autostart" | "ports" | "variables">> & { forcePorts?: boolean }

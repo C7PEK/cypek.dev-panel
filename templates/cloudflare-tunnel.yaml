@@ -11,12 +11,13 @@ description:
 
 variables:
   - key: TUNNEL_TOKEN
-    label: { pl: Token tunelu (opcjonalny), en: Tunnel token (optional), de: Tunnel-Token (optional) }
+    label: { pl: Token albo komenda z Cloudflare (opcjonalnie), en: Token or command from Cloudflare (optional), de: Token oder Befehl von Cloudflare (optional) }
     help:
-      pl: W Cloudflare otwórz Zero Trust, potem Networks, Tunnels, Create a tunnel, Cloudflared. Skopiuj długi ciąg po --token. Potem w Public hostnames dodaj swoją domenę i usługę http://localhost:PORT strony. Zostaw puste, żeby zrobić szybki tunel testowy.
-      en: In Cloudflare open Zero Trust, then Networks, Tunnels, Create a tunnel, Cloudflared. Copy the long string after --token. Then add your domain under Public hostnames with the service http://localhost:PORT of your site. Leave empty for a quick test tunnel.
-      de: Öffne in Cloudflare Zero Trust, dann Networks, Tunnels, Create a tunnel, Cloudflared. Kopiere die lange Zeichenfolge nach --token. Füge danach unter Public hostnames deine Domain mit dem Dienst http://localhost:PORT deiner Seite hinzu. Leer lassen für einen schnellen Testtunnel.
+      pl: W Cloudflare otwórz Zero Trust, potem Networks, Tunnels, Create a tunnel, Cloudflared. Wklej całą komendę, którą pokazuje Cloudflare (np. cloudflared service install eyJ...), albo sam token. Panel wyciągnie z niej token. Potem w Public hostnames dodaj swoją domenę i usługę http://localhost:PORT strony. Zostaw puste, żeby zrobić szybki tunel testowy.
+      en: In Cloudflare open Zero Trust, then Networks, Tunnels, Create a tunnel, Cloudflared. Paste the whole command Cloudflare shows (for example cloudflared service install eyJ...) or just the token. The panel takes the token out of it. Then add your domain under Public hostnames with the service http://localhost:PORT of your site. Leave empty for a quick test tunnel.
+      de: Öffne in Cloudflare Zero Trust, dann Networks, Tunnels, Create a tunnel, Cloudflared. Füge den ganzen Befehl ein, den Cloudflare anzeigt (zum Beispiel cloudflared service install eyJ...), oder nur den Token. Das Panel holt den Token daraus. Füge danach unter Public hostnames deine Domain mit dem Dienst http://localhost:PORT deiner Seite hinzu. Leer lassen für einen schnellen Testtunnel.
     type: secret
+    extract: '(eyJ[A-Za-z0-9+/=_-]{20,})'
     maxLength: 4096
     pattern: '^[A-Za-z0-9_=+/.-]{40,}$'
   - key: TARGET_URL

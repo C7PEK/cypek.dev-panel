@@ -1444,5 +1444,22 @@
     "sitesIntro": "Local addresses to use as the service in Cloudflare.",
     "noSites": "No website yet. Create one and it will show up here.",
     "createSite": "New website"
+  },
+  "share": {
+    "button": "Share with Cloudflare",
+    "title": "Share this site on the internet",
+    "description": "Creates a Cloudflare tunnel for this site. It runs as its own service, starts right away and on every boot. You can stop or delete it on the Tunnels page.",
+    "quick": "Quick test without an account",
+    "quickHelp": "Random https://...trycloudflare.com address, shown in the tunnel's console. It changes on every restart.",
+    "step1": "In Cloudflare open Zero Trust, then Networks, Tunnels, create a tunnel of type Cloudflared.",
+    "step2": "Copy the install command Cloudflare shows (it contains the token) and paste it below.",
+    "commandLabel": "Command or token from Cloudflare",
+    "commandHelp": "For example cloudflared service install eyJ... The panel only keeps the token and stores it encrypted.",
+    "noToken": "No tunnel token found. Copy the whole command from Cloudflare; the token starts with eyJ.",
+    "step3": "In the tunnel's Public hostnames add your domain with type HTTP and this address:",
+    "serviceLabel": "Service address",
+    "nameLabel": "Tunnel name",
+    "create": "Create tunnel",
+    "created": "Tunnel created, it starts after the download"
   }
 }

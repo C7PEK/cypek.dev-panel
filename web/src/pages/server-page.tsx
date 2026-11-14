@@ -17,6 +17,7 @@ import { TemplateSettings } from "@/components/servers/template-settings"
 import { ServerAlertsCard } from "@/components/alerts/server-alerts-card"
 import { PortHelpCard } from "@/components/servers/port-help"
 import { GameUpdateButton } from "@/components/servers/game-update"
+import { ShareSiteButton } from "@/components/servers/share-site"
 import { GitUpdateButton } from "@/components/servers/git-update-button"
 import { PowerButtons } from "@/components/servers/power-buttons"
 import { ServerForm, valuesFromServer } from "@/components/servers/server-form"
@@ -131,6 +132,7 @@ function ServerView({ server: raw, user }: { server: Server; user: User }) {
             <PowerButtons server={s} withKill />
             {s.gitUpdate && <GitUpdateButton server={s} size="sm" className="hidden sm:inline-flex" />}
             {s.gameUpdate && <GameUpdateButton server={s} size="sm" className="hidden sm:inline-flex" />}
+            {s.category === "website" && user.role !== "user" && <ShareSiteButton server={s} size="sm" />}
           </div>
         </header>
 

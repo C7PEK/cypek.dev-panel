@@ -1444,5 +1444,22 @@
     "sitesIntro": "Lokale Adressen, die du in Cloudflare als Dienst einträgst.",
     "noSites": "Noch keine Webseite. Erstelle eine, dann erscheint sie hier.",
     "createSite": "Neue Webseite"
+  },
+  "share": {
+    "button": "Über Cloudflare teilen",
+    "title": "Diese Seite im Internet teilen",
+    "description": "Erstellt einen Cloudflare Tunnel für diese Seite. Er läuft als eigener Dienst, startet sofort und bei jedem Hochfahren. Stoppen oder löschen kannst du ihn auf der Seite Tunnel.",
+    "quick": "Schneller Test ohne Konto",
+    "quickHelp": "Zufällige Adresse https://...trycloudflare.com, die in der Konsole des Tunnels steht. Sie ändert sich bei jedem Neustart.",
+    "step1": "Öffne in Cloudflare Zero Trust, dann Networks, Tunnels, und erstelle einen Tunnel vom Typ Cloudflared.",
+    "step2": "Kopiere den Installationsbefehl, den Cloudflare anzeigt (er enthält den Token), und füge ihn unten ein.",
+    "commandLabel": "Befehl oder Token von Cloudflare",
+    "commandHelp": "Zum Beispiel cloudflared service install eyJ... Das Panel behält nur den Token und speichert ihn verschlüsselt.",
+    "noToken": "Kein Tunnel-Token gefunden. Kopiere den ganzen Befehl aus Cloudflare, der Token beginnt mit eyJ.",
+    "step3": "Füge unter Public hostnames des Tunnels deine Domain mit dem Typ HTTP und dieser Adresse hinzu:",
+    "serviceLabel": "Dienstadresse",
+    "nameLabel": "Name des Tunnels",
+    "create": "Tunnel erstellen",
+    "created": "Tunnel erstellt, er startet nach dem Download"
   }
 }
